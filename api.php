@@ -150,7 +150,8 @@ switch ($action) {
             $result[] = [
                 'name' => $filename,
                 'pub' => $pub,
-                'path' => 'pdf/' . $pub . '/' . rawurlencode($filename),
+                'path' => 'pdf/' . $pub . '/' . $filename,
+                'url' => 'pdf/' . $pub . '/' . rawurlencode($filename),
                 'size' => round(filesize($file) / 1024 / 1024, 2) . ' MB',
                 'pages' => max(1, $pageCount),
                 'date' => date('d M Y H:i', filemtime($file))

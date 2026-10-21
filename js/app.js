@@ -768,7 +768,8 @@ class EPaperApp {
         if (span) span.innerText = 'Koran Lengkap';
       }
 
-      const fileUrl = encodeURI(`pdf/${this.currentPublication}/${filename}`);
+      const raw = `pdf/${this.currentPublication}/${decodeURIComponent(filename)}`;
+      const fileUrl = encodeURI(raw);
       try {
         const binRes = await fetch(fileUrl);
         if (!binRes.ok) throw new Error(`HTTP ${binRes.status}`);
@@ -820,8 +821,11 @@ class EPaperApp {
       }
 
       this.pageImages = [];
+      this.currentPage = 0;
+      this.totalPages = 0;
       if (this.thumbnailList) this.thumbnailList.innerHTML = '';
       if (this.zoomPageSelect) this.zoomPageSelect.innerHTML = '';
+      this.updatePageIndicator();
 
       this.currentPdfName = `Gabungan Semua Edisi ${pubInfo.name}`;
       this.currentLocalFile = null;
@@ -837,28 +841,52 @@ class EPaperApp {
 
       this.updateProgress(15, `Mengunduh ${files.length} edisi publikasi...`);
 
-      // ─── Parallel Direct Binary Fetch (10x Faster than Base64 JSON) ───
+      // ─── Parallel Direct Binary Fetch (Triple-Resilient Loading) ───
       const loadedDocs = await Promise.all(files.map(async (file) => {
-        const fileUrl = encodeURI(file.path || `pdf/${this.currentPublication}/${file.name}`);
+        const raw = file.path ? decodeURIComponent(file.path) : (file.url ? decodeURIComponent(file.url) : `pdf/${this.currentPublication}/${file.name}`);
+        const fileUrl = encodeURI(raw);
+
+        // Strategi 1: Direct Native PDF.js URL
         try {
           const doc = await window.pdfjsLib.getDocument({
             url: fileUrl
           }).promise;
           return { file, doc };
-        } catch (directErr) {
-          try {
-            const binRes = await fetch(fileUrl);
-            if (!binRes.ok) throw new Error(`HTTP ${binRes.status}`);
+        } catch (err1) {
+          console.warn(`[PDF.js URL] Gagal memuat ${file.name}, mencoba ArrayBuffer...`, err1);
+        }
+
+        // Strategi 2: Direct Binary Fetch ArrayBuffer
+        try {
+          const binRes = await fetch(fileUrl);
+          if (binRes.ok) {
             const buf = await binRes.arrayBuffer();
             const doc = await window.pdfjsLib.getDocument({
               data: new Uint8Array(buf)
             }).promise;
             return { file, doc };
-          } catch (binErr) {
-            console.warn(`Gagal memuat ${file.name}:`, binErr);
-            return { file, doc: null };
           }
+        } catch (err2) {
+          console.warn(`[Direct Fetch] Gagal memuat ${file.name}, mencoba PHP API...`, err2);
         }
+
+        // Strategi 3: PHP API Fallback (Langsung dari filesystem server)
+        try {
+          const apiRes = await fetch(`api.php?action=get_pdf&pub=${encodeURIComponent(this.currentPublication)}&file=${encodeURIComponent(file.name)}`);
+          const apiData = await apiRes.json();
+          if (apiData.success && apiData.base64) {
+            const binStr = atob(apiData.base64);
+            const len    = binStr.length;
+            const bytes  = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+            const doc = await window.pdfjsLib.getDocument({ data: bytes }).promise;
+            return { file, doc };
+          }
+        } catch (err3) {
+          console.error(`[Fallback API] Gagal total memuat ${file.name}:`, err3);
+        }
+
+        return { file, doc: null };
       }));
 
       let globalPageNum = 1;
@@ -912,6 +940,12 @@ class EPaperApp {
       }
 
       this.totalPages = this.pageImages.length;
+      if (this.totalPages === 0) {
+        this.showEmptyPublicationCanvas(pubInfo);
+        this.hideLoading();
+        this.isRendering = false;
+        return;
+      }
       if (this.pdfTitle) {
         this.pdfTitle.innerText = `${pubInfo.name} - Edisi Lengkap (${this.totalPages} Halaman)`;
       }
