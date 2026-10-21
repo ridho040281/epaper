@@ -651,13 +651,17 @@
   <div id="zoom-modal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col">
     <!-- Zoom Header (Mobile Optimized) -->
     <div class="h-14 bg-slate-900 border-b border-slate-800 px-2 sm:px-4 flex items-center justify-between gap-1 sm:gap-3 flex-shrink-0 z-20">
-      <!-- Left: Title & Page Selector -->
-      <div class="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
-        <i data-lucide="zoom-in" class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 flex-shrink-0"></i>
-        <span class="font-semibold text-xs sm:text-sm text-slate-200 hidden md:inline whitespace-nowrap">Mode Baca Detail</span>
-        <select id="zoom-page-select" class="bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-2 py-1.5 outline-none focus:border-emerald-500 max-w-[125px] xs:max-w-[150px] sm:max-w-xs truncate cursor-pointer" title="Pilih Halaman">
+      <!-- Left: Title & Page Selector with Quick Prev/Next Navigation -->
+      <div class="flex items-center gap-1 sm:gap-1.5 min-w-0">
+        <button id="btn-zoom-prev-page" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition active:scale-95" title="Halaman Sebelumnya">
+          <i data-lucide="chevron-left" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+        </button>
+        <select id="zoom-page-select" class="bg-slate-800 border border-slate-700 text-xs text-white rounded-lg px-2 py-1.5 outline-none focus:border-emerald-500 max-w-[125px] sm:max-w-[180px] truncate cursor-pointer font-medium" title="Pilih Halaman">
           <!-- Populated dynamically with pages -->
         </select>
+        <button id="btn-zoom-next-page" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition active:scale-95" title="Halaman Berikutnya">
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+        </button>
       </div>
 
       <!-- Right: Zoom Controls & Close Button -->

@@ -164,6 +164,8 @@ class EPaperApp {
     this.zoomModal           = document.getElementById('zoom-modal');
     this.zoomCanvasContainer = document.getElementById('zoom-canvas-container');
     this.zoomPageSelect      = document.getElementById('zoom-page-select');
+    this.btnZoomPrevPage     = document.getElementById('btn-zoom-prev-page');
+    this.btnZoomNextPage     = document.getElementById('btn-zoom-next-page');
     this.zoomInBtn           = document.getElementById('btn-zoom-in');
     this.zoomOutBtn          = document.getElementById('btn-zoom-out');
     this.zoomResetBtn        = document.getElementById('btn-zoom-reset');
@@ -199,6 +201,17 @@ class EPaperApp {
     this.btnZoom?.addEventListener('click', () => this.openZoomModal());
     this.zoomCloseBtn?.addEventListener('click', () => this.closeZoomModal());
 
+    this.btnZoomPrevPage?.addEventListener('click', () => {
+      if (this.currentPage > 0) {
+        this.renderZoomPage(this.currentPage - 1);
+      }
+    });
+    this.btnZoomNextPage?.addEventListener('click', () => {
+      if (this.currentPage < this.pageImages.length - 1) {
+        this.renderZoomPage(this.currentPage + 1);
+      }
+    });
+
     this.zoomInBtn?.addEventListener('click',   () => this.setZoom(this.zoomScale + 0.3));
     this.zoomOutBtn?.addEventListener('click',  () => this.setZoom(this.zoomScale - 0.3));
     this.zoomResetBtn?.addEventListener('click',() => this.setZoom(1.0, true));
@@ -210,6 +223,10 @@ class EPaperApp {
     let initialPinchDistance = null;
     let initialPinchScale = 1.0;
     let lastTapTime = 0;
+    let isPinching = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
 
     const getTouchDist = (touches) => {
       const dx = touches[0].clientX - touches[1].clientX;
@@ -226,7 +243,7 @@ class EPaperApp {
     window.addEventListener('mousemove', (e) => {
       if (!this.isPanning) return;
       this.currentPan = { x: e.clientX - this.panStart.x, y: e.clientY - this.panStart.y };
-      this.applyPanZoomTransform();
+      this.applyPanZoomTransform(true);
     });
     window.addEventListener('mouseup', () => {
       if (this.isPanning) {
@@ -235,25 +252,41 @@ class EPaperApp {
       }
     });
 
-    // Touch Panning & Pinch-to-Zoom for Mobile Devices
-    this.zoomCanvasContainer?.addEventListener('touchstart', (e) => {
+    // Touch Controller: Pinch-to-zoom, Pan, Double-tap, and 1-finger Swipe for Mobile
+    this.zoomModal?.addEventListener('touchstart', (e) => {
+      // Don't intercept touches on buttons, selects, or header controls
+      if (e.target.closest('button, select, a, input')) return;
+
       if (e.touches.length === 1) {
-        this.isPanning = true;
-        this.panStart = {
-          x: e.touches[0].clientX - this.currentPan.x,
-          y: e.touches[0].clientY - this.currentPan.y
-        };
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        touchStartTime = Date.now();
+        isPinching = false;
 
         // Double-tap detector (toggles between 100% and 200%)
         const now = Date.now();
-        if (now - lastTapTime < 300) {
+        if (now - lastTapTime < 320) {
+          e.preventDefault();
           const target = this.zoomScale > 1.2 ? 1.0 : 2.0;
-          this.setZoom(target, target === 1.0);
+          this.setZoom(target, target === 1.0, false);
           lastTapTime = 0;
           return;
         }
         lastTapTime = now;
+
+        if (this.zoomScale > 1.05) {
+          this.isPanning = true;
+          this.panStart = {
+            x: t.clientX - this.currentPan.x,
+            y: t.clientY - this.currentPan.y
+          };
+        } else {
+          this.isPanning = false;
+        }
       } else if (e.touches.length === 2) {
+        e.preventDefault();
+        isPinching = true;
         this.isPanning = false;
         initialPinchDistance = getTouchDist(e.touches);
         initialPinchScale = this.zoomScale;
@@ -263,37 +296,79 @@ class EPaperApp {
     window.addEventListener('touchmove', (e) => {
       if (!this.zoomModal || this.zoomModal.classList.contains('hidden')) return;
 
-      if (e.touches.length === 1 && this.isPanning) {
-        e.preventDefault();
-        this.currentPan = {
-          x: e.touches[0].clientX - this.panStart.x,
-          y: e.touches[0].clientY - this.panStart.y
-        };
-        this.applyPanZoomTransform();
-      } else if (e.touches.length === 2 && initialPinchDistance) {
+      if (e.touches.length === 2 && isPinching && initialPinchDistance) {
         e.preventDefault();
         const dist = getTouchDist(e.touches);
         const factor = dist / initialPinchDistance;
-        this.setZoom(initialPinchScale * factor);
+        const newScale = initialPinchScale * factor;
+        this.setZoom(newScale, false, true); // instant = true, smooth 60fps tracking
+      } else if (e.touches.length === 1 && this.isPanning && this.zoomScale > 1.05) {
+        e.preventDefault();
+        const t = e.touches[0];
+        this.currentPan = {
+          x: t.clientX - this.panStart.x,
+          y: t.clientY - this.panStart.y
+        };
+        this.applyPanZoomTransform(true); // instant = true
       }
     }, { passive: false });
 
     window.addEventListener('touchend', (e) => {
+      if (!this.zoomModal || this.zoomModal.classList.contains('hidden')) return;
+
       if (e.touches.length === 0) {
-        this.isPanning = false;
-        initialPinchDistance = null;
+        if (isPinching) {
+          isPinching = false;
+          initialPinchDistance = null;
+          // Smooth snap if close to 100%
+          if (this.zoomScale <= 1.08) {
+            this.setZoom(1.0, true, false);
+          }
+          return;
+        }
+
+        if (this.isPanning) {
+          this.isPanning = false;
+        }
+
+        // 1-Finger horizontal swipe navigation between pages (only at 100% zoom)
+        if (this.zoomScale <= 1.05 && e.changedTouches && e.changedTouches.length === 1) {
+          const t = e.changedTouches[0];
+          const deltaX = t.clientX - touchStartX;
+          const deltaY = t.clientY - touchStartY;
+          const elapsed = Date.now() - touchStartTime;
+
+          // Swipe threshold: > 40px horizontal, distinctly horizontal (|dx| > 1.3 * |dy|), within 500ms
+          if (Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3 && elapsed < 500) {
+            if (deltaX < 0) {
+              // Swipe Left -> Next Page
+              if (this.currentPage < this.pageImages.length - 1) {
+                this.renderZoomPage(this.currentPage + 1);
+              }
+            } else {
+              // Swipe Right -> Previous Page
+              if (this.currentPage > 0) {
+                this.renderZoomPage(this.currentPage - 1);
+              }
+            }
+          }
+        }
       } else if (e.touches.length === 1) {
-        this.isPanning = true;
-        this.panStart = {
-          x: e.touches[0].clientX - this.currentPan.x,
-          y: e.touches[0].clientY - this.currentPan.y
-        };
+        isPinching = false;
         initialPinchDistance = null;
+        if (this.zoomScale > 1.05) {
+          this.isPanning = true;
+          this.panStart = {
+            x: e.touches[0].clientX - this.currentPan.x,
+            y: e.touches[0].clientY - this.currentPan.y
+          };
+        }
       }
     });
 
     window.addEventListener('touchcancel', () => {
       this.isPanning = false;
+      isPinching = false;
       initialPinchDistance = null;
     });
 
@@ -441,6 +516,30 @@ class EPaperApp {
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      // When Zoom Modal is active
+      if (this.zoomModal && !this.zoomModal.classList.contains('hidden')) {
+        if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+          if (this.currentPage < this.pageImages.length - 1) this.renderZoomPage(this.currentPage + 1);
+          return;
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          if (this.currentPage > 0) this.renderZoomPage(this.currentPage - 1);
+          return;
+        } else if (e.key === '+' || e.key === '=') {
+          this.setZoom(this.zoomScale + 0.3);
+          return;
+        } else if (e.key === '-') {
+          this.setZoom(this.zoomScale - 0.3);
+          return;
+        } else if (e.key === '0') {
+          this.setZoom(1.0, true);
+          return;
+        } else if (e.key === 'Escape') {
+          this.closeZoomModal();
+          return;
+        }
+      }
+
       if (e.key === 'ArrowRight' || e.key === 'PageDown') this.pageFlip?.flipNext();
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') this.pageFlip?.flipPrev();
       else if (e.key === 'Home') this.pageFlip?.flip(0);
@@ -1157,6 +1256,46 @@ class EPaperApp {
       this.playFlipSound();
     });
 
+    // Double click / double tap on book canvas triggers detail zoom
+    let lastBookTap = 0;
+    const triggerZoomFromClick = (clientX) => {
+      if (!this.bookElement || this.totalPages === 0) return;
+      const rect = this.bookElement.getBoundingClientRect();
+      const isRightHalf = (clientX - rect.left) > (rect.width / 2);
+      let targetPage = this.currentPage;
+
+      if (!isMobile && this.totalPages > 1) {
+        if (this.currentPage === 0) {
+          targetPage = 0; // Cover page
+        } else {
+          const leftIdx = (this.currentPage % 2 !== 0) ? this.currentPage : this.currentPage - 1;
+          const rightIdx = leftIdx + 1;
+          if (isRightHalf && rightIdx < this.totalPages) {
+            targetPage = rightIdx;
+          } else {
+            targetPage = Math.max(0, leftIdx);
+          }
+        }
+      }
+      this.openZoomModal(targetPage);
+    };
+
+    this.bookElement.addEventListener('dblclick', (e) => {
+      triggerZoomFromClick(e.clientX);
+    });
+
+    this.bookElement.addEventListener('touchend', (e) => {
+      if (e.changedTouches && e.changedTouches.length === 1) {
+        const now = Date.now();
+        if (now - lastBookTap < 350) {
+          triggerZoomFromClick(e.changedTouches[0].clientX);
+          lastBookTap = 0;
+          return;
+        }
+        lastBookTap = now;
+      }
+    });
+
     this.currentPage = 0;
     this.updatePageIndicator();
   }
@@ -1242,7 +1381,12 @@ class EPaperApp {
           this.deletePage(idx);
           return;
         }
-        this.pageFlip?.flip(idx);
+        this.currentPage = idx;
+        this.highlightThumbnail(idx);
+        this.updatePageIndicator();
+        try {
+          this.pageFlip?.flip(idx);
+        } catch (_) {}
         this.thumbnailDrawer?.classList.add('translate-y-full');
       });
 
@@ -1961,52 +2105,88 @@ class EPaperApp {
   // ─────────────────────────────────────────────────────────
   //  Ultra-HD Deep Zoom Modal
   // ─────────────────────────────────────────────────────────
-  openZoomModal() {
+  openZoomModal(pageIndex = null) {
     if (!this.pageImages.length) return;
+    if (typeof pageIndex === 'number' && pageIndex >= 0 && pageIndex < this.pageImages.length) {
+      this.currentPage = pageIndex;
+    }
     this.zoomModal?.classList.remove('hidden');
     if (this.zoomPageSelect) this.zoomPageSelect.value = this.currentPage;
     this.renderZoomPage(this.currentPage);
+    if (window.lucide) window.lucide.createIcons();
   }
 
   closeZoomModal() {
     this.zoomModal?.classList.add('hidden');
+    if (this.pageFlip && typeof this.currentPage === 'number') {
+      try {
+        this.pageFlip.flip(this.currentPage);
+      } catch (_) {}
+    }
   }
 
-  setZoom(scale, resetPan = false) {
+  setZoom(scale, resetPan = false, instant = false) {
     this.zoomScale = Math.max(1.0, Math.min(4.0, scale));
     if (this.zoomLevelLabel) {
       this.zoomLevelLabel.innerText = `${Math.round(this.zoomScale * 100)}%`;
     }
-    if (resetPan) {
+    if (resetPan || this.zoomScale <= 1.01) {
       this.currentPan = { x: 0, y: 0 };
     }
-    this.applyPanZoomTransform();
+    this.applyPanZoomTransform(instant);
   }
 
-  applyPanZoomTransform() {
+  applyPanZoomTransform(instant = false) {
     const img = this.zoomCanvasContainer?.querySelector('img');
     if (img) {
+      img.style.transition = instant ? 'none' : 'transform 0.12s ease-out';
       img.style.transform = `translate(${this.currentPan.x}px, ${this.currentPan.y}px) scale(${this.zoomScale})`;
     }
   }
 
   renderZoomPage(pageIndex) {
+    if (pageIndex < 0 || pageIndex >= this.pageImages.length) return;
+    this.currentPage = pageIndex;
     const pageData = this.pageImages[pageIndex];
     if (!pageData) return;
+
+    // Sync Dropdown Selector
+    if (this.zoomPageSelect && this.zoomPageSelect.value != pageIndex) {
+      this.zoomPageSelect.value = pageIndex;
+    }
+
+    // Sync Prev/Next Page Buttons in Zoom Header
+    if (this.btnZoomPrevPage) {
+      const isFirst = pageIndex <= 0;
+      this.btnZoomPrevPage.disabled = isFirst;
+      this.btnZoomPrevPage.style.opacity = isFirst ? '0.35' : '1';
+      this.btnZoomPrevPage.style.cursor = isFirst ? 'not-allowed' : 'pointer';
+    }
+    if (this.btnZoomNextPage) {
+      const isLast = pageIndex >= this.pageImages.length - 1;
+      this.btnZoomNextPage.disabled = isLast;
+      this.btnZoomNextPage.style.opacity = isLast ? '0.35' : '1';
+      this.btnZoomNextPage.style.cursor = isLast ? 'not-allowed' : 'pointer';
+    }
+
+    // Sync Background Flipbook indicator & Thumbnails
+    this.updatePageIndicator();
+    this.highlightThumbnail(pageIndex);
 
     if (this.zoomCanvasContainer) {
       this.zoomCanvasContainer.innerHTML = '';
       const img        = document.createElement('img');
       img.src          = pageData.dataUrl;
       img.alt          = `Zoom Halaman ${pageIndex + 1}`;
-      img.className    = 'max-w-none shadow-2xl transition-transform duration-75 select-none pointer-events-none rounded';
+      img.className    = 'max-w-none shadow-2xl select-none pointer-events-none rounded';
       img.style.transformOrigin = 'center center';
+      img.style.transition = 'none';
       img.draggable    = false;
 
       // Fit page perfectly within the available container space at 100% zoom
       const containerW = Math.max(280, this.zoomCanvasContainer.clientWidth || window.innerWidth);
       const containerH = Math.max(300, this.zoomCanvasContainer.clientHeight || (window.innerHeight - 60));
-      const margin = containerW < 640 ? 16 : 40;
+      const margin = containerW < 640 ? 12 : 36;
       const availW = Math.max(200, containerW - margin);
       const availH = Math.max(200, containerH - margin);
       
@@ -2025,7 +2205,7 @@ class EPaperApp {
       img.style.height = `${Math.round(renderH)}px`;
       this.zoomCanvasContainer.appendChild(img);
     }
-    this.setZoom(1.0, true);
+    this.setZoom(1.0, true, false);
   }
 }
 
