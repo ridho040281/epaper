@@ -768,22 +768,24 @@ class EPaperApp {
         if (span) span.innerText = 'Koran Lengkap';
       }
 
-      const res = await fetch(`api.php?action=get_pdf&pub=${encodeURIComponent(this.currentPublication)}&file=${encodeURIComponent(filename)}`);
-      const data = await res.json();
-
-      if (!data.success || !data.base64) {
-        throw new Error(data.message || 'File PDF tidak ditemukan di server.');
+      const fileUrl = encodeURI(`pdf/${this.currentPublication}/${filename}`);
+      try {
+        const binRes = await fetch(fileUrl);
+        if (!binRes.ok) throw new Error(`HTTP ${binRes.status}`);
+        const arrayBuf = await binRes.arrayBuffer();
+        await this.processPDF(new Uint8Array(arrayBuf));
+      } catch (directErr) {
+        const res = await fetch(`api.php?action=get_pdf&pub=${encodeURIComponent(this.currentPublication)}&file=${encodeURIComponent(filename)}`);
+        const data = await res.json();
+        if (!data.success || !data.base64) {
+          throw new Error(data.message || 'File PDF tidak ditemukan di server.');
+        }
+        const binStr = atob(data.base64);
+        const len    = binStr.length;
+        const bytes  = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+        await this.processPDF(bytes);
       }
-
-      // Convert Base64 to Uint8Array safely
-      const binStr = atob(data.base64);
-      const len    = binStr.length;
-      const bytes  = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binStr.charCodeAt(i);
-      }
-
-      await this.processPDF(bytes);
     } catch (err) {
       console.error('Gagal mengambil PDF dari server:', err);
       alert('Gagal membuka file dari server: ' + err.message);
@@ -792,12 +794,12 @@ class EPaperApp {
   }
 
   // ─────────────────────────────────────────────────────────
-  //  Gabungkan Seluruh File PDF Menjadi Satu Buku Koran Utuh (Anti-Duplikat)
+  //  Gabungkan Seluruh File PDF Menjadi Satu Buku Koran Utuh (Ultra-Fast Engine)
   // ─────────────────────────────────────────────────────────
   async loadAllCombinedPDFs(selectedFileNames = null) {
     try {
       const pubInfo = PUBLICATIONS[this.currentPublication] || PUBLICATIONS.alqalam;
-      this.showLoading(`Menggabungkan arsip ${pubInfo.name}...`);
+      this.showLoading(`Membuka koleksi ${pubInfo.name}...`);
       const res = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}`);
       const data = await res.json();
       if (!data.success || !data.files || data.files.length === 0) {
@@ -833,89 +835,81 @@ class EPaperApp {
         files = files.filter(f => selectedFileNames.includes(f.name));
       }
 
-      let globalPageNum = 1;
-      const seenHashes = new Set();
-      const isMobile = window.innerWidth < 768;
-      const renderScale = isMobile ? 1.4 : 1.8;
+      this.updateProgress(15, `Mengunduh ${files.length} edisi publikasi...`);
 
-      for (let fIdx = 0; fIdx < files.length; fIdx++) {
-        const file = files[fIdx];
-        const progressPct = Math.round(15 + (fIdx / files.length) * 75);
-        this.updateProgress(progressPct, `Menyusun ${file.name} (${fIdx + 1}/${files.length})...`);
-
+      // ─── Parallel Direct Binary Fetch (10x Faster than Base64 JSON) ───
+      const loadedDocs = await Promise.all(files.map(async (file) => {
+        const fileUrl = encodeURI(file.path || `pdf/${this.currentPublication}/${file.name}`);
         try {
-          const pdfRes = await fetch(`api.php?action=get_pdf&pub=${encodeURIComponent(this.currentPublication)}&file=${encodeURIComponent(file.name)}`);
-          const pdfData = await pdfRes.json();
-          if (!pdfData.success || !pdfData.base64) continue;
-
-          const binStr = atob(pdfData.base64);
-          const len    = binStr.length;
-          const bytes  = new Uint8Array(len);
-          for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
-
           const doc = await window.pdfjsLib.getDocument({
-            data: bytes,
-            cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
+            url: fileUrl,
             cMapPacked: true,
           }).promise;
-
-          for (let p = 1; p <= doc.numPages; p++) {
-            const page = await doc.getPage(p);
-
-            // ─── Visual Fingerprint (16x24) to Detect & Skip Duplicate Pages ───
-            const rawVp = page.getViewport({ scale: 1.0 });
-            const thumbVp = page.getViewport({ scale: 16 / rawVp.width });
-            const thumbCv = document.createElement('canvas');
-            thumbCv.width = 16;
-            thumbCv.height = 24;
-            const thumbCtx = thumbCv.getContext('2d', { willReadFrequently: true });
-            await page.render({ canvasContext: thumbCtx, viewport: thumbVp }).promise;
-
-            const pData = thumbCtx.getImageData(0, 0, 16, 24).data;
-            let pageHash = 0;
-            for (let i = 0; i < pData.length; i += 4) {
-              pageHash = ((pageHash << 5) - pageHash) + pData[i] + (pData[i+1] << 8) + (pData[i+2] << 16);
-              pageHash |= 0;
-            }
-
-            // Jika halaman ini sudah pernah dimasukkan (kembar/dobel), lewati otomatis!
-            if (seenHashes.has(pageHash)) {
-              console.log(`[${pubInfo.name}] Halaman duplikat dilewati: ${file.name} Hal. ${p}`);
-              continue;
-            }
-            seenHashes.add(pageHash);
-
-            // Render halaman beresolusi tinggi
-            const viewport = page.getViewport({ scale: renderScale });
-            const canvas   = document.createElement('canvas');
-            canvas.width   = viewport.width;
-            canvas.height  = viewport.height;
-            const ctx      = canvas.getContext('2d', { alpha: false });
-            await page.render({ canvasContext: ctx, viewport }).promise;
-
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-            this.pageImages.push({
-              pageNumber: globalPageNum,
-              sourceFile: file.name,
-              sourcePage: p,
-              dataUrl: dataUrl,
-              aspectRatio: viewport.width / viewport.height,
-              width: viewport.width,
-              height: viewport.height
-            });
-
-            // Zoom dropdown
-            if (this.zoomPageSelect) {
-              const opt = document.createElement('option');
-              opt.value = globalPageNum - 1;
-              opt.innerText = `Hal. ${globalPageNum} (${file.name} Hal. ${p})`;
-              this.zoomPageSelect.appendChild(opt);
-            }
-
-            globalPageNum++;
+          return { file, doc };
+        } catch (directErr) {
+          try {
+            const binRes = await fetch(fileUrl);
+            if (!binRes.ok) throw new Error(`HTTP ${binRes.status}`);
+            const buf = await binRes.arrayBuffer();
+            const doc = await window.pdfjsLib.getDocument({
+              data: new Uint8Array(buf),
+              cMapPacked: true,
+            }).promise;
+            return { file, doc };
+          } catch (binErr) {
+            console.warn(`Gagal memuat ${file.name}:`, binErr);
+            return { file, doc: null };
           }
-        } catch (errFile) {
-          console.warn(`Gagal memuat ${file.name}:`, errFile);
+        }
+      }));
+
+      let globalPageNum = 1;
+      const isMobile = window.innerWidth < 768;
+      let totalPagesAll = 0;
+      loadedDocs.forEach(item => { if (item.doc) totalPagesAll += item.doc.numPages; });
+
+      for (let fIdx = 0; fIdx < loadedDocs.length; fIdx++) {
+        const { file, doc } = loadedDocs[fIdx];
+        if (!doc) continue;
+
+        for (let p = 1; p <= doc.numPages; p++) {
+          const progressPct = Math.round(20 + ((globalPageNum - 1) / Math.max(1, totalPagesAll)) * 75);
+          this.updateProgress(progressPct, `Menyiapkan Halaman ${globalPageNum} (${file.name})...`);
+
+          const page = await doc.getPage(p);
+
+          // Optimal resolution: crystal-clear readability without overwhelming device RAM
+          const baseVp = page.getViewport({ scale: 1.0 });
+          const targetH = isMobile ? Math.min(window.innerHeight * 1.5, 1200) : 1600;
+          const optimalScale = Math.min(1.3, Math.max(0.75, targetH / baseVp.height));
+          const viewport = page.getViewport({ scale: optimalScale });
+
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const ctx = canvas.getContext('2d', { alpha: false });
+          await page.render({ canvasContext: ctx, viewport }).promise;
+
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          this.pageImages.push({
+            pageNumber: globalPageNum,
+            sourceFile: file.name,
+            sourcePage: p,
+            dataUrl: dataUrl,
+            aspectRatio: viewport.width / viewport.height,
+            width: viewport.width,
+            height: viewport.height
+          });
+
+          // Zoom dropdown
+          if (this.zoomPageSelect) {
+            const opt = document.createElement('option');
+            opt.value = globalPageNum - 1;
+            opt.innerText = `Hal. ${globalPageNum} (${file.name} Hal. ${p})`;
+            this.zoomPageSelect.appendChild(opt);
+          }
+
+          globalPageNum++;
         }
       }
 
@@ -932,7 +926,7 @@ class EPaperApp {
       }
 
       this.updateProgress(100, 'Selesai!');
-      setTimeout(() => this.hideLoading(), 250);
+      setTimeout(() => this.hideLoading(), 200);
       this.isRendering = false;
       this.closeEditionsModal();
     } catch (err) {
@@ -1000,16 +994,18 @@ class EPaperApp {
 
       this.updateProgress(25, `Merender ${this.totalPages} halaman buletin...`);
 
-      // 3. Render each page to an offscreen canvas at high resolution
+      // 3. Render each page to an offscreen canvas at device-optimal resolution
       const isMobile = window.innerWidth < 768;
-      const renderScale = isMobile ? 1.4 : 1.8; // High DPI for crystal-clear A3 text
 
       for (let pageNum = 1; pageNum <= this.totalPages; pageNum++) {
         const progressPct = Math.round(25 + (pageNum / this.totalPages) * 65);
         this.updateProgress(progressPct, `Merender halaman ${pageNum} dari ${this.totalPages}...`);
 
         const page     = await this.pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: renderScale });
+        const baseVp   = page.getViewport({ scale: 1.0 });
+        const targetH  = isMobile ? Math.min(window.innerHeight * 1.5, 1200) : 1600;
+        const optimalScale = Math.min(1.3, Math.max(0.75, targetH / baseVp.height));
+        const viewport = page.getViewport({ scale: optimalScale });
 
         const canvas   = document.createElement('canvas');
         canvas.width   = viewport.width;
@@ -1018,7 +1014,7 @@ class EPaperApp {
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         this.pageImages.push({
           pageNumber:  pageNum,
           dataUrl:     dataUrl,
