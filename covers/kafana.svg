@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1130" viewBox="0 0 800 1130">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="35%" r="40%">
+      <stop offset="0%" stop-color="rgba(245,158,11,0.25)"/>
+      <stop offset="100%" stop-color="rgba(15,23,42,0)"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="1130" fill="url(#bg)"/>
+  <rect width="800" height="1130" fill="url(#glow)"/>
+  <rect x="30" y="30" width="740" height="1070" rx="16" fill="none" stroke="rgba(245,158,11,0.4)" stroke-width="3" stroke-dasharray="12 6"/>
+  <rect x="45" y="45" width="710" height="1040" rx="12" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  
+  <rect x="70" y="70" width="660" height="50" rx="8" fill="rgba(245,158,11,0.15)"/>
+  <text x="400" y="102" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#fbbf24" text-anchor="middle" letter-spacing="4">BULETIN RESMI MTsN 1 BLITAR</text>
+  
+  <circle cx="400" cy="360" r="110" fill="rgba(245,158,11,0.1)" stroke="url(#gold)" stroke-width="4"/>
+  <text x="400" y="380" font-family="Georgia, serif" font-size="110" font-weight="bold" fill="#fbbf24" text-anchor="middle">📖</text>
+  
+  <text x="400" y="570" font-family="Cinzel, Georgia, serif" font-size="64" font-weight="bold" fill="#ffffff" text-anchor="middle" letter-spacing="6">KAFANA</text>
+  <text x="400" y="615" font-family="Arial, sans-serif" font-size="22" font-weight="600" fill="#f59e0b" text-anchor="middle" letter-spacing="2">BULETIN MADRASAH</text>
+  <text x="400" y="655" font-family="Arial, sans-serif" font-size="16" fill="#94a3b8" text-anchor="middle">Kajian Faktual, Aktual, &amp; Narasi Literasi</text>
+  
+  <line x1="150" y1="710" x2="650" y2="710" stroke="rgba(245,158,11,0.5)" stroke-width="2"/>
+  
+  <rect x="120" y="760" width="560" height="160" rx="12" fill="rgba(15,23,42,0.8)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  <text x="400" y="810" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">EDISI PERDANA SEGERA TERBIT</text>
+  <text x="400" y="845" font-family="Arial, sans-serif" font-size="14" fill="#cbd5e1" text-anchor="middle">Wadah Kreativitas &amp; Gagasan Warga Madrasah</text>
+  <text x="400" y="885" font-family="Arial, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">MTs Negeri 1 Blitar • 2026</text>
+  
+  <text x="400" y="1050" font-family="Arial, sans-serif" font-size="13" fill="#94a3b8" text-anchor="middle">💡 Letakkan sampul resmi di covers/kafana.jpg</text>
+</svg>
