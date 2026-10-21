@@ -842,8 +842,7 @@ class EPaperApp {
         const fileUrl = encodeURI(file.path || `pdf/${this.currentPublication}/${file.name}`);
         try {
           const doc = await window.pdfjsLib.getDocument({
-            url: fileUrl,
-            cMapPacked: true,
+            url: fileUrl
           }).promise;
           return { file, doc };
         } catch (directErr) {
@@ -852,8 +851,7 @@ class EPaperApp {
             if (!binRes.ok) throw new Error(`HTTP ${binRes.status}`);
             const buf = await binRes.arrayBuffer();
             const doc = await window.pdfjsLib.getDocument({
-              data: new Uint8Array(buf),
-              cMapPacked: true,
+              data: new Uint8Array(buf)
             }).promise;
             return { file, doc };
           } catch (binErr) {
@@ -982,11 +980,9 @@ class EPaperApp {
       if (this.thumbnailList) this.thumbnailList.innerHTML = '';
       if (this.zoomPageSelect) this.zoomPageSelect.innerHTML = '';
 
-      // 2. Load PDF with PDF.js
+      // 2. Load PDF with PDF.js (100% Offline / No External CDN)
       const loadingTask = window.pdfjsLib.getDocument({
-        data: pdfBytes,
-        cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
-        cMapPacked: true,
+        data: pdfBytes
       });
 
       this.pdfDoc = await loadingTask.promise;
