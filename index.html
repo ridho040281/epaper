@@ -21,6 +21,15 @@
   <meta property="og:image:width" content="512">
   <meta property="og:image:height" content="512">
   <meta property="og:image:alt" content="Logo MTsN 1 Blitar">
+  <meta property="og:image" content="https://epaper.mtsn1blitar.sch.id/og-icon.png">
+  <meta property="og:image:secure_url" content="https://epaper.mtsn1blitar.sch.id/og-icon.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="400">
+  <meta property="og:image:height" content="400">
+
+  <!-- Legacy & Mobile link preview tags -->
+  <link rel="image_src" href="https://epaper.mtsn1blitar.sch.id/og-icon.jpg">
+  <meta name="thumbnail" content="https://epaper.mtsn1blitar.sch.id/og-icon.jpg">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary">
@@ -91,27 +100,29 @@
   <!-- ==================== DIGITAL BOOKSHELF / RAK KORAN VIEW ==================== -->
   <div id="shelf-view" class="h-full overflow-y-auto flex flex-col bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black select-none">
     
-    <!-- Shelf Top Header -->
-    <nav class="h-16 flex-shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-lg">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-500 p-0.5 flex items-center justify-center shadow-lg">
+    <!-- Shelf Top Header (Mobile Responsive) -->
+    <nav class="min-h-[3.75rem] py-2 sm:py-0 sm:h-16 flex-shrink-0 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 sm:px-8 flex items-center justify-between sticky top-0 z-30 shadow-lg">
+      <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-amber-500 p-0.5 flex items-center justify-center shadow-lg flex-shrink-0">
           <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-            <i data-lucide="newspaper" class="w-5 h-5 text-emerald-400"></i>
+            <i data-lucide="newspaper" class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400"></i>
           </div>
         </div>
-        <div>
-          <h1 class="font-title tracking-wider text-base font-bold text-white flex items-center gap-2">
-            <span>E-PAPER & BULETIN MADRASAH</span>
+        <div class="min-w-0 flex-1">
+          <h1 class="font-title tracking-wide text-xs xs:text-sm sm:text-base font-bold text-white truncate leading-snug">
+            E-PAPER & BULETIN MADRASAH
           </h1>
-          <p class="text-xs text-slate-400">Publikasi Digital Interaktif MTsN 1 Blitar</p>
+          <p class="text-[10px] xs:text-[11px] sm:text-xs text-slate-400 truncate leading-tight">
+            Publikasi Digital Interaktif MTsN 1 Blitar
+          </p>
         </div>
       </div>
       
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-shrink-0">
         <!-- Disguised Admin Access (Samaran Tombol Kelola) -->
-        <button id="btn-secret-admin" type="button" class="group flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 transition-all duration-200 select-none shadow-sm cursor-pointer" title="MTs Negeri 1 Blitar">
+        <button id="btn-secret-admin" type="button" class="group flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 transition-all duration-200 select-none shadow-sm cursor-pointer" title="MTs Negeri 1 Blitar">
           <span class="w-2 h-2 rounded-full bg-emerald-500 group-hover:scale-125 transition-transform duration-300"></span>
-          <span class="text-xs font-semibold text-slate-300 group-hover:text-emerald-300 tracking-wider">MTsN 1 BLITAR</span>
+          <span class="text-[11px] sm:text-xs font-semibold text-slate-300 group-hover:text-emerald-300 tracking-wider whitespace-nowrap">MTsN 1 BLITAR</span>
         </button>
       </div>
     </nav>
@@ -259,33 +270,33 @@
   <!-- ==================== READER VIEW (3D FLIPBOOK VIEWER) ==================== -->
   <div id="reader-view" class="hidden h-full flex flex-col overflow-hidden">
     
-    <!-- ==================== TOP NAVIGATION HEADER ==================== -->
-    <header class="h-16 flex-shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 flex items-center justify-between z-30 shadow-lg">
+    <!-- ==================== TOP NAVIGATION HEADER (Mobile Responsive) ==================== -->
+    <header class="min-h-[3.75rem] py-1.5 sm:py-0 sm:h-16 flex-shrink-0 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-2.5 sm:px-4 flex items-center justify-between z-30 shadow-lg">
       
       <!-- Left: Back to Shelf & Brand Info -->
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         
         <!-- Button: Back to Bookshelf -->
-        <button id="btn-back-shelf" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 hover:border-emerald-500/50 shadow transition active:scale-95 group" title="Kembali ke Rak Koleksi Publikasi">
+        <button id="btn-back-shelf" class="flex-shrink-0 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 hover:border-emerald-500/50 shadow transition active:scale-95 group" title="Kembali ke Rak Koleksi Publikasi">
           <i data-lucide="arrow-left" class="w-4 h-4 text-emerald-400 group-hover:-translate-x-0.5 transition-transform"></i>
           <span class="text-xs font-semibold hidden sm:inline">Rak Koran</span>
         </button>
 
         <div class="h-6 w-px bg-slate-800 hidden sm:block"></div>
 
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 p-0.5 flex items-center justify-center shadow-md">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 p-0.5 flex items-center justify-center shadow-md flex-shrink-0">
           <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center" id="brand-logo-container">
-            <i data-lucide="newspaper" class="w-5 h-5 text-emerald-400" id="brand-icon"></i>
+            <i data-lucide="newspaper" class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" id="brand-icon"></i>
           </div>
         </div>
-        <div class="flex flex-col">
-          <div class="flex items-center gap-2">
-            <span class="font-title tracking-wider text-base font-bold text-white" id="brand-name">AL QALAM</span>
-            <span class="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full" id="brand-badge">Literasi GTK</span>
+        <div class="flex flex-col min-w-0 flex-1">
+          <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span class="font-title tracking-wide text-xs sm:text-base font-bold text-white truncate" id="brand-name">AL QALAM</span>
+            <span class="text-[9px] sm:text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 sm:px-2 py-0.5 rounded-full flex-shrink-0" id="brand-badge">Literasi GTK</span>
           </div>
-          <div class="flex items-center gap-1.5">
-            <span id="pdf-title" class="text-xs text-slate-400 truncate max-w-[180px] sm:max-w-xs">Memuat naskah...</span>
-            <button id="btn-close-pdf" class="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition" title="Tutup / Reset Dokumen Ini">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span id="pdf-title" class="text-[10px] sm:text-xs text-slate-400 truncate max-w-[110px] xs:max-w-[150px] sm:max-w-xs">Memuat naskah...</span>
+            <button id="btn-close-pdf" class="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition flex-shrink-0" title="Tutup / Reset Dokumen Ini">
               <i data-lucide="x" class="w-3.5 h-3.5"></i>
             </button>
           </div>
