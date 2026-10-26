@@ -485,72 +485,7 @@ function autoOptimizePdfFile($filePath, $maxSizeBytes = 2097152) {
         }
     }
 
-    // 2. Jika ada multiple images atau vector text, lakukan kompresi stream in-place
-    $pattern = '/(?:\/Filter\s*(?:\[\s*\/DCTDecode\s*\]|\/DCTDecode)[\s\S]*?\/Length\s+(\d+)|\/Length\s+(\d+)[\s\S]*?\/Filter\s*(?:\[\s*\/DCTDecode\s*\]|\/DCTDecode))[\s\S]*?>>\s*stream\r?\n/i';
-    $pos = 0;
-    $modified = false;
-    $chunks = [];
-    $lastEnd = 0;
-
-    while (preg_match($pattern, $content, $m, PREG_OFFSET_CAPTURE, $pos)) {
-        $headerMatch = $m[0][0];
-        $headerOffset = $m[0][1];
-        $headerLen = strlen($headerMatch);
-        $streamStart = $headerOffset + $headerLen;
-        $len = !empty($m[1][0]) ? (int)$m[1][0] : (int)$m[2][0];
-        $rawJpeg = substr($content, $streamStart, $len);
-
-        if ($len > 120 * 1024) {
-            $img = @imagecreatefromstring($rawJpeg);
-            if ($img) {
-                $w = imagesx($img);
-                $h = imagesy($img);
-
-                if ($w > 2500) {
-                    $ratio = 2500 / $w;
-                    $nw = 2500;
-                    $nh = (int)round($h * $ratio);
-                    $res = imagecreatetruecolor($nw, $nh);
-                    imagecopyresampled($res, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
-                    imagedestroy($img);
-                    $img = $res;
-                }
-
-                ob_start();
-                imagejpeg($img, null, 86);
-                $compJpeg = ob_get_clean();
-                imagedestroy($img);
-
-                if (strlen($compJpeg) < $len) {
-                    $oldLenStr = (string)$len;
-                    $newLenStr = (string)strlen($compJpeg);
-                    $newHeader = preg_replace('/(\/Length\s+)' . preg_quote($oldLenStr, '/') . '/', '${1}' . $newLenStr, $headerMatch, 1);
-
-                    $chunks[] = substr($content, $lastEnd, $headerOffset - $lastEnd);
-                    $chunks[] = $newHeader;
-                    $chunks[] = $compJpeg;
-
-                    $lastEnd = $streamStart + $len;
-                    $modified = true;
-                    $pos = $lastEnd;
-                    continue;
-                }
-            }
-        }
-        $pos = $streamStart + $len;
-    }
-
-    if ($modified) {
-        $chunks[] = substr($content, $lastEnd);
-        $newContent = implode('', $chunks);
-        file_put_contents($filePath, $newContent);
-        return [
-            'optimized' => true,
-            'mode' => 'in_place_streams',
-            'original_size' => $fileSize,
-            'final_size' => strlen($newContent)
-        ];
-    }
-
-    return ['optimized' => false, 'reason' => 'No compression needed', 'size' => $fileSize];
+    // 2. Untuk dokumen multi-gambar, majalah, atau naskah vektor: pertahankan 100% struktur asli
+    // Jangan ubah stream in-place karena dapat merusak profil warna ICC (CMYK) dan tabel xref PDF!
+    return ['optimized' => false, 'reason' => 'Preserved original vector/multi-image PDF intact', 'size' => $fileSize];
 }
