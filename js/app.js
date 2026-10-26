@@ -1020,6 +1020,7 @@ class EPaperApp {
             pageNumber: globalPageNum,
             sourceFile: file.name,
             sourcePage: p,
+            doc: doc,
             dataUrl: dataUrl,
             aspectRatio: viewport.width / viewport.height,
             width: viewport.width,
@@ -1146,6 +1147,8 @@ class EPaperApp {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         this.pageImages.push({
           pageNumber:  pageNum,
+          sourcePage:  pageNum,
+          doc:         this.pdfDoc,
           dataUrl:     dataUrl,
           aspectRatio: viewport.width / viewport.height,
           width:       viewport.width,
@@ -2176,7 +2179,7 @@ class EPaperApp {
     if (this.zoomCanvasContainer) {
       this.zoomCanvasContainer.innerHTML = '';
       const img        = document.createElement('img');
-      img.src          = pageData.dataUrl;
+      img.src          = pageData.hdDataUrl || pageData.dataUrl;
       img.alt          = `Zoom Halaman ${pageIndex + 1}`;
       img.className    = 'max-w-none shadow-2xl select-none pointer-events-none rounded';
       img.style.transformOrigin = 'center center';
@@ -2204,6 +2207,26 @@ class EPaperApp {
       img.style.width  = `${Math.round(renderW)}px`;
       img.style.height = `${Math.round(renderH)}px`;
       this.zoomCanvasContainer.appendChild(img);
+
+      // On-demand Ultra-HD (300 DPI) vector re-rendering for crystal-clear readability
+      if (pageData.doc && !pageData.hdDataUrl && pageData.sourcePage) {
+        pageData.doc.getPage(pageData.sourcePage).then(async (page) => {
+          try {
+            const baseVp = page.getViewport({ scale: 1.0 });
+            const hdScale = Math.min(3.2, Math.max(2.2, 3000 / baseVp.height));
+            const viewport = page.getViewport({ scale: hdScale });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d', { alpha: false });
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            pageData.hdDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+            if (this.currentPage === pageIndex && img) {
+              img.src = pageData.hdDataUrl;
+            }
+          } catch (_) {}
+        });
+      }
     }
     this.setZoom(1.0, true, false);
   }

@@ -195,12 +195,15 @@ switch ($action) {
         $destination = $pdfDir . DIRECTORY_SEPARATOR . $safeName;
 
         if (move_uploaded_file($file['tmp_name'], $destination)) {
-            // Tentukan batas kompresi cerdas:
-            // - Koran 1 lembar (alqalam, korma): max 2 MB
-            // - Majalah tebal (kafana ~50 hal): max 30 MB (~500 KB per halaman)
-            $maxLimit = ($pub === 'kafana') ? 30 * 1024 * 1024 : 2 * 1024 * 1024;
-            $opt = autoOptimizePdfFile($destination, $maxLimit);
-            $msg = 'File PDF berhasil diunggah ke publikasi ' . strtoupper($pub) . '!';
+            // Pertahankan 100% ketajaman & kejernihan teks asli seperti file lokal (hingga 35 MB)
+            // Tidak mengompresi paksa agar kualitas teks tidak terdegradasi
+            $fileSize = filesize($destination);
+            $maxLimit = 35 * 1024 * 1024;
+            $opt = null;
+            if ($fileSize > $maxLimit) {
+                $opt = autoOptimizePdfFile($destination, $maxLimit);
+            }
+            $msg = 'File PDF berhasil diunggah ke publikasi ' . strtoupper($pub) . '! (Kualitas asli 100% tajam dipertahankan)';
             if ($opt && !empty($opt['optimized'])) {
                 $origMb = round($opt['original_size'] / 1024 / 1024, 2);
                 $finalMb = round($opt['final_size'] / 1024 / 1024, 2);
