@@ -1003,10 +1003,10 @@ class EPaperApp {
 
           const page = await doc.getPage(p);
 
-          // Optimal resolution: crystal-clear readability without overwhelming device RAM
+          // Optimal resolution: high-DPI crisp text rendering for A3/A4 newspapers
           const baseVp = page.getViewport({ scale: 1.0 });
-          const targetH = isMobile ? Math.min(window.innerHeight * 1.5, 1200) : 1600;
-          const optimalScale = Math.min(1.3, Math.max(0.75, targetH / baseVp.height));
+          const targetH = isMobile ? Math.min(window.innerHeight * 2.2, 2000) : 2400;
+          const optimalScale = Math.min(2.0, Math.max(1.2, targetH / baseVp.height));
           const viewport = page.getViewport({ scale: optimalScale });
 
           const canvas = document.createElement('canvas');
@@ -1015,7 +1015,7 @@ class EPaperApp {
           const ctx = canvas.getContext('2d', { alpha: false });
           await page.render({ canvasContext: ctx, viewport }).promise;
 
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
           this.pageImages.push({
             pageNumber: globalPageNum,
             sourceFile: file.name,
@@ -1132,8 +1132,8 @@ class EPaperApp {
 
         const page     = await this.pdfDoc.getPage(pageNum);
         const baseVp   = page.getViewport({ scale: 1.0 });
-        const targetH  = isMobile ? Math.min(window.innerHeight * 1.5, 1200) : 1600;
-        const optimalScale = Math.min(1.3, Math.max(0.75, targetH / baseVp.height));
+        const targetH  = isMobile ? Math.min(window.innerHeight * 2.2, 2000) : 2400;
+        const optimalScale = Math.min(2.0, Math.max(1.2, targetH / baseVp.height));
         const viewport = page.getViewport({ scale: optimalScale });
 
         const canvas   = document.createElement('canvas');
@@ -1143,7 +1143,7 @@ class EPaperApp {
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         this.pageImages.push({
           pageNumber:  pageNum,
           dataUrl:     dataUrl,

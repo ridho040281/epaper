@@ -377,9 +377,9 @@ function autoOptimizePdfFile($filePath, $maxSizeBytes = 2097152) {
 
                 $targetW = $imgW;
                 $targetH = $imgH;
-                if ($targetW > 2400) {
-                    $ratio = 2400 / $targetW;
-                    $targetW = 2400;
+                if ($targetW > 2800) {
+                    $ratio = 2800 / $targetW;
+                    $targetW = 2800;
                     $targetH = (int)round($imgH * $ratio);
                     $resized = imagecreatetruecolor($targetW, $targetH);
                     imagecopyresampled($resized, $img, 0, 0, 0, 0, $targetW, $targetH, $imgW, $imgH);
@@ -387,19 +387,19 @@ function autoOptimizePdfFile($filePath, $maxSizeBytes = 2097152) {
                     $img = $resized;
                 }
 
-                $bestQuality = 84;
+                $bestQuality = 90;
                 ob_start();
                 imagejpeg($img, null, $bestQuality);
                 $compJpeg = ob_get_clean();
 
-                if (strlen($compJpeg) > 1900000) {
-                    $bestQuality = 78;
+                if (strlen($compJpeg) > 2800000) {
+                    $bestQuality = 85;
                     ob_start();
                     imagejpeg($img, null, $bestQuality);
                     $compJpeg = ob_get_clean();
                 }
-                if (strlen($compJpeg) > 1900000) {
-                    $bestQuality = 72;
+                if (strlen($compJpeg) > 2800000) {
+                    $bestQuality = 80;
                     ob_start();
                     imagejpeg($img, null, $bestQuality);
                     $compJpeg = ob_get_clean();
@@ -474,9 +474,9 @@ function autoOptimizePdfFile($filePath, $maxSizeBytes = 2097152) {
                 $w = imagesx($img);
                 $h = imagesy($img);
 
-                if ($w > 1800) {
-                    $ratio = 1800 / $w;
-                    $nw = 1800;
+                if ($w > 2500) {
+                    $ratio = 2500 / $w;
+                    $nw = 2500;
                     $nh = (int)round($h * $ratio);
                     $res = imagecreatetruecolor($nw, $nh);
                     imagecopyresampled($res, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
@@ -485,7 +485,7 @@ function autoOptimizePdfFile($filePath, $maxSizeBytes = 2097152) {
                 }
 
                 ob_start();
-                imagejpeg($img, null, 78);
+                imagejpeg($img, null, 86);
                 $compJpeg = ob_get_clean();
                 imagedestroy($img);
 
