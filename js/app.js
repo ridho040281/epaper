@@ -250,6 +250,13 @@ class EPaperApp {
     this.zoomResetBtn        = document.getElementById('btn-zoom-reset');
     this.zoomCloseBtn        = document.getElementById('btn-zoom-close');
     this.zoomLevelLabel      = document.getElementById('zoom-level-label');
+    this.btnZoomLabel        = document.getElementById('btn-zoom-label');
+    this.btnZoomTabLeft      = document.getElementById('btn-zoom-tab-left');
+    this.btnZoomTabSpread    = document.getElementById('btn-zoom-tab-spread');
+    this.btnZoomTabRight     = document.getElementById('btn-zoom-tab-right');
+    this.stageZoomControls   = document.getElementById('stage-zoom-controls');
+    this.zoomMode            = 'single'; // 'single' | 'spread'
+    this.zoomSpreadPages     = null;     // [leftIdx, rightIdx]
 
     // Drag-Drop Overlay
     this.dragOverlay = document.getElementById('drag-overlay');
@@ -280,14 +287,56 @@ class EPaperApp {
     this.btnZoom?.addEventListener('click', () => this.openZoomModal());
     this.zoomCloseBtn?.addEventListener('click', () => this.closeZoomModal());
 
+    this.btnZoomTabLeft?.addEventListener('click', () => {
+      const visible = this.getVisiblePageIndices();
+      if (visible.length === 2) this.renderZoomPage(visible[0], 'left');
+      else this.renderZoomPage(this.currentPage, 'left');
+    });
+    this.btnZoomTabSpread?.addEventListener('click', () => {
+      const visible = this.getVisiblePageIndices();
+      if (visible.length === 2) this.renderZoomSpread(visible[0], visible[1]);
+    });
+    this.btnZoomTabRight?.addEventListener('click', () => {
+      const visible = this.getVisiblePageIndices();
+      if (visible.length === 2) this.renderZoomPage(visible[1], 'right');
+      else if (this.currentPage < this.pageImages.length - 1) this.renderZoomPage(this.currentPage + 1, 'right');
+    });
+
     this.btnZoomPrevPage?.addEventListener('click', () => {
-      if (this.currentPage > 0) {
-        this.renderZoomPage(this.currentPage - 1);
+      if (this.zoomMode === 'spread') {
+        const leftIdx = this.zoomSpreadPages ? this.zoomSpreadPages[0] : this.currentPage;
+        if (leftIdx > 0) {
+          const prevRight = leftIdx - 1;
+          const prevLeft = (prevRight % 2 !== 0) ? prevRight : prevRight - 1;
+          if (prevLeft >= 0) {
+            this.renderZoomSpread(prevLeft, prevRight);
+          } else {
+            this.renderZoomPage(0);
+          }
+        }
+      } else {
+        if (this.currentPage > 0) {
+          this.renderZoomPage(this.currentPage - 1);
+        }
       }
     });
+
     this.btnZoomNextPage?.addEventListener('click', () => {
-      if (this.currentPage < this.pageImages.length - 1) {
-        this.renderZoomPage(this.currentPage + 1);
+      if (this.zoomMode === 'spread') {
+        const rightIdx = this.zoomSpreadPages ? this.zoomSpreadPages[1] : this.currentPage;
+        if (rightIdx < this.pageImages.length - 1) {
+          const nextLeft = rightIdx + 1;
+          const nextRight = nextLeft + 1;
+          if (nextRight < this.pageImages.length) {
+            this.renderZoomSpread(nextLeft, nextRight);
+          } else {
+            this.renderZoomPage(nextLeft);
+          }
+        }
+      } else {
+        if (this.currentPage < this.pageImages.length - 1) {
+          this.renderZoomPage(this.currentPage + 1);
+        }
       }
     });
 
@@ -1445,22 +1494,17 @@ class EPaperApp {
       if (!this.bookElement || this.totalPages === 0) return;
       const rect = this.bookElement.getBoundingClientRect();
       const isRightHalf = (clientX - rect.left) > (rect.width / 2);
-      let targetPage = this.currentPage;
+      const visible = this.getVisiblePageIndices();
 
-      if (!isMobile && this.totalPages > 1) {
-        if (this.currentPage === 0) {
-          targetPage = 0; // Cover page
+      if (visible.length === 2) {
+        if (isRightHalf) {
+          this.openZoomModal(visible[1]); // Halaman Kanan!
         } else {
-          const leftIdx = (this.currentPage % 2 !== 0) ? this.currentPage : this.currentPage - 1;
-          const rightIdx = leftIdx + 1;
-          if (isRightHalf && rightIdx < this.totalPages) {
-            targetPage = rightIdx;
-          } else {
-            targetPage = Math.max(0, leftIdx);
-          }
+          this.openZoomModal(visible[0]); // Halaman Kiri!
         }
+      } else {
+        this.openZoomModal(this.currentPage || 0);
       }
-      this.openZoomModal(targetPage);
     };
 
     this.bookElement.addEventListener('dblclick', (e) => {
@@ -1716,27 +1760,99 @@ class EPaperApp {
     });
   }
 
+  getVisiblePageIndices() {
+    const isMobile = window.innerWidth < 768;
+    const cur = typeof this.currentPage === 'number' ? this.currentPage : 0;
+    const total = this.totalPages || 0;
+    if (total === 0) return [];
+    if (isMobile) {
+      return [cur];
+    }
+    // Desktop 2-page mode with showCover: true
+    if (cur === 0) {
+      return [0];
+    }
+    const leftIdx = (cur % 2 !== 0) ? cur : cur - 1;
+    const rightIdx = leftIdx + 1;
+    if (rightIdx < total) {
+      return [leftIdx, rightIdx];
+    } else {
+      return [leftIdx];
+    }
+  }
+
+  updateStageZoomControls() {
+    const container = document.getElementById('stage-zoom-controls');
+    if (!container) return;
+    const visible = this.getVisiblePageIndices();
+    if (visible.length === 0 || this.totalPages === 0) {
+      container.innerHTML = '';
+      return;
+    }
+    if (visible.length === 1) {
+      const idx = visible[0];
+      const pageNum = this.pageImages[idx]?.pageNumber || (idx + 1);
+      container.innerHTML = `
+        <button onclick="window.app?.openZoomModal(${idx})" class="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 hover:bg-emerald-600 text-slate-200 hover:text-white text-xs font-semibold shadow-xl border border-slate-700/80 backdrop-blur transition active:scale-95 cursor-pointer">
+          <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span>Perbesar Hal. ${pageNum}</span>
+        </button>
+      `;
+    } else {
+      const leftIdx = visible[0];
+      const rightIdx = visible[1];
+      const leftNum = this.pageImages[leftIdx]?.pageNumber || (leftIdx + 1);
+      const rightNum = this.pageImages[rightIdx]?.pageNumber || (rightIdx + 1);
+      container.innerHTML = `
+        <button onclick="window.app?.openZoomModal(${leftIdx})" class="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 hover:bg-emerald-600 text-slate-200 hover:text-white text-xs font-semibold shadow-xl border border-slate-700/80 backdrop-blur transition active:scale-95 cursor-pointer" title="Perbesar Halaman Kiri">
+          <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span>Perbesar Hal. ${leftNum} (Kiri)</span>
+        </button>
+        <button onclick="window.app?.openZoomModal('spread')" class="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 hover:bg-teal-600 text-slate-200 hover:text-white text-xs font-semibold shadow-xl border border-slate-700/80 backdrop-blur transition active:scale-95 cursor-pointer" title="Perbesar Kedua Halaman Berdampingan">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-teal-400"></i>
+          <span>Perbesar 2 Halaman</span>
+        </button>
+        <button onclick="window.app?.openZoomModal(${rightIdx})" class="pointer-events-auto flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 hover:bg-emerald-600 text-slate-200 hover:text-white text-xs font-semibold shadow-xl border border-slate-700/80 backdrop-blur transition active:scale-95 cursor-pointer" title="Perbesar Halaman Kanan">
+          <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span>Perbesar Hal. ${rightNum} (Kanan)</span>
+        </button>
+      `;
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   updatePageIndicator() {
-    if (!this.pageIndicator) return;
     const total = this.totalPages;
     const cur   = this.currentPage;
 
-    if (total === 0) {
-      this.pageIndicator.innerText = '0 Halaman';
-      return;
+    if (this.pageIndicator) {
+      if (total === 0) {
+        this.pageIndicator.innerText = '0 Halaman';
+      } else if (cur === 0) {
+        this.pageIndicator.innerText = `Cover (Hal. 1 dari ${total})`;
+      } else if (cur >= total - 1) {
+        this.pageIndicator.innerText = `Hal. ${total} dari ${total}`;
+      } else {
+        const isMobile = window.innerWidth < 768;
+        if (isMobile) {
+          this.pageIndicator.innerText = `Hal. ${cur + 1} dari ${total}`;
+        } else {
+          const right = Math.min(cur + 2, total);
+          this.pageIndicator.innerText = `Hal. ${cur + 1} – ${right} dari ${total}`;
+        }
+      }
     }
 
-    if (cur === 0) {
-      this.pageIndicator.innerText = `Cover (Hal. 1 dari ${total})`;
-    } else if (cur >= total - 1) {
-      this.pageIndicator.innerText = `Hal. ${total} dari ${total}`;
-    } else {
-      const isMobile = window.innerWidth < 768;
-      if (isMobile) {
-        this.pageIndicator.innerText = `Hal. ${cur + 1} dari ${total}`;
+    // Perbarui Tombol Floating Zoom di Layar Flipbook & Label Header
+    this.updateStageZoomControls();
+    if (this.btnZoomLabel) {
+      const visible = this.getVisiblePageIndices();
+      if (visible.length === 2) {
+        const leftNum = this.pageImages[visible[0]]?.pageNumber || (visible[0] + 1);
+        const rightNum = this.pageImages[visible[1]]?.pageNumber || (visible[1] + 1);
+        this.btnZoomLabel.innerText = `Perbesar (Hal. ${leftNum}–${rightNum})`;
       } else {
-        const right = Math.min(cur + 2, total);
-        this.pageIndicator.innerText = `Hal. ${cur + 1} – ${right} dari ${total}`;
+        this.btnZoomLabel.innerText = 'Perbesar Halaman';
       }
     }
   }
@@ -2413,24 +2529,41 @@ class EPaperApp {
   }
 
   // ─────────────────────────────────────────────────────────
-  //  Ultra-HD Deep Zoom Modal
+  //  Ultra-HD Deep Zoom Modal (Single Page & 2-Page Spread)
   // ─────────────────────────────────────────────────────────
-  openZoomModal(pageIndex = null) {
+  openZoomModal(target = null) {
     if (!this.pageImages.length) return;
-    if (typeof pageIndex === 'number' && pageIndex >= 0 && pageIndex < this.pageImages.length) {
-      this.currentPage = pageIndex;
-    }
     this.zoomModal?.classList.remove('hidden');
-    if (this.zoomPageSelect) this.zoomPageSelect.value = this.currentPage;
-    this.renderZoomPage(this.currentPage);
+
+    const visiblePages = this.getVisiblePageIndices();
+
+    if (target === 'spread') {
+      if (visiblePages.length === 2) {
+        this.renderZoomSpread(visiblePages[0], visiblePages[1]);
+      } else {
+        this.renderZoomPage(this.currentPage || 0);
+      }
+    } else if (typeof target === 'number' && target >= 0 && target < this.pageImages.length) {
+      this.renderZoomPage(target);
+    } else if (visiblePages.length === 2) {
+      // Ketika 2 halaman terbuka di layar: buka mode 2 Halaman (Spread) agar kedua halaman terlihat berdampingan
+      this.renderZoomSpread(visiblePages[0], visiblePages[1]);
+    } else {
+      this.renderZoomPage(this.currentPage || 0);
+    }
+
     if (window.lucide) window.lucide.createIcons();
   }
 
   closeZoomModal() {
     this.zoomModal?.classList.add('hidden');
+    // Sinkronkan kembali flipbook jika pengguna berpindah halaman dalam zoom
     if (this.pageFlip && typeof this.currentPage === 'number') {
       try {
-        this.pageFlip.flip(this.currentPage);
+        const curSpread = this.getVisiblePageIndices();
+        if (!curSpread.includes(this.currentPage)) {
+          this.pageFlip.flip(this.currentPage);
+        }
       } catch (_) {}
     }
   }
@@ -2447,18 +2580,93 @@ class EPaperApp {
   }
 
   applyPanZoomTransform(instant = false) {
-    const img = this.zoomCanvasContainer?.querySelector('img');
-    if (img) {
-      img.style.transition = instant ? 'none' : 'transform 0.12s ease-out';
-      img.style.transform = `translate(${this.currentPan.x}px, ${this.currentPan.y}px) scale(${this.zoomScale})`;
+    const target = this.zoomCanvasContainer?.firstElementChild;
+    if (target) {
+      target.style.transition = instant ? 'none' : 'transform 0.12s ease-out';
+      target.style.transform = `translate(${this.currentPan.x}px, ${this.currentPan.y}px) scale(${this.zoomScale})`;
     }
   }
 
-  renderZoomPage(pageIndex) {
+  updateZoomTabsUI(mode, leftIdx, rightIdx) {
+    const tabsContainer = document.getElementById('zoom-spread-tabs');
+    if (!tabsContainer) return;
+
+    if (rightIdx === null || rightIdx === undefined || rightIdx < 0 || rightIdx >= this.pageImages.length) {
+      tabsContainer.classList.add('hidden');
+      return;
+    }
+
+    tabsContainer.classList.remove('hidden');
+
+    const btnLeft = document.getElementById('btn-zoom-tab-left');
+    const btnSpread = document.getElementById('btn-zoom-tab-spread');
+    const btnRight = document.getElementById('btn-zoom-tab-right');
+    const labelLeft = document.getElementById('label-zoom-tab-left');
+    const labelSpread = document.getElementById('label-zoom-tab-spread');
+    const labelRight = document.getElementById('label-zoom-tab-right');
+
+    const leftNum = this.pageImages[leftIdx]?.pageNumber || (leftIdx + 1);
+    const rightNum = this.pageImages[rightIdx]?.pageNumber || (rightIdx + 1);
+
+    if (labelLeft) labelLeft.innerText = `Hal. ${leftNum} (Kiri)`;
+    if (labelSpread) labelSpread.innerText = `2 Hal. (${leftNum}–${rightNum})`;
+    if (labelRight) labelRight.innerText = `Hal. ${rightNum} (Kanan)`;
+
+    const activeClasses = 'bg-emerald-600 text-white shadow-md font-bold';
+    const inactiveClasses = 'bg-transparent text-slate-300 hover:text-white hover:bg-slate-800';
+
+    if (btnLeft) {
+      btnLeft.className = `px-2 sm:px-3 py-1 rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer ${mode === 'left' ? activeClasses : inactiveClasses}`;
+    }
+    if (btnSpread) {
+      btnSpread.className = `px-2 sm:px-3 py-1 rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer ${mode === 'spread' ? activeClasses : inactiveClasses}`;
+    }
+    if (btnRight) {
+      btnRight.className = `px-2 sm:px-3 py-1 rounded-lg text-xs transition flex items-center gap-1.5 cursor-pointer ${mode === 'right' ? activeClasses : inactiveClasses}`;
+    }
+  }
+
+  async renderHdForPage(pageData, imgElement) {
+    if (!pageData || !pageData.doc || !pageData.sourcePage) return;
+    try {
+      const page = await pageData.doc.getPage(pageData.sourcePage);
+      const baseVp = page.getViewport({ scale: 1.0 });
+      const hdScale = Math.min(3.5, Math.max(2.4, 3200 / baseVp.height));
+      const viewport = page.getViewport({ scale: hdScale });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      pageData.hdDataUrl = canvas.toDataURL('image/jpeg', 0.96);
+      if (imgElement && imgElement.isConnected) {
+        imgElement.src = pageData.hdDataUrl;
+      }
+    } catch (_) {}
+  }
+
+  renderZoomPage(pageIndex, tabMode = null) {
     if (pageIndex < 0 || pageIndex >= this.pageImages.length) return;
     this.currentPage = pageIndex;
+    this.zoomMode = 'single';
     const pageData = this.pageImages[pageIndex];
     if (!pageData) return;
+
+    // Tentukan konteks 2 halaman yang sedang aktif untuk tab navigasi
+    const visiblePages = this.getVisiblePageIndices();
+    const isSpread = visiblePages.length === 2;
+    const leftIdx = isSpread ? visiblePages[0] : pageIndex;
+    const rightIdx = isSpread ? visiblePages[1] : null;
+
+    let activeTab = tabMode;
+    if (!activeTab) {
+      if (isSpread && pageIndex === rightIdx) activeTab = 'right';
+      else if (isSpread && pageIndex === leftIdx) activeTab = 'left';
+      else activeTab = 'single';
+    }
+    this.updateZoomTabsUI(activeTab, leftIdx, rightIdx);
 
     // Sync Dropdown Selector
     if (this.zoomPageSelect && this.zoomPageSelect.value != pageIndex) {
@@ -2487,7 +2695,7 @@ class EPaperApp {
       this.zoomCanvasContainer.innerHTML = '';
       const img        = document.createElement('img');
       img.src          = pageData.hdDataUrl || pageData.dataUrl;
-      img.alt          = `Zoom Halaman ${pageIndex + 1}`;
+      img.alt          = `Zoom Halaman ${pageData.pageNumber}`;
       img.className    = 'max-w-none shadow-2xl select-none pointer-events-none rounded';
       img.style.transformOrigin = 'center center';
       img.style.transition = 'none';
@@ -2517,26 +2725,118 @@ class EPaperApp {
 
       // On-demand Ultra-HD (300 DPI) vector re-rendering for crystal-clear readability
       if (pageData.doc && !pageData.hdDataUrl && pageData.sourcePage) {
-        pageData.doc.getPage(pageData.sourcePage).then(async (page) => {
-          try {
-            const baseVp = page.getViewport({ scale: 1.0 });
-            const hdScale = Math.min(3.5, Math.max(2.4, 3200 / baseVp.height));
-            const viewport = page.getViewport({ scale: hdScale });
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            const ctx = canvas.getContext('2d', { alpha: false });
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            await page.render({ canvasContext: ctx, viewport }).promise;
-            pageData.hdDataUrl = canvas.toDataURL('image/jpeg', 0.96);
-            if (this.currentPage === pageIndex && img) {
-              img.src = pageData.hdDataUrl;
-            }
-          } catch (_) {}
-        });
+        this.renderHdForPage(pageData, img);
       }
     }
+    this.setZoom(1.0, true, false);
+  }
+
+  renderZoomSpread(leftIdx, rightIdx) {
+    if (leftIdx < 0 || leftIdx >= this.pageImages.length) return;
+    const leftData = this.pageImages[leftIdx];
+    const rightData = (rightIdx >= 0 && rightIdx < this.pageImages.length) ? this.pageImages[rightIdx] : null;
+
+    if (!rightData) {
+      return this.renderZoomPage(leftIdx);
+    }
+
+    this.zoomMode = 'spread';
+    this.zoomSpreadPages = [leftIdx, rightIdx];
+    this.currentPage = leftIdx;
+
+    // Perbarui tab UI mode spread
+    this.updateZoomTabsUI('spread', leftIdx, rightIdx);
+
+    // Sync Dropdown Selector
+    if (this.zoomPageSelect) {
+      this.zoomPageSelect.value = leftIdx;
+    }
+
+    // Sync Prev/Next Page Buttons
+    if (this.btnZoomPrevPage) {
+      const isFirst = leftIdx <= 0;
+      this.btnZoomPrevPage.disabled = isFirst;
+      this.btnZoomPrevPage.style.opacity = isFirst ? '0.35' : '1';
+      this.btnZoomPrevPage.style.cursor = isFirst ? 'not-allowed' : 'pointer';
+    }
+    if (this.btnZoomNextPage) {
+      const isLast = rightIdx >= this.pageImages.length - 1;
+      this.btnZoomNextPage.disabled = isLast;
+      this.btnZoomNextPage.style.opacity = isLast ? '0.35' : '1';
+      this.btnZoomNextPage.style.cursor = isLast ? 'not-allowed' : 'pointer';
+    }
+
+    this.updatePageIndicator();
+    this.highlightThumbnail(leftIdx);
+
+    if (this.zoomCanvasContainer) {
+      this.zoomCanvasContainer.innerHTML = '';
+      
+      const wrapper = document.createElement('div');
+      wrapper.id = 'zoom-spread-wrapper';
+      wrapper.className = 'flex items-center justify-center shadow-2xl rounded overflow-hidden select-none';
+      wrapper.style.transformOrigin = 'center center';
+      wrapper.style.transition = 'none';
+
+      // Bounds container
+      const containerW = Math.max(280, this.zoomCanvasContainer.clientWidth || window.innerWidth);
+      const containerH = Math.max(300, this.zoomCanvasContainer.clientHeight || (window.innerHeight - 60));
+      const margin = containerW < 640 ? 12 : 36;
+      const availW = Math.max(200, containerW - margin);
+      const availH = Math.max(200, containerH - margin);
+
+      const leftRatio = (leftData.width && leftData.height) ? (leftData.width / leftData.height) : (1 / 1.414);
+      const rightRatio = (rightData.width && rightData.height) ? (rightData.width / rightData.height) : (1 / 1.414);
+      const combinedRatio = leftRatio + rightRatio;
+
+      let totalW, totalH;
+      if ((availW / availH) < combinedRatio) {
+        totalW = availW;
+        totalH = availW / combinedRatio;
+      } else {
+        totalH = availH;
+        totalW = availH * combinedRatio;
+      }
+
+      const singleW = Math.round(totalW / 2);
+      const singleH = Math.round(totalH);
+
+      // Left Page Image
+      const leftImg = document.createElement('img');
+      leftImg.src = leftData.hdDataUrl || leftData.dataUrl;
+      leftImg.alt = `Zoom Hal ${leftData.pageNumber}`;
+      leftImg.className = 'max-w-none select-none pointer-events-none';
+      leftImg.style.width = `${singleW}px`;
+      leftImg.style.height = `${singleH}px`;
+      leftImg.draggable = false;
+
+      // Center Spine Divider
+      const spine = document.createElement('div');
+      spine.className = 'w-1 bg-slate-900/60 self-stretch shadow-inner';
+
+      // Right Page Image
+      const rightImg = document.createElement('img');
+      rightImg.src = rightData.hdDataUrl || rightData.dataUrl;
+      rightImg.alt = `Zoom Hal ${rightData.pageNumber}`;
+      rightImg.className = 'max-w-none select-none pointer-events-none';
+      rightImg.style.width = `${singleW}px`;
+      rightImg.style.height = `${singleH}px`;
+      rightImg.draggable = false;
+
+      wrapper.appendChild(leftImg);
+      wrapper.appendChild(spine);
+      wrapper.appendChild(rightImg);
+      this.zoomCanvasContainer.appendChild(wrapper);
+
+      // On-demand Ultra-HD (300 DPI) rendering untuk kedua halaman
+      if (leftData.doc && !leftData.hdDataUrl && leftData.sourcePage) {
+        this.renderHdForPage(leftData, leftImg);
+      }
+      if (rightData.doc && !rightData.hdDataUrl && rightData.sourcePage) {
+        this.renderHdForPage(rightData, rightImg);
+      }
+    }
+
     this.setZoom(1.0, true, false);
   }
 }
