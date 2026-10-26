@@ -1147,6 +1147,7 @@ class EPaperApp {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
         this.pageImages.push({
           pageNumber:  pageNum,
+          sourceFile:  this.currentPdfName || '',
           sourcePage:  pageNum,
           doc:         this.pdfDoc,
           dataUrl:     dataUrl,
@@ -1338,19 +1339,152 @@ class EPaperApp {
   }
 
   // ─────────────────────────────────────────────────────────
-  //  Hapus Halaman Tertentu (Delete Page)
+  //  Hapus Halaman Tertentu (Delete Page Permanent dari Server)
   // ─────────────────────────────────────────────────────────
-  deletePage(pageIndex) {
+  async deletePage(pageIndex) {
     if (pageIndex < 0 || pageIndex >= this.pageImages.length) return;
-    const pageNum = this.pageImages[pageIndex].pageNumber;
+    const targetPage = this.pageImages[pageIndex];
+    const pageNum = targetPage.pageNumber;
+    const sourceFile = targetPage.sourceFile || this.currentPdfName || '';
+    const sourcePage = targetPage.sourcePage || 1;
+    const totalPagesInDoc = targetPage.doc?.numPages || 1;
 
-    if (!confirm(`⚠️ Apakah Anda yakin ingin menghapus Halaman ${pageNum} dari tampilan buletin ini?`)) {
-      return;
+    // 1. Cek otorisasi PIN pengelola madrasah
+    if (sessionStorage.getItem('epaper_admin_auth') !== 'true') {
+      const inputPin = prompt('🔒 Konfirmasi Pengelola Madrasah\n\nMasukkan PIN Pengelola untuk menghapus Halaman ' + pageNum + ' secara permanen dari server:');
+      if (!inputPin) return;
+      const pinRes = await this.verifyPin(inputPin);
+      if (!pinRes.success) {
+        alert('❌ ' + (pinRes.message || 'PIN salah! Penghapusan dibatalkan.'));
+        return;
+      }
+      sessionStorage.setItem('epaper_admin_auth', 'true');
     }
 
-    this.pageImages.splice(pageIndex, 1);
-    this.rebuildFlipbook();
-    alert(`✅ Halaman ${pageNum} berhasil dihapus dari lembaran flipbook!`);
+    // 2. Dialog konfirmasi detail
+    let confirmMsg = '';
+    if (totalPagesInDoc === 1) {
+      confirmMsg = `⚠️ PERINGATAN HAPUS HALAMAN PERMANEN\n\n` +
+                   `Anda akan MENGHAPUS PERMANEN Halaman ${pageNum} (file '${sourceFile}') dari arsip publikasi "${this.currentPublication.toUpperCase()}".\n\n` +
+                   `File fisik di server akan dihapus sehingga TIDAK AKAN MUNCUL KEMBALI saat halaman di-reload.\n\n` +
+                   `Apakah Anda yakin ingin melanjutkan?`;
+    } else {
+      confirmMsg = `⚠️ PERINGATAN HAPUS HALAMAN PERMANEN\n\n` +
+                   `Anda akan MENGHAPUS Halaman ${pageNum} (halaman ke-${sourcePage} dari dokumen '${sourceFile}', total ${totalPagesInDoc} halaman).\n\n` +
+                   `Halaman ini akan dipotong permanen dari file PDF di server sehingga TIDAK AKAN MUNCUL KEMBALI saat di-reload.\n\n` +
+                   `Apakah Anda yakin ingin melanjutkan?`;
+    }
+
+    if (!confirm(confirmMsg)) return;
+
+    this.showLoading(`Menghapus Halaman ${pageNum} (${sourceFile}) dari server...`);
+
+    try {
+      if (totalPagesInDoc === 1) {
+        // Dokumen 1 halaman: hapus langsung filenya di server
+        const formData = new FormData();
+        formData.append('action', 'delete');
+        formData.append('pub', this.currentPublication);
+        formData.append('filename', sourceFile);
+
+        const res = await fetch('api.php', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!data.success) {
+          throw new Error(data.message || 'Gagal menghapus file dari server.');
+        }
+      } else {
+        // Dokumen multi-halaman: gunakan PDF-Lib untuk memotong halaman dan simpan kembali ke server
+        if (!window.PDFLib) {
+          throw new Error('Pustaka pemroses PDF (PDF-Lib) tidak ditemukan. Pastikan file js/pdf-lib.min.js terpasang.');
+        }
+
+        const rawUrl = `pdf/${this.currentPublication}/${encodeURIComponent(sourceFile)}`;
+        let pdfBytes = null;
+        try {
+          const binRes = await fetch(rawUrl);
+          if (binRes.ok) pdfBytes = await binRes.arrayBuffer();
+        } catch (_) {}
+
+        if (!pdfBytes) {
+          const apiRes = await fetch(`api.php?action=get_pdf&pub=${encodeURIComponent(this.currentPublication)}&file=${encodeURIComponent(sourceFile)}`);
+          const apiData = await apiRes.json();
+          if (apiData.success && apiData.base64) {
+            const binStr = atob(apiData.base64);
+            const len = binStr.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+            pdfBytes = bytes.buffer;
+          }
+        }
+
+        if (!pdfBytes) {
+          throw new Error(`Gagal mengunduh file asli '${sourceFile}' dari server untuk memproses pemotongan halaman.`);
+        }
+
+        const pdfDoc = await window.PDFLib.PDFDocument.load(pdfBytes);
+        const currentCount = pdfDoc.getPageCount();
+
+        if (currentCount <= 1) {
+          // Jika tinggal 1 halaman dan dihapus, maka hapus seluruh file
+          const formData = new FormData();
+          formData.append('action', 'delete');
+          formData.append('pub', this.currentPublication);
+          formData.append('filename', sourceFile);
+          const delRes = await fetch('api.php', { method: 'POST', body: formData });
+          const delData = await delRes.json();
+          if (!delData.success) throw new Error(delData.message);
+        } else {
+          // Hapus halaman tertentu (0-indexed di PDFLib)
+          const targetIdx = Math.max(0, Math.min(currentCount - 1, sourcePage - 1));
+          pdfDoc.removePage(targetIdx);
+          const modifiedBytes = await pdfDoc.save();
+
+          const blob = new Blob([modifiedBytes], { type: 'application/pdf' });
+          const formData = new FormData();
+          formData.append('action', 'replace_pdf');
+          formData.append('pub', this.currentPublication);
+          formData.append('filename', sourceFile);
+          formData.append('pdf_file', blob, sourceFile);
+
+          const repRes = await fetch('api.php', { method: 'POST', body: formData });
+          const repData = await repRes.json();
+          if (!repData.success) throw new Error(repData.message || 'Gagal menyimpan pembaruan file di server.');
+        }
+      }
+
+      // 3. Update state di memori flipbook
+      this.pageImages.splice(pageIndex, 1);
+
+      // Sesuaikan index sourcePage untuk halaman-halaman berikutnya dari file yang sama
+      this.pageImages.forEach(p => {
+        if (p.sourceFile === sourceFile && p.sourcePage > sourcePage) {
+          p.sourcePage--;
+        }
+        if (p.doc === targetPage.doc && p.doc?.numPages) {
+          p.doc.numPages = Math.max(0, p.doc.numPages - 1);
+        }
+      });
+
+      // 4. Perbarui Flipbook dan UI
+      if (this.pageImages.length === 0) {
+        const pubInfo = PUBLICATIONS[this.currentPublication] || PUBLICATIONS.alqalam;
+        this.showEmptyPublicationCanvas(pubInfo);
+      } else {
+        this.rebuildFlipbook();
+      }
+
+      // Jika modal Kelola Edisi sedang terbuka, perbarui daftar file
+      if (this.editionsModal && !this.editionsModal.classList.contains('hidden')) {
+        this.loadEditionsList();
+      }
+
+      this.hideLoading();
+      alert(`✅ Halaman ${pageNum} berhasil DIHAPUS PERMANEN dari server!\n\nSaat halaman di-reload, Halaman ${pageNum} tidak akan pernah muncul lagi.`);
+    } catch (err) {
+      console.error('Gagal menghapus halaman:', err);
+      this.hideLoading();
+      alert(`❌ Gagal menghapus halaman:\n${err.message}`);
+    }
   }
 
   // ─────────────────────────────────────────────────────────
@@ -1370,9 +1504,9 @@ class EPaperApp {
         <div class="relative w-24 h-32 overflow-hidden rounded bg-white shadow flex items-center justify-center">
           <img src="${imgObj.dataUrl}" alt="Thumbnail ${imgObj.pageNumber}" class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
           
-          <!-- Tombol Hapus Halaman -->
-          <button class="btn-delete-page absolute top-1 right-1 p-1 rounded bg-rose-600/90 hover:bg-rose-500 text-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" title="Hapus Halaman ${imgObj.pageNumber}">
-            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <!-- Tombol Hapus Halaman (Dukungan Responsif HP & Desktop) -->
+          <button class="btn-delete-page absolute top-1 right-1 p-1.5 rounded-md bg-rose-600/90 hover:bg-rose-500 active:scale-95 text-white shadow-lg opacity-85 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-150 z-20" title="Hapus Halaman ${imgObj.pageNumber} Permanen">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
           </button>
         </div>
         <span class="text-[11px] font-medium mt-1 text-slate-300 group-hover:text-white">Hal ${imgObj.pageNumber}</span>
@@ -1752,6 +1886,9 @@ class EPaperApp {
         alert(`✅ ${data.message}`);
         if (this.currentPdfName === filename) {
           this.closeDocument();
+        } else {
+          // Sinkronisasi langsung ke tampilan koran agar file yang dihapus tidak tertinggal di layar
+          this.loadAllCombinedPDFs();
         }
         this.loadEditionsList();
       } else {

@@ -168,12 +168,38 @@ switch ($action) {
 
         if (!empty($filename) && file_exists($targetFile)) {
             if (unlink($targetFile)) {
-                echo json_encode(['success' => true, 'pub' => $pub, 'message' => "File '$filename' berhasil dihapus dari $pub."]);
+                echo json_encode(['success' => true, 'pub' => $pub, 'message' => "File '$filename' berhasil dihapus permanen dari arsip $pub."]);
             } else {
-                echo json_encode(['success' => false, 'message' => "Gagal menghapus file '$filename'."]);
+                echo json_encode(['success' => false, 'message' => "Gagal menghapus file '$filename' dari server."]);
             }
         } else {
-            echo json_encode(['success' => false, 'message' => "File tidak ditemukan atau nama tidak valid."]);
+            echo json_encode(['success' => false, 'message' => "File '$filename' tidak ditemukan atau nama tidak valid."]);
+        }
+        break;
+
+    case 'replace_pdf':
+        if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'message' => 'Gagal menerima file PDF yang diperbarui.']);
+            exit;
+        }
+
+        $filename = basename($_POST['filename'] ?? $_FILES['pdf_file']['name'] ?? '');
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        if ($ext !== 'pdf') {
+            echo json_encode(['success' => false, 'message' => 'Format file harus PDF.']);
+            exit;
+        }
+
+        $destination = $pdfDir . DIRECTORY_SEPARATOR . $filename;
+        if (move_uploaded_file($_FILES['pdf_file']['tmp_name'], $destination)) {
+            echo json_encode([
+                'success' => true,
+                'message' => "File '$filename' berhasil diperbarui di server $pub.",
+                'pub' => $pub,
+                'filename' => $filename
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => "Gagal menyimpan pembaruan file '$filename' di server."]);
         }
         break;
 
