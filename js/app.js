@@ -613,7 +613,7 @@ class EPaperApp {
   async fetchShelfStats() {
     for (const pubId of Object.keys(PUBLICATIONS)) {
       try {
-        const res = await fetch(`api.php?action=list&pub=${pubId}`);
+        const res = await fetch(`api.php?action=list&pub=${pubId}&_t=${Date.now()}`);
         const data = await res.json();
         const statEl = document.getElementById(`shelf-stat-${pubId}`);
         if (!statEl) continue;
@@ -836,7 +836,7 @@ class EPaperApp {
     try {
       const pubInfo = PUBLICATIONS[this.currentPublication] || PUBLICATIONS.alqalam;
       this.showLoading(`Membuka publikasi ${pubInfo.name}...`);
-      const res = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}`);
+      const res = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}&_t=${Date.now()}`);
       const data = await res.json();
       if (data.success && data.files && data.files.length > 0) {
         // Otomatis gabungkan dan tampilkan seluruh halaman koran (semua file PDF)
@@ -900,7 +900,7 @@ class EPaperApp {
     try {
       const pubInfo = PUBLICATIONS[this.currentPublication] || PUBLICATIONS.alqalam;
       this.showLoading(`Membuka koleksi ${pubInfo.name}...`);
-      const res = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}`);
+      const res = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}&_t=${Date.now()}`);
       const data = await res.json();
       if (!data.success || !data.files || data.files.length === 0) {
         this.showEmptyPublicationCanvas(pubInfo);
@@ -1349,30 +1349,16 @@ class EPaperApp {
     const sourcePage = targetPage.sourcePage || 1;
     const totalPagesInDoc = targetPage.doc?.numPages || 1;
 
-    // 1. Cek otorisasi PIN pengelola madrasah
-    if (sessionStorage.getItem('epaper_admin_auth') !== 'true') {
-      const inputPin = prompt('🔒 Konfirmasi Pengelola Madrasah\n\nMasukkan PIN Pengelola untuk menghapus Halaman ' + pageNum + ' secara permanen dari server:');
-      if (!inputPin) return;
-      const pinRes = await this.verifyPin(inputPin);
-      if (!pinRes.success) {
-        alert('❌ ' + (pinRes.message || 'PIN salah! Penghapusan dibatalkan.'));
-        return;
-      }
-      sessionStorage.setItem('epaper_admin_auth', 'true');
-    }
-
-    // 2. Dialog konfirmasi detail
+    // Dialog konfirmasi detail
     let confirmMsg = '';
     if (totalPagesInDoc === 1) {
       confirmMsg = `⚠️ PERINGATAN HAPUS HALAMAN PERMANEN\n\n` +
-                   `Anda akan MENGHAPUS PERMANEN Halaman ${pageNum} (file '${sourceFile}') dari arsip publikasi "${this.currentPublication.toUpperCase()}".\n\n` +
-                   `File fisik di server akan dihapus sehingga TIDAK AKAN MUNCUL KEMBALI saat halaman di-reload.\n\n` +
-                   `Apakah Anda yakin ingin melanjutkan?`;
+                   `Apakah Anda yakin ingin MENGHAPUS PERMANEN Halaman ${pageNum} (file '${sourceFile}') dari arsip "${this.currentPublication.toUpperCase()}" di server?\n\n` +
+                   `File fisik di server akan dihapus permanen sehingga TIDAK AKAN MUNCUL KEMBALI saat halaman di-reload.`;
     } else {
       confirmMsg = `⚠️ PERINGATAN HAPUS HALAMAN PERMANEN\n\n` +
-                   `Anda akan MENGHAPUS Halaman ${pageNum} (halaman ke-${sourcePage} dari dokumen '${sourceFile}', total ${totalPagesInDoc} halaman).\n\n` +
-                   `Halaman ini akan dipotong permanen dari file PDF di server sehingga TIDAK AKAN MUNCUL KEMBALI saat di-reload.\n\n` +
-                   `Apakah Anda yakin ingin melanjutkan?`;
+                   `Apakah Anda yakin ingin MENGHAPUS Halaman ${pageNum} (halaman ke-${sourcePage} dari file '${sourceFile}', total ${totalPagesInDoc} halaman) dari server?\n\n` +
+                   `Halaman ini akan dipotong permanen dari file PDF di server sehingga TIDAK AKAN MUNCUL KEMBALI saat di-reload.`;
     }
 
     if (!confirm(confirmMsg)) return;
@@ -1754,7 +1740,7 @@ class EPaperApp {
     `;
 
     try {
-      const res  = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}`);
+      const res  = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}&_t=${Date.now()}`);
       const data = await res.json();
 
       if (!data.success || !data.files || data.files.length === 0) {
@@ -1990,7 +1976,7 @@ class EPaperApp {
     `;
 
     try {
-      const res = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}`);
+      const res = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}&_t=${Date.now()}`);
       const data = await res.json();
 
       if (!data.success || !data.files || data.files.length === 0) {
