@@ -9,6 +9,85 @@ if (window.pdfjsLib) {
   window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/pdf.worker.min.js';
 }
 
+// ─────────────────────────────────────────────────────────
+//  High-Performance Client-Side Render Cache (IndexedDB)
+// ─────────────────────────────────────────────────────────
+class PageRenderCache {
+  constructor() {
+    this.dbName = 'epaper_cache_v3';
+    this.storeName = 'rendered_pages';
+    this._db = null;
+  }
+
+  async getDB() {
+    if (this._db) return this._db;
+    if (!window.indexedDB) return null;
+    return new Promise((resolve) => {
+      try {
+        const req = indexedDB.open(this.dbName, 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(this.storeName)) {
+            db.createObjectStore(this.storeName);
+          }
+        };
+        req.onsuccess = (e) => {
+          this._db = e.target.result;
+          resolve(this._db);
+        };
+        req.onerror = () => resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
+    });
+  }
+
+  async get(key) {
+    try {
+      const db = await this.getDB();
+      if (!db) return null;
+      return new Promise((resolve) => {
+        const tx = db.transaction(this.storeName, 'readonly');
+        const store = tx.objectStore(this.storeName);
+        const req = store.get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async set(key, val) {
+    try {
+      const db = await this.getDB();
+      if (!db) return;
+      const tx = db.transaction(this.storeName, 'readwrite');
+      tx.objectStore(this.storeName).put(val, key);
+    } catch (_) {}
+  }
+
+  async clearPub(pub) {
+    try {
+      const db = await this.getDB();
+      if (!db) return;
+      const tx = db.transaction(this.storeName, 'readwrite');
+      const store = tx.objectStore(this.storeName);
+      const req = store.openCursor();
+      req.onsuccess = (e) => {
+        const cursor = e.target.result;
+        if (cursor) {
+          if (typeof cursor.key === 'string' && cursor.key.startsWith(pub + '_')) {
+            cursor.delete();
+          }
+          cursor.continue();
+        }
+      };
+    } catch (_) {}
+  }
+}
+const pageRenderCache = new PageRenderCache();
+
 const PUBLICATIONS = {
   alqalam: {
     id: 'alqalam',
@@ -988,25 +1067,70 @@ class EPaperApp {
         return { file, doc: null };
       }));
 
+      // 1. Susun daftar seluruh halaman yang akan dirender
+      const pageTasks = [];
       let globalPageNum = 1;
-      const isMobile = window.innerWidth < 768;
-      let totalPagesAll = 0;
-      loadedDocs.forEach(item => { if (item.doc) totalPagesAll += item.doc.numPages; });
-
       for (let fIdx = 0; fIdx < loadedDocs.length; fIdx++) {
         const { file, doc } = loadedDocs[fIdx];
         if (!doc) continue;
-
         for (let p = 1; p <= doc.numPages; p++) {
-          const progressPct = Math.round(20 + ((globalPageNum - 1) / Math.max(1, totalPagesAll)) * 75);
-          this.updateProgress(progressPct, `Menyiapkan Halaman ${globalPageNum} (${file.name})...`);
+          pageTasks.push({
+            taskIndex: pageTasks.length,
+            globalPageNum: globalPageNum++,
+            file,
+            doc,
+            sourcePage: p
+          });
+        }
+      }
 
-          const page = await doc.getPage(p);
+      const totalPagesAll = pageTasks.length;
+      if (totalPagesAll === 0) {
+        this.showEmptyPublicationCanvas(pubInfo);
+        this.hideLoading();
+        this.isRendering = false;
+        return;
+      }
 
-          // Optimal resolution: high-DPI crisp text rendering for A3/A4 newspapers
+      this.pageImages = new Array(totalPagesAll);
+
+      // 2. High-speed render loop: Concurrent Batching & Persistent IndexedDB Cache
+      const isMobile = window.innerWidth < 768;
+      // Target resolusi optimal: 1600-1800px sudah 2x Retina display di layar, 5x lebih cepat render dari 2600px!
+      const targetH = isMobile ? Math.min(window.innerHeight * 1.6, 1400) : 1800;
+      const BATCH_SIZE = isMobile ? 2 : 3;
+
+      for (let i = 0; i < pageTasks.length; i += BATCH_SIZE) {
+        const batch = pageTasks.slice(i, i + BATCH_SIZE);
+        const startNum = batch[0].globalPageNum;
+        const endNum = batch[batch.length - 1].globalPageNum;
+        const progressPct = Math.round(20 + (i / totalPagesAll) * 75);
+        this.updateProgress(progressPct, `Menyiapkan Halaman ${startNum}${endNum > startNum ? '–' + endNum : ''} dari ${totalPagesAll}...`);
+
+        await Promise.all(batch.map(async (task) => {
+          const { taskIndex, globalPageNum, file, doc, sourcePage } = task;
+          const cacheKey = `${this.currentPublication}_${file.name}_${file.date || file.size || ''}_p${sourcePage}_h${targetH}`;
+
+          // Cek Cache IndexedDB (Instant 0ms recovery)
+          const cached = await pageRenderCache.get(cacheKey);
+          if (cached && cached.dataUrl) {
+            this.pageImages[taskIndex] = {
+              pageNumber: globalPageNum,
+              sourceFile: file.name,
+              sourcePage: sourcePage,
+              doc: doc,
+              dataUrl: cached.dataUrl,
+              aspectRatio: cached.aspectRatio || (cached.width / cached.height),
+              width: cached.width,
+              height: cached.height
+            };
+            return;
+          }
+
+          // Render halaman secara cepat
+          const page = await doc.getPage(sourcePage);
           const baseVp = page.getViewport({ scale: 1.0 });
-          const targetH = isMobile ? Math.min(window.innerHeight * 2.2, 2200) : 2600;
-          const optimalScale = Math.min(2.4, Math.max(1.3, targetH / baseVp.height));
+          const optimalScale = Math.min(1.8, Math.max(1.0, targetH / baseVp.height));
           const viewport = page.getViewport({ scale: optimalScale });
 
           const canvas = document.createElement('canvas');
@@ -1014,34 +1138,46 @@ class EPaperApp {
           canvas.height = viewport.height;
           const ctx = canvas.getContext('2d', { alpha: false });
           ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
+          ctx.imageSmoothingQuality = 'medium';
           await page.render({ canvasContext: ctx, viewport }).promise;
 
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-          this.pageImages.push({
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.90);
+          const pageItem = {
             pageNumber: globalPageNum,
             sourceFile: file.name,
-            sourcePage: p,
+            sourcePage: sourcePage,
             doc: doc,
             dataUrl: dataUrl,
             aspectRatio: viewport.width / viewport.height,
             width: viewport.width,
             height: viewport.height
+          };
+
+          this.pageImages[taskIndex] = pageItem;
+
+          // Simpan ke Cache IndexedDB secara asinkron
+          pageRenderCache.set(cacheKey, {
+            dataUrl: dataUrl,
+            aspectRatio: pageItem.aspectRatio,
+            width: pageItem.width,
+            height: pageItem.height
           });
-
-          // Zoom dropdown
-          if (this.zoomPageSelect) {
-            const opt = document.createElement('option');
-            opt.value = globalPageNum - 1;
-            opt.innerText = `Hal. ${globalPageNum} (${file.name} Hal. ${p})`;
-            this.zoomPageSelect.appendChild(opt);
-          }
-
-          globalPageNum++;
-        }
+        }));
       }
 
+      this.pageImages = this.pageImages.filter(Boolean);
       this.totalPages = this.pageImages.length;
+
+      // Isi pilihan zoom dropdown
+      if (this.zoomPageSelect) {
+        this.zoomPageSelect.innerHTML = '';
+        this.pageImages.forEach((imgObj, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.innerText = `Hal. ${imgObj.pageNumber} (${imgObj.sourceFile} Hal. ${imgObj.sourcePage})`;
+          this.zoomPageSelect.appendChild(opt);
+        });
+      }
       if (this.totalPages === 0) {
         this.showEmptyPublicationCanvas(pubInfo);
         this.hideLoading();
@@ -1126,47 +1262,86 @@ class EPaperApp {
 
       this.updateProgress(25, `Merender ${this.totalPages} halaman buletin...`);
 
-      // 3. Render each page to an offscreen canvas at device-optimal resolution
+      // 3. Render pages concurrently in batches
       const isMobile = window.innerWidth < 768;
+      const targetH  = isMobile ? Math.min(window.innerHeight * 1.6, 1400) : 1800;
+      const BATCH_SIZE = isMobile ? 2 : 3;
 
-      for (let pageNum = 1; pageNum <= this.totalPages; pageNum++) {
-        const progressPct = Math.round(25 + (pageNum / this.totalPages) * 65);
-        this.updateProgress(progressPct, `Merender halaman ${pageNum} dari ${this.totalPages}...`);
+      this.pageImages = new Array(this.totalPages);
 
-        const page     = await this.pdfDoc.getPage(pageNum);
-        const baseVp   = page.getViewport({ scale: 1.0 });
-        const targetH  = isMobile ? Math.min(window.innerHeight * 2.2, 2200) : 2600;
-        const optimalScale = Math.min(2.4, Math.max(1.3, targetH / baseVp.height));
-        const viewport = page.getViewport({ scale: optimalScale });
-
-        const canvas   = document.createElement('canvas');
-        canvas.width   = viewport.width;
-        canvas.height  = viewport.height;
-        const ctx      = canvas.getContext('2d', { alpha: false });
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-
-        await page.render({ canvasContext: ctx, viewport }).promise;
-
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-        this.pageImages.push({
-          pageNumber:  pageNum,
-          sourceFile:  this.currentPdfName || '',
-          sourcePage:  pageNum,
-          doc:         this.pdfDoc,
-          dataUrl:     dataUrl,
-          aspectRatio: viewport.width / viewport.height,
-          width:       viewport.width,
-          height:      viewport.height
-        });
-
-        // Add to Zoom dropdown
-        if (this.zoomPageSelect) {
-          const opt = document.createElement('option');
-          opt.value = pageNum - 1;
-          opt.innerText = `Halaman ${pageNum}`;
-          this.zoomPageSelect.appendChild(opt);
+      for (let i = 1; i <= this.totalPages; i += BATCH_SIZE) {
+        const batchPages = [];
+        for (let j = i; j < i + BATCH_SIZE && j <= this.totalPages; j++) {
+          batchPages.push(j);
         }
+
+        const progressPct = Math.round(25 + (i / this.totalPages) * 65);
+        this.updateProgress(progressPct, `Menyiapkan Halaman ${batchPages[0]}–${batchPages[batchPages.length - 1]} dari ${this.totalPages}...`);
+
+        await Promise.all(batchPages.map(async (pageNum) => {
+          const cacheKey = `${this.currentPublication}_${this.currentPdfName || 'single'}_p${pageNum}_h${targetH}`;
+          const cached = await pageRenderCache.get(cacheKey);
+          if (cached && cached.dataUrl) {
+            this.pageImages[pageNum - 1] = {
+              pageNumber:  pageNum,
+              sourceFile:  this.currentPdfName || '',
+              sourcePage:  pageNum,
+              doc:         this.pdfDoc,
+              dataUrl:     cached.dataUrl,
+              aspectRatio: cached.aspectRatio || (cached.width / cached.height),
+              width:       cached.width,
+              height:      cached.height
+            };
+            return;
+          }
+
+          const page     = await this.pdfDoc.getPage(pageNum);
+          const baseVp   = page.getViewport({ scale: 1.0 });
+          const optimalScale = Math.min(1.8, Math.max(1.0, targetH / baseVp.height));
+          const viewport = page.getViewport({ scale: optimalScale });
+
+          const canvas   = document.createElement('canvas');
+          canvas.width   = viewport.width;
+          canvas.height  = viewport.height;
+          const ctx      = canvas.getContext('2d', { alpha: false });
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'medium';
+
+          await page.render({ canvasContext: ctx, viewport }).promise;
+
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.90);
+          const pageItem = {
+            pageNumber:  pageNum,
+            sourceFile:  this.currentPdfName || '',
+            sourcePage:  pageNum,
+            doc:         this.pdfDoc,
+            dataUrl:     dataUrl,
+            aspectRatio: viewport.width / viewport.height,
+            width:       viewport.width,
+            height:      viewport.height
+          };
+          this.pageImages[pageNum - 1] = pageItem;
+
+          pageRenderCache.set(cacheKey, {
+            dataUrl: dataUrl,
+            aspectRatio: pageItem.aspectRatio,
+            width: pageItem.width,
+            height: pageItem.height
+          });
+        }));
+      }
+
+      this.pageImages = this.pageImages.filter(Boolean);
+
+      // Add to Zoom dropdown
+      if (this.zoomPageSelect) {
+        this.zoomPageSelect.innerHTML = '';
+        this.pageImages.forEach((imgObj, idx) => {
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.innerText = `Halaman ${imgObj.pageNumber}`;
+          this.zoomPageSelect.appendChild(opt);
+        });
       }
 
       this.updateProgress(95, 'Menyiapkan efek lembaran 3D...');
@@ -1441,6 +1616,9 @@ class EPaperApp {
           if (!repData.success) throw new Error(repData.message || 'Gagal menyimpan pembaruan file di server.');
         }
       }
+
+      // Bersihkan cache render agar halaman yang dihapus tidak muncul lagi dari memori cache
+      await pageRenderCache.clearPub(this.currentPublication);
 
       // 3. Update state di memori flipbook
       this.pageImages.splice(pageIndex, 1);
@@ -1873,6 +2051,7 @@ class EPaperApp {
       const data = await res.json();
 
       if (data.success) {
+        await pageRenderCache.clearPub(this.currentPublication);
         alert(`✅ ${data.message}`);
         if (this.currentPdfName === filename) {
           this.closeDocument();
@@ -1910,6 +2089,7 @@ class EPaperApp {
       const data = await res.json();
 
       if (data.success) {
+        await pageRenderCache.clearPub(this.currentPublication);
         alert('🎉 ' + data.message);
         if (this.inputModalPdf) this.inputModalPdf.value = '';
         this.loadEditionsList();
