@@ -1005,17 +1005,19 @@ class EPaperApp {
 
           // Optimal resolution: high-DPI crisp text rendering for A3/A4 newspapers
           const baseVp = page.getViewport({ scale: 1.0 });
-          const targetH = isMobile ? Math.min(window.innerHeight * 2.2, 2000) : 2400;
-          const optimalScale = Math.min(2.0, Math.max(1.2, targetH / baseVp.height));
+          const targetH = isMobile ? Math.min(window.innerHeight * 2.2, 2200) : 2600;
+          const optimalScale = Math.min(2.4, Math.max(1.3, targetH / baseVp.height));
           const viewport = page.getViewport({ scale: optimalScale });
 
           const canvas = document.createElement('canvas');
           canvas.width = viewport.width;
           canvas.height = viewport.height;
           const ctx = canvas.getContext('2d', { alpha: false });
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           await page.render({ canvasContext: ctx, viewport }).promise;
 
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
           this.pageImages.push({
             pageNumber: globalPageNum,
             sourceFile: file.name,
@@ -1133,18 +1135,20 @@ class EPaperApp {
 
         const page     = await this.pdfDoc.getPage(pageNum);
         const baseVp   = page.getViewport({ scale: 1.0 });
-        const targetH  = isMobile ? Math.min(window.innerHeight * 2.2, 2000) : 2400;
-        const optimalScale = Math.min(2.0, Math.max(1.2, targetH / baseVp.height));
+        const targetH  = isMobile ? Math.min(window.innerHeight * 2.2, 2200) : 2600;
+        const optimalScale = Math.min(2.4, Math.max(1.3, targetH / baseVp.height));
         const viewport = page.getViewport({ scale: optimalScale });
 
         const canvas   = document.createElement('canvas');
         canvas.width   = viewport.width;
         canvas.height  = viewport.height;
         const ctx      = canvas.getContext('2d', { alpha: false });
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
         this.pageImages.push({
           pageNumber:  pageNum,
           sourceFile:  this.currentPdfName || '',
@@ -2336,14 +2340,16 @@ class EPaperApp {
         pageData.doc.getPage(pageData.sourcePage).then(async (page) => {
           try {
             const baseVp = page.getViewport({ scale: 1.0 });
-            const hdScale = Math.min(3.2, Math.max(2.2, 3000 / baseVp.height));
+            const hdScale = Math.min(3.5, Math.max(2.4, 3200 / baseVp.height));
             const viewport = page.getViewport({ scale: hdScale });
             const canvas = document.createElement('canvas');
             canvas.width = viewport.width;
             canvas.height = viewport.height;
             const ctx = canvas.getContext('2d', { alpha: false });
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
             await page.render({ canvasContext: ctx, viewport }).promise;
-            pageData.hdDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+            pageData.hdDataUrl = canvas.toDataURL('image/jpeg', 0.96);
             if (this.currentPage === pageIndex && img) {
               img.src = pageData.hdDataUrl;
             }
