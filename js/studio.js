@@ -41,6 +41,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   initElements() {
     // Header Master & Kop Inputs
     this.headerMode                 = 'default';
+    this.headerDatePosition         = 'overlay'; // 'overlay', 'below', 'hide'
     this.btnModeDefaultHeader       = document.getElementById('btn-mode-default-header');
     this.btnModeCustomHeader        = document.getElementById('btn-mode-custom-header');
     this.badgeHeaderStatus          = document.getElementById('badge-header-status');
@@ -52,17 +53,25 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnTriggerUploadHeader     = document.getElementById('btn-trigger-upload-header');
     this.inpCustomHeader            = document.getElementById('inp-custom-header');
     this.containerCustomEditionToggle = document.getElementById('container-custom-edition-toggle');
-    this.chkShowCustomEditionBar    = document.getElementById('chk-show-custom-edition-bar');
+    this.btnPosOverlay              = document.getElementById('btn-pos-overlay');
+    this.btnPosBelow                = document.getElementById('btn-pos-below');
+    this.btnPosHide                 = document.getElementById('btn-pos-hide');
 
     // Live Views Header on A3 Sheet
     this.viewCustomHeaderWrapper    = document.getElementById('view-custom-header-wrapper');
     this.viewDefaultHeaderWrapper   = document.getElementById('view-default-header-wrapper');
     this.viewCustomHeaderImg        = document.getElementById('view-custom-header-img');
+    this.viewCustomHeaderOverlayBox = document.getElementById('view-custom-header-overlay-box');
+    this.viewDayCustomOverlay       = document.getElementById('view-day-custom-overlay');
+    this.viewDateMasehiCustomOverlay = document.getElementById('view-date-masehi-custom-overlay');
+    this.viewDateHijriCustomOverlay = document.getElementById('view-date-hijri-custom-overlay');
+    this.viewEditionNumCustomOverlay = document.getElementById('view-edition-num-custom-overlay');
+
     this.viewCustomHeaderEditionBar = document.getElementById('view-custom-header-edition-bar');
-    this.viewDayCustom              = document.getElementById('view-day-custom');
-    this.viewDateMasehiCustom       = document.getElementById('view-date-masehi-custom');
-    this.viewDateHijriCustom        = document.getElementById('view-date-hijri-custom');
-    this.viewEditionNumCustom       = document.getElementById('view-edition-num-custom');
+    this.viewDayCustomBar           = document.getElementById('view-day-custom-bar');
+    this.viewDateMasehiCustomBar    = document.getElementById('view-date-masehi-custom-bar');
+    this.viewDateHijriCustomBar     = document.getElementById('view-date-hijri-custom-bar');
+    this.viewEditionNumCustomBar    = document.getElementById('view-edition-num-custom-bar');
 
     // Inputs
     this.inpDay             = document.getElementById('inp-day');
@@ -141,29 +150,27 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     });
     this.inpCustomHeader?.addEventListener('change', (e) => this.handleCustomHeaderUpload(e));
     this.btnResetMasterHeader?.addEventListener('click', () => this.resetMasterHeader());
-    this.chkShowCustomEditionBar?.addEventListener('change', () => this.updateHeaderDisplay());
+    
+    // Posisi Tanggal & Hari pada Kop Master
+    this.btnPosOverlay?.addEventListener('click', () => this.setHeaderDatePosition('overlay'));
+    this.btnPosBelow?.addEventListener('click', () => this.setHeaderDatePosition('below'));
+    this.btnPosHide?.addEventListener('click', () => this.setHeaderDatePosition('hide'));
 
     // Live Input Event Listeners
-    const bindLive = (inp, view, callback = null) => {
-      if (!inp || !view) return;
+    const bindLive = (inp, views) => {
+      if (!inp) return;
       inp.addEventListener('input', () => {
-        view.innerText = inp.value;
-        if (callback) callback();
+        const val = inp.value;
+        views.forEach(v => {
+          if (v) v.innerText = val;
+        });
       });
     };
 
-    bindLive(this.inpDay, this.viewDay, () => {
-      if (this.viewDayCustom) this.viewDayCustom.innerText = this.inpDay.value;
-    });
-    bindLive(this.inpDateMasehi, this.viewDateMasehi, () => {
-      if (this.viewDateMasehiCustom) this.viewDateMasehiCustom.innerText = this.inpDateMasehi.value;
-    });
-    bindLive(this.inpDateHijri, this.viewDateHijri, () => {
-      if (this.viewDateHijriCustom) this.viewDateHijriCustom.innerText = this.inpDateHijri.value;
-    });
-    bindLive(this.inpEditionNum, this.viewEditionNum, () => {
-      if (this.viewEditionNumCustom) this.viewEditionNumCustom.innerText = this.inpEditionNum.value;
-    });
+    bindLive(this.inpDay, [this.viewDay, this.viewDayCustomOverlay, this.viewDayCustomBar]);
+    bindLive(this.inpDateMasehi, [this.viewDateMasehi, this.viewDateMasehiCustomOverlay, this.viewDateMasehiCustomBar]);
+    bindLive(this.inpDateHijri, [this.viewDateHijri, this.viewDateHijriCustomOverlay, this.viewDateHijriCustomBar]);
+    bindLive(this.inpEditionNum, [this.viewEditionNum, this.viewEditionNumCustomOverlay, this.viewEditionNumCustomBar]);
     bindLive(this.inpHeadline, this.viewHeadline);
     bindLive(this.inpSubheadline, this.viewSubheadline);
     bindLive(this.inpCalloutQuote, this.viewCalloutQuote, () => {
@@ -346,6 +353,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.updateHeaderDisplay();
   }
 
+  setHeaderDatePosition(pos) {
+    this.headerDatePosition = pos;
+    this.updateHeaderDisplay();
+  }
+
   updateHeaderDisplay() {
     if (this.headerMode === 'custom') {
       // Tombol selector model kop
@@ -361,13 +373,29 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
       this.containerCustomEditionToggle?.classList.remove('hidden');
 
+      // Update tombol posisi hari & tanggal
+      const updateBtnStyle = (btn, isActive) => {
+        if (!btn) return;
+        if (isActive) {
+          btn.className = 'px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-center transition cursor-pointer shadow-sm';
+        } else {
+          btn.className = 'px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer';
+        }
+      };
+      updateBtnStyle(this.btnPosOverlay, this.headerDatePosition === 'overlay');
+      updateBtnStyle(this.btnPosBelow, this.headerDatePosition === 'below');
+      updateBtnStyle(this.btnPosHide, this.headerDatePosition === 'hide');
+
       // Tampilan di Sheet A3
       this.viewCustomHeaderWrapper?.classList.remove('hidden');
       this.viewDefaultHeaderWrapper?.classList.add('hidden');
 
-      const showBar = this.chkShowCustomEditionBar?.checked ?? true;
+      // Box Hari & Tanggal (Rata Kanan)
+      if (this.viewCustomHeaderOverlayBox) {
+        this.viewCustomHeaderOverlayBox.style.display = (this.headerDatePosition === 'overlay') ? 'block' : 'none';
+      }
       if (this.viewCustomHeaderEditionBar) {
-        this.viewCustomHeaderEditionBar.style.display = showBar ? 'flex' : 'none';
+        this.viewCustomHeaderEditionBar.style.display = (this.headerDatePosition === 'below') ? 'flex' : 'none';
       }
     } else {
       // Kop bawaan AL QALAM
@@ -386,6 +414,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       // Tampilan di Sheet A3
       this.viewCustomHeaderWrapper?.classList.add('hidden');
       this.viewDefaultHeaderWrapper?.classList.remove('hidden');
+      if (this.viewCustomHeaderOverlayBox) {
+        this.viewCustomHeaderOverlayBox.style.display = 'none';
+      }
       if (this.viewCustomHeaderEditionBar) {
         this.viewCustomHeaderEditionBar.style.display = 'none';
       }

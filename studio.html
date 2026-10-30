@@ -275,13 +275,21 @@
             <p class="text-[10px] text-slate-500">Mendukung file PNG (latar transparan), JPG, atau WEBP beresolusi tinggi.</p>
           </div>
 
-          <!-- Toggle: Show date/edition bar under custom header -->
-          <div id="container-custom-edition-toggle" class="hidden pt-2 border-t border-slate-800/80">
-            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none">
-              <input type="checkbox" id="chk-show-custom-edition-bar" class="w-3.5 h-3.5 rounded accent-emerald-500" checked>
-              <span>Tampilkan baris tanggal & nomor edisi di bawah kop</span>
-            </label>
-            <p class="text-[10px] text-slate-500 pl-5.5 mt-0.5">Hilangkan centang jika file kop Anda sudah memiliki tanggal di dalamnya.</p>
+          <!-- Opsi Posisi Tanggal & Hari pada Kop Master -->
+          <div id="container-custom-edition-toggle" class="hidden pt-2 border-t border-slate-800/80 space-y-2">
+            <label class="block text-[11px] font-bold text-slate-300">Posisi Hari & Tanggal (Kop Master):</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button type="button" id="btn-pos-overlay" class="px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-center transition cursor-pointer">
+                Pojok Kanan Atas (Sesuai Gambar)
+              </button>
+              <button type="button" id="btn-pos-below" class="px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer">
+                Di Bawah Kop (Rata Kanan)
+              </button>
+              <button type="button" id="btn-pos-hide" class="px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer">
+                Sembunyikan
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-500">Pilih <b>Pojok Kanan Atas</b> untuk menempatkan hari & tanggal di sudut kanan kop persis seperti koran resmi.</p>
           </div>
         </div>
 
@@ -472,8 +480,16 @@
           <div id="container-sheet-header" class="w-full flex-shrink-0 border-b-2 border-slate-900 pb-2 mb-4">
             
             <!-- OPTION A: Custom Uploaded Master Header View -->
-            <div id="view-custom-header-wrapper" class="hidden w-full">
+            <div id="view-custom-header-wrapper" class="hidden w-full relative">
               <img id="view-custom-header-img" src="" alt="Header Master Koran" class="w-full h-auto object-contain block mx-auto">
+              
+              <!-- Floating Overlay Edition Box (Pojok Kanan Atas, Rata Kanan seperti koran AL QALAM) -->
+              <div id="view-custom-header-overlay-box" class="absolute top-5 right-5 text-right font-serif leading-snug text-slate-900 pointer-events-none select-none z-10">
+                <div id="view-day-custom-overlay" class="text-[11px] text-slate-900 font-normal">Senin Wage</div>
+                <div id="view-date-masehi-custom-overlay" class="text-[11px] text-slate-900 font-normal">25 Agustus 2025</div>
+                <div id="view-date-hijri-custom-overlay" class="text-[11px] text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
+                <div id="view-edition-num-custom-overlay" class="text-[11px] font-bold text-slate-950 mt-0.5">Tahun 2025 | Nomor : 0002</div>
+              </div>
             </div>
 
             <!-- OPTION B: Default Built-in Dynamic Kop AL QALAM -->
@@ -491,12 +507,12 @@
                   <!-- Logos row (Kemenag, Pusaka, BerAKHLAK, Hari Santri) -->
                   <img src="assets/template/top_partner_logos.png" alt="Logos Resmi" class="h-7 object-contain mb-1.5">
                   
-                  <!-- Edition info box -->
-                  <div class="text-[11px] font-serif leading-snug text-slate-900 font-semibold">
-                    <div id="view-day" class="font-bold">Selasa Pahing</div>
-                    <div id="view-date-masehi">27 Oktober 2026</div>
-                    <div id="view-date-hijri" class="text-slate-700">16 Jumadil Awal 1448 H</div>
-                    <div id="view-edition-num" class="font-bold text-slate-900 mt-0.5">Tahun 2026 | Nomor : 0006</div>
+                  <!-- Edition info box (Rata Kanan) -->
+                  <div class="text-[11px] font-serif leading-snug text-slate-900 text-right">
+                    <div id="view-day" class="text-slate-900 font-normal">Senin Wage</div>
+                    <div id="view-date-masehi" class="text-slate-900 font-normal">25 Agustus 2025</div>
+                    <div id="view-date-hijri" class="text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
+                    <div id="view-edition-num" class="font-bold text-slate-900 mt-0.5">Tahun 2025 | Nomor : 0002</div>
                   </div>
                 </div>
 
@@ -528,17 +544,13 @@
               </div>
             </div>
 
-            <!-- OPTION C: Optional Edition & Date Sub-Bar under Custom Header -->
-            <div id="view-custom-header-edition-bar" class="hidden mt-2 pt-1.5 border-t border-slate-300 flex items-center justify-between text-[11px] font-serif text-slate-800">
-              <div class="flex items-center gap-2">
-                <span id="view-day-custom" class="font-bold">Selasa Pahing</span>
-                <span>•</span>
-                <span id="view-date-masehi-custom">27 Oktober 2026</span>
-                <span>•</span>
-                <span id="view-date-hijri-custom" class="text-slate-600">16 Jumadil Awal 1448 H</span>
-              </div>
-              <div id="view-edition-num-custom" class="font-bold font-sans text-[10px] bg-slate-100 px-2.5 py-0.5 rounded border border-slate-300">
-                Tahun 2026 | Nomor : 0006
+            <!-- OPTION C: Optional Edition & Date Sub-Bar under Custom Header (Stacked Rata Kanan) -->
+            <div id="view-custom-header-edition-bar" class="hidden mt-2 pt-1.5 border-t border-slate-300 w-full flex justify-end text-right">
+              <div class="text-[11px] font-serif leading-snug text-slate-900 text-right">
+                <div id="view-day-custom-bar" class="text-slate-900 font-normal">Senin Wage</div>
+                <div id="view-date-masehi-custom-bar" class="text-slate-900 font-normal">25 Agustus 2025</div>
+                <div id="view-date-hijri-custom-bar" class="text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
+                <div id="view-edition-num-custom-bar" class="font-bold text-slate-900 mt-0.5">Tahun 2025 | Nomor : 0002</div>
               </div>
             </div>
 
@@ -642,6 +654,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261030_07"></script>
+  <script src="js/studio.js?v=20261030_08"></script>
 </body>
 </html>
