@@ -353,8 +353,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       })
       .then(res => res.json())
       .then(data => {
-        if (data.success) {
+        if (data.success && data.header_url) {
           console.log('Master header tersimpan di server:', data.header_url);
+          try {
+            localStorage.setItem('alqalam_master_header', data.header_url);
+          } catch (e) {}
         } else {
           console.warn('Server upload notice:', data.message);
         }
@@ -368,27 +371,28 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   }
 
   async loadMasterHeader() {
-    // 1. Coba ambil dari server template terlebih dahulu (sinkronisasi antar komputer)
-    try {
-      const res = await fetch('api.php?action=get_template_header');
-      const data = await res.json();
-      if (data.success && data.has_custom_header && data.header_url) {
-        this.applyCustomHeader(data.header_url, true);
-        return;
-      }
-    } catch (e) {
-      console.warn('Gagal cek header di server, coba cache lokal:', e);
-    }
-
-    // 2. Jika di server belum ada, periksa cache lokal
+    // 1. Cek local storage browser terlebih dahulu (prioritas utama dan instan saat refresh)
     const localHeader = localStorage.getItem('alqalam_master_header');
     if (localHeader) {
       this.applyCustomHeader(localHeader, true);
-      return;
     }
 
-    // 3. Fallback default ke file kop master yang sudah tersimpan
-    this.applyCustomHeader('covers/master_custom_header.png', true);
+    // 2. Cek sinkronisasi master kop aktif dari server
+    try {
+      const res = await fetch('api.php?action=get_template_header&t=' + Date.now());
+      const data = await res.json();
+      if (data.success && data.has_custom_header && data.header_url) {
+        // Jika belum ada di local cache, pasang dari server dan simpan ke local cache
+        if (!localHeader) {
+          this.applyCustomHeader(data.header_url, true);
+          try {
+            localStorage.setItem('alqalam_master_header', data.header_url);
+          } catch (e) {}
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal cek header di server:', e);
+    }
   }
 
   applyCustomHeader(url, setMode = true) {
@@ -494,10 +498,14 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   }
 
   async resetMasterHeader() {
-    if (!confirm('Hapus kop master khusus dan kembalikan ke master awal?')) return;
+    if (!confirm('Hapus kop master yang terpasang?')) return;
 
     localStorage.removeItem('alqalam_master_header');
-    this.applyCustomHeader('covers/master_custom_header.png');
+    if (this.viewCustomHeaderImg) this.viewCustomHeaderImg.src = '';
+    if (this.previewCustomHeaderImg) this.previewCustomHeaderImg.src = '';
+    if (this.containerPreviewHeader) this.containerPreviewHeader.classList.add('hidden');
+    if (this.labelUploadHeader) this.labelUploadHeader.innerText = 'Upload File Kop / Header Master';
+    if (this.inpCustomHeader) this.inpCustomHeader.value = '';
 
     try {
       await fetch('api.php?action=reset_template_header');

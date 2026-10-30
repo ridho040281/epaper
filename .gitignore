@@ -6,3 +6,5 @@
 Thumbs.db
 scratch/
 temp_stage/
+covers/master_custom_header*
+covers/active_master_header.json

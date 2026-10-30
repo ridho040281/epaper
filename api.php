@@ -376,16 +376,9 @@ switch ($action) {
             @chmod($targetDir, 0777);
         }
 
-        $destName = 'master_custom_header.' . $ext;
+        // Gunakan nama unik bertimestamp agar tidak terhambat permission file lama dan anti-cache
+        $destName = 'master_custom_header_' . time() . '.' . $ext;
         $destination = $targetDir . DIRECTORY_SEPARATOR . $destName;
-
-        // Bersihkan header master lama
-        foreach ($allowedExts as $oldExt) {
-            $old1 = $targetDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $oldExt;
-            if (file_exists($old1)) @unlink($old1);
-            $old2 = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template' . DIRECTORY_SEPARATOR . 'master_custom_header.' . $oldExt;
-            if (file_exists($old2)) @unlink($old2);
-        }
 
         $moved = @move_uploaded_file($file['tmp_name'], $destination);
         if (!$moved) {
@@ -397,6 +390,15 @@ switch ($action) {
 
         if ($moved) {
             @chmod($destination, 0666);
+            
+            // Simpan info file aktif ke JSON
+            $infoFile = $targetDir . DIRECTORY_SEPARATOR . 'active_master_header.json';
+            @file_put_contents($infoFile, json_encode([
+                'file' => 'covers/' . $destName,
+                'time' => time()
+            ]));
+            @chmod($infoFile, 0666);
+
             echo json_encode([
                 'success' => true,
                 'message' => 'Header master berhasil disimpan di server!',
@@ -410,31 +412,29 @@ switch ($action) {
 
     case 'get_template_header':
         $found = null;
-        $allowedExts = ['png', 'jpg', 'jpeg', 'webp'];
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
+        $infoFile = $targetDir . DIRECTORY_SEPARATOR . 'active_master_header.json';
         
-        // 1. Cek di covers/
-        $coversDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
-        if (is_dir($coversDir)) {
-            foreach ($allowedExts as $ext) {
-                $file = $coversDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
-                if (file_exists($file)) {
-                    $found = 'covers/master_custom_header.' . $ext . '?t=' . filemtime($file);
-                    break;
+        // 1. Cek info file aktif dari JSON
+        if (file_exists($infoFile)) {
+            $info = @json_decode(@file_get_contents($infoFile), true);
+            if (!empty($info['file'])) {
+                $abs = __DIR__ . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $info['file']);
+                if (file_exists($abs)) {
+                    $found = $info['file'] . '?t=' . filemtime($abs);
                 }
             }
         }
 
-        // 2. Cek di assets/template/
-        if (!$found) {
-            $assetsDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template';
-            if (is_dir($assetsDir)) {
-                foreach ($allowedExts as $ext) {
-                    $file = $assetsDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
-                    if (file_exists($file)) {
-                        $found = 'assets/template/master_custom_header.' . $ext . '?t=' . filemtime($file);
-                        break;
-                    }
-                }
+        // 2. Fallback cek file master_custom_header_* terbaru
+        if (!$found && is_dir($targetDir)) {
+            $files = glob($targetDir . DIRECTORY_SEPARATOR . 'master_custom_header_*.*');
+            if (!empty($files)) {
+                // Urutkan berdasarkan waktu modifikasi terbaru
+                usort($files, function($a, $b) { return filemtime($b) - filemtime($a); });
+                $latest = $files[0];
+                $basename = basename($latest);
+                $found = 'covers/' . $basename . '?t=' . filemtime($latest);
             }
         }
 
@@ -447,22 +447,17 @@ switch ($action) {
         break;
 
     case 'reset_template_header':
-        $allowedExts = ['png', 'jpg', 'jpeg', 'webp'];
-        $dirs = [
-            __DIR__ . DIRECTORY_SEPARATOR . 'covers',
-            __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template'
-        ];
-        foreach ($dirs as $dir) {
-            if (is_dir($dir)) {
-                foreach ($allowedExts as $ext) {
-                    $file = $dir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
-                    if (file_exists($file)) {
-                        @unlink($file);
-                    }
-                }
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
+        $infoFile = $targetDir . DIRECTORY_SEPARATOR . 'active_master_header.json';
+        if (file_exists($infoFile)) @unlink($infoFile);
+        
+        $files = glob($targetDir . DIRECTORY_SEPARATOR . 'master_custom_header*.*');
+        if (!empty($files)) {
+            foreach ($files as $f) {
+                @unlink($f);
             }
         }
-        echo json_encode(['success' => true, 'message' => 'Header master telah dikembalikan ke bawaan sistem']);
+        echo json_encode(['success' => true, 'message' => 'Header master kustom telah dibersihkan.']);
         exit;
         break;
 
