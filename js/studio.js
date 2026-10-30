@@ -40,11 +40,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
   initElements() {
     // Header Master & Kop Inputs
-    this.headerMode                 = 'default';
+    this.headerMode                 = 'custom'; // Selalu gunakan Kop Master Upload
     this.headerDatePosition         = 'overlay'; // 'overlay', 'below', 'hide'
-    this.btnModeDefaultHeader       = document.getElementById('btn-mode-default-header');
-    this.btnModeCustomHeader        = document.getElementById('btn-mode-custom-header');
-    this.badgeHeaderStatus          = document.getElementById('badge-header-status');
     this.containerHeaderControls    = document.getElementById('container-header-upload-controls');
     this.containerPreviewHeader     = document.getElementById('container-preview-header');
     this.previewCustomHeaderImg     = document.getElementById('preview-custom-header-img');
@@ -175,14 +172,6 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     // Kop Master & Header Event Listeners
     this.btnTriggerUploadHeader?.addEventListener('click', () => {
       this.inpCustomHeader?.click();
-    });
-    this.btnModeDefaultHeader?.addEventListener('click', () => this.setHeaderMode('default'));
-    this.btnModeCustomHeader?.addEventListener('click', () => {
-      this.setHeaderMode('custom');
-      const curSrc = this.viewCustomHeaderImg?.getAttribute('src');
-      if (!curSrc || curSrc === '') {
-        this.inpCustomHeader?.click();
-      }
     });
     this.inpCustomHeader?.addEventListener('change', (e) => this.handleCustomHeaderUpload(e));
     this.btnResetMasterHeader?.addEventListener('click', () => this.resetMasterHeader());
@@ -395,7 +384,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const localHeader = localStorage.getItem('alqalam_master_header');
     if (localHeader) {
       this.applyCustomHeader(localHeader, true);
+      return;
     }
+
+    // 3. Fallback default ke file kop master yang sudah tersimpan
+    this.applyCustomHeader('covers/master_custom_header.png', true);
   }
 
   applyCustomHeader(url, setMode = true) {
@@ -471,82 +464,40 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   }
 
   updateHeaderDisplay() {
-    if (this.headerMode === 'custom') {
-      // Tombol selector model kop
-      this.btnModeCustomHeader?.classList.add('border-emerald-500', 'bg-emerald-500/10', 'text-emerald-300');
-      this.btnModeCustomHeader?.classList.remove('border-slate-700', 'bg-slate-800/60', 'text-slate-400');
-      this.btnModeDefaultHeader?.classList.remove('border-emerald-500', 'bg-emerald-500/10', 'text-emerald-300');
-      this.btnModeDefaultHeader?.classList.add('border-slate-700', 'bg-slate-800/60', 'text-slate-400');
+    this.containerCustomEditionToggle?.classList.remove('hidden');
 
-      if (this.badgeHeaderStatus) {
-        this.badgeHeaderStatus.innerText = 'Kop Master Aktif';
-        this.badgeHeaderStatus.className = 'text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30';
+    // Update tombol posisi hari & tanggal
+    const updateBtnStyle = (btn, isActive) => {
+      if (!btn) return;
+      if (isActive) {
+        btn.className = 'px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-center transition cursor-pointer shadow-sm';
+      } else {
+        btn.className = 'px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer';
       }
+    };
+    updateBtnStyle(this.btnPosOverlay, this.headerDatePosition === 'overlay');
+    updateBtnStyle(this.btnPosBelow, this.headerDatePosition === 'below');
+    updateBtnStyle(this.btnPosHide, this.headerDatePosition === 'hide');
 
-      this.containerCustomEditionToggle?.classList.remove('hidden');
+    // Tampilan di Sheet A3: Selalu gunakan Kop Master Upload
+    this.viewCustomHeaderWrapper?.classList.remove('hidden');
+    this.viewDefaultHeaderWrapper?.classList.add('hidden');
 
-      // Update tombol posisi hari & tanggal
-      const updateBtnStyle = (btn, isActive) => {
-        if (!btn) return;
-        if (isActive) {
-          btn.className = 'px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-center transition cursor-pointer shadow-sm';
-        } else {
-          btn.className = 'px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer';
-        }
-      };
-      updateBtnStyle(this.btnPosOverlay, this.headerDatePosition === 'overlay');
-      updateBtnStyle(this.btnPosBelow, this.headerDatePosition === 'below');
-      updateBtnStyle(this.btnPosHide, this.headerDatePosition === 'hide');
-
-      // Tampilan di Sheet A3
-      this.viewCustomHeaderWrapper?.classList.remove('hidden');
-      this.viewDefaultHeaderWrapper?.classList.add('hidden');
-
-      // Box Hari & Tanggal (Rata Kanan)
-      if (this.viewCustomHeaderOverlayBox) {
-        this.viewCustomHeaderOverlayBox.style.display = (this.headerDatePosition === 'overlay') ? 'block' : 'none';
-      }
-      if (this.viewCustomHeaderEditionBar) {
-        this.viewCustomHeaderEditionBar.style.display = (this.headerDatePosition === 'below') ? 'flex' : 'none';
-      }
-    } else {
-      // Kop bawaan AL QALAM
-      this.btnModeDefaultHeader?.classList.add('border-emerald-500', 'bg-emerald-500/10', 'text-emerald-300');
-      this.btnModeDefaultHeader?.classList.remove('border-slate-700', 'bg-slate-800/60', 'text-slate-400');
-      this.btnModeCustomHeader?.classList.remove('border-emerald-500', 'bg-emerald-500/10', 'text-emerald-300');
-      this.btnModeCustomHeader?.classList.add('border-slate-700', 'bg-slate-800/60', 'text-slate-400');
-
-      if (this.badgeHeaderStatus) {
-        this.badgeHeaderStatus.innerText = 'Kop Bawaan';
-        this.badgeHeaderStatus.className = 'text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700';
-      }
-
-      this.containerCustomEditionToggle?.classList.add('hidden');
-
-      // Tampilan di Sheet A3
-      this.viewCustomHeaderWrapper?.classList.add('hidden');
-      this.viewDefaultHeaderWrapper?.classList.remove('hidden');
-      if (this.viewCustomHeaderOverlayBox) {
-        this.viewCustomHeaderOverlayBox.style.display = 'none';
-      }
-      if (this.viewCustomHeaderEditionBar) {
-        this.viewCustomHeaderEditionBar.style.display = 'none';
-      }
+    // Box Hari & Tanggal (Rata Kanan)
+    if (this.viewCustomHeaderOverlayBox) {
+      this.viewCustomHeaderOverlayBox.style.display = (this.headerDatePosition === 'overlay') ? 'block' : 'none';
+    }
+    if (this.viewCustomHeaderEditionBar) {
+      this.viewCustomHeaderEditionBar.style.display = (this.headerDatePosition === 'below') ? 'flex' : 'none';
     }
     if (window.lucide) window.lucide.createIcons();
   }
 
   async resetMasterHeader() {
-    if (!confirm('Kembalikan ke kop bawaan AL QALAM dan hapus kop master tersimpan?')) return;
+    if (!confirm('Hapus kop master khusus dan kembalikan ke master awal?')) return;
 
     localStorage.removeItem('alqalam_master_header');
-    if (this.viewCustomHeaderImg) this.viewCustomHeaderImg.src = '';
-    if (this.previewCustomHeaderImg) this.previewCustomHeaderImg.src = '';
-    if (this.containerPreviewHeader) this.containerPreviewHeader.classList.add('hidden');
-    if (this.labelUploadHeader) this.labelUploadHeader.innerText = 'Upload File Kop / Header Master';
-    if (this.inpCustomHeader) this.inpCustomHeader.value = '';
-
-    this.setHeaderMode('default');
+    this.applyCustomHeader('covers/master_custom_header.png');
 
     try {
       await fetch('api.php?action=reset_template_header');
