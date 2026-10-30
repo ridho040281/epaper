@@ -74,11 +74,26 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.viewEditionNumCustomBar    = document.getElementById('view-edition-num-custom-bar');
 
     // Penyesuaian Offset Vertikal Hari & Tanggal (Sejajar Huruf M)
-    this.dateOffset                 = 28;
+    this.dateOffset                 = 42;
     this.btnDateUp                  = document.getElementById('btn-date-up');
     this.btnDateDown                = document.getElementById('btn-date-down');
     this.labelDateOffset            = document.getElementById('label-date-offset');
     this.viewDefaultDateBox         = document.getElementById('view-default-date-box');
+
+    // Pengatur Ukuran & Lebar Kop Utama
+    this.kopSizes = [
+      { label: 'Normal', h: 100, dateMt: 26 },
+      { label: 'Lebar', h: 144, dateMt: 42 },
+      { label: 'Ekstra Lebar', h: 180, dateMt: 62 },
+      { label: 'Maksimal', h: 220, dateMt: 82 }
+    ];
+    this.kopSizeIndex               = 1; // Default 'Lebar' (144px, ~312px wide)
+    this.btnKopSizeDown             = document.getElementById('btn-kop-size-down');
+    this.btnKopSizeUp               = document.getElementById('btn-kop-size-up');
+    this.labelKopSize               = document.getElementById('label-kop-size');
+    this.chkFullWidthHeader         = document.getElementById('chk-full-width-header');
+    this.viewBrandHeaderImg         = document.getElementById('view-brand-header-img');
+    this.containerSheetHeader       = document.getElementById('container-sheet-header');
 
     // Inputs
     this.inpDay             = document.getElementById('inp-day');
@@ -170,6 +185,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     // Pengatur Naik/Turun Vertikal Hari & Tanggal (Sejajar Huruf M)
     this.btnDateUp?.addEventListener('click', () => this.setDateOffset(this.dateOffset - 2));
     this.btnDateDown?.addEventListener('click', () => this.setDateOffset(this.dateOffset + 2));
+
+    // Pengatur Skala & Lebar Kop Utama
+    this.btnKopSizeDown?.addEventListener('click', () => this.changeKopSize(-1));
+    this.btnKopSizeUp?.addEventListener('click', () => this.changeKopSize(1));
+    this.chkFullWidthHeader?.addEventListener('change', () => this.updateHeaderFullBleed());
 
     // Live Input Event Listeners
     const bindLive = (inp, views) => {
@@ -379,6 +399,29 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     }
     if (this.viewCustomHeaderOverlayBox) {
       this.viewCustomHeaderOverlayBox.style.top = `${this.dateOffset + 24}px`;
+    }
+  }
+
+  changeKopSize(delta) {
+    this.kopSizeIndex = Math.max(0, Math.min(this.kopSizes.length - 1, this.kopSizeIndex + delta));
+    const current = this.kopSizes[this.kopSizeIndex];
+    if (this.labelKopSize) {
+      this.labelKopSize.innerText = current.label;
+    }
+    if (this.viewBrandHeaderImg) {
+      this.viewBrandHeaderImg.style.height = `${current.h}px`;
+    }
+    this.setDateOffset(current.dateMt);
+  }
+
+  updateHeaderFullBleed() {
+    const isFull = this.chkFullWidthHeader?.checked ?? false;
+    if (this.containerSheetHeader) {
+      if (isFull) {
+        this.containerSheetHeader.classList.add('-mx-8', '-mt-8', 'px-8', 'pt-6', 'bg-white');
+      } else {
+        this.containerSheetHeader.classList.remove('-mx-8', '-mt-8', 'px-8', 'pt-6', 'bg-white');
+      }
     }
   }
 

@@ -291,6 +291,28 @@
             </div>
             <p class="text-[10px] text-slate-500">Pilih <b>Pojok Kanan Atas</b> untuk menempatkan hari & tanggal di sudut kanan kop persis seperti koran resmi.</p>
           </div>
+
+          <!-- Pengatur Lebar & Skala Kop Utama -->
+          <div class="pt-2 border-t border-slate-800/80 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-300 font-bold flex items-center gap-1.5 text-[11px]">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Ukuran / Lebar Kop Utama:</span>
+              </span>
+              <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-1">
+                <button type="button" id="btn-kop-size-down" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Perkecil Kop">➖</button>
+                <span id="label-kop-size" class="font-mono text-emerald-400 text-[11px] font-semibold w-20 text-center select-none">Lebar</span>
+                <button type="button" id="btn-kop-size-up" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Perlebar Kop">➕</button>
+              </div>
+            </div>
+
+            <!-- Toggle Full Bleed Edge-to-Edge -->
+            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none pt-1">
+              <input type="checkbox" id="chk-full-width-header" class="w-3.5 h-3.5 rounded accent-emerald-500">
+              <span>Bentangkan Kop Penuh ke Tepi Kertas (Full-Bleed 100%)</span>
+            </label>
+            <p class="text-[10px] text-slate-500 pl-5.5">Membuat kop koran melebar penuh ke tepi kiri dan kanan kertas A3 tanpa batas margin putih.</p>
+          </div>
         </div>
 
         <!-- Section 1: Edisi & Tanggal -->
@@ -519,18 +541,18 @@
               <!-- Row 1: AL QALAM Kop & Partner Logos & Edition Box -->
               <div class="flex items-start justify-between gap-4">
                 
-                <!-- Left/Center: AL QALAM Brand Logo with Madrasah Info -->
-                <div class="flex items-center gap-3">
-                  <img src="assets/template/alqalam_brand_header.png" alt="Logo AL QALAM" class="h-20 object-contain">
+                <!-- Left/Center: AL QALAM Brand Logo with Madrasah Info (Lebar & Proporsional) -->
+                <div class="flex-1 flex items-center pr-2 overflow-hidden">
+                  <img id="view-brand-header-img" src="assets/template/alqalam_brand_header.png" alt="Logo AL QALAM" style="height: 144px;" class="w-auto max-w-full object-contain transition-all duration-200">
                 </div>
 
                 <!-- Right: Partner Logos & Edition Box -->
-                <div class="flex flex-col items-end text-right">
+                <div class="flex flex-col items-end text-right flex-shrink-0">
                   <!-- Logos row (Kemenag, Pusaka, BerAKHLAK, Hari Santri) -->
-                  <img src="assets/template/top_partner_logos.png" alt="Logos Resmi" class="h-6 object-contain">
+                  <img src="assets/template/top_partner_logos.png" alt="Logos Resmi" class="h-6 sm:h-7 object-contain">
                   
                   <!-- Edition info box (Rata Kanan - Sejajar Bawah Huruf M) -->
-                  <div id="view-default-date-box" style="margin-top: 28px;" class="text-[11px] font-serif leading-snug text-slate-900 text-right">
+                  <div id="view-default-date-box" style="margin-top: 42px;" class="text-[11px] font-serif leading-snug text-slate-900 text-right">
                     <div id="view-day" class="text-slate-900 font-normal">Senin Wage</div>
                     <div id="view-date-masehi" class="text-slate-900 font-normal">25 Agustus 2025</div>
                     <div id="view-date-hijri" class="text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
@@ -681,6 +703,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261030_10"></script>
+  <script src="js/studio.js?v=20261030_11"></script>
 </body>
 </html>
