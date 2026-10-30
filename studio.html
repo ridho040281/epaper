@@ -394,15 +394,23 @@
             </div>
           </div>
 
-          <!-- Kontrol Ukuran & Pita Nama Foto Penulis -->
-          <div class="flex items-center justify-between bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 gap-2">
-            <div>
-              <div class="text-[11px] font-semibold text-slate-300">Ukuran Foto Penulis</div>
-              <div id="label-author-size" class="text-[10px] text-emerald-400 font-mono">Sedang (170 px)</div>
+          <!-- Kontrol Ukuran Foto Penulis (Dinamis Corner Handle) -->
+          <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
+                <i data-lucide="scaling" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Ukuran Foto Penulis:</span>
+              </span>
+              <span id="label-author-size" class="text-[11px] text-emerald-400 font-mono font-bold">170 px</span>
             </div>
-            <div class="flex items-center gap-1.5">
-              <button type="button" id="btn-author-size-dec" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center justify-center text-xs font-bold border border-slate-700 transition active:scale-95 cursor-pointer" title="Perkecil Ukuran Foto">➖</button>
-              <button type="button" id="btn-author-size-inc" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center justify-center text-xs font-bold border border-slate-700 transition active:scale-95 cursor-pointer" title="Perbesar Ukuran Foto">➕</button>
+            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+              <p class="text-[10px] text-slate-400 leading-snug">
+                ✨ Klik & seret <b>titik bulat di pojok kanan bawah foto</b> untuk memperbesar/memperkecil secara bebas.
+              </p>
+              <button type="button" id="btn-reset-author-size" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-1 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer flex-shrink-0" title="Kembalikan ukuran foto ke standar (170 px)">
+                <i data-lucide="rotate-ccw" class="w-3 h-3 text-emerald-400"></i>
+                <span>Reset</span>
+              </button>
             </div>
           </div>
 
@@ -696,7 +704,7 @@
             <div id="container-author-photo" style="left: 32px; top: 40px;" class="absolute w-44 flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow">
               
               <!-- Drag Handle Indicator Pill on Hover -->
-              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap">
+              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap export-ignore">
                 <i data-lucide="move" class="w-2.5 h-2.5 text-emerald-400"></i>
                 <span>Geser Foto Penulis (Drag)</span>
               </div>
@@ -709,13 +717,20 @@
                   <i data-lucide="user" class="w-14 h-14 text-slate-300 stroke-[1.5]"></i>
                   <span class="text-[10px] font-sans text-slate-400 mt-2 font-medium">Foto Penulis (Kosong)</span>
                 </div>
+
+                <!-- Dynamic Corner Resize Handle (Titik Pojok Kanan Bawah untuk Memperbesar/Memperkecil) -->
+                <div id="handle-resize-author" 
+                     title="Klik tahan dan seret untuk memperbesar / memperkecil foto" 
+                     class="export-ignore absolute -bottom-2.5 -right-2.5 w-6 h-6 bg-emerald-500 hover:bg-emerald-400 active:scale-125 border-2 border-white rounded-full shadow-lg cursor-nwse-resize z-40 flex items-center justify-center transition-transform hover:scale-125 touch-none select-none">
+                  <i data-lucide="scaling" class="w-3 h-3 text-white pointer-events-none stroke-[2.5]"></i>
+                </div>
               </div>
             </div>
 
             <!-- 2. FLOATING DRAGGABLE AUTHOR NAME BADGE (Teksbok Nama Penulis Mandiri & Terpisah) -->
             <div id="container-author-badge" style="left: 32px; top: 235px;" class="absolute flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow">
               <!-- Drag Handle Indicator Pill on Hover -->
-              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap">
+              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap export-ignore">
                 <i data-lucide="move" class="w-2.5 h-2.5 text-emerald-400"></i>
                 <span>Geser Kotak Nama (Drag)</span>
               </div>
@@ -792,6 +807,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261030_19"></script>
+  <script src="js/studio.js?v=20261030_20"></script>
 </body>
 </html>

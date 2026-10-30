@@ -106,9 +106,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnMakeAuthorTransparent = document.getElementById('btn-make-author-transparent');
     this.btnAuthorFrameNone     = document.getElementById('btn-author-frame-none');
     this.btnAuthorFrameBox      = document.getElementById('btn-author-frame-box');
-    this.btnAuthorSizeDec       = document.getElementById('btn-author-size-dec');
-    this.btnAuthorSizeInc       = document.getElementById('btn-author-size-inc');
+    this.btnResetAuthorSize     = document.getElementById('btn-reset-author-size');
     this.labelAuthorSize        = document.getElementById('label-author-size');
+    this.handleResizeAuthor     = document.getElementById('handle-resize-author');
     this.chkShowAuthorBadge     = document.getElementById('chk-show-author-badge');
     this.inpHeadline            = document.getElementById('inp-headline');
     this.inpSubheadline         = document.getElementById('inp-subheadline');
@@ -140,15 +140,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.chkHeadlineSpacer      = document.getElementById('chk-headline-spacer');
     this.btnPosPresets          = document.querySelectorAll('.btn-pos-preset');
 
-    // Pengaturan Gaya & Ukuran Foto Penulis (Tanpa Frame & Transparan PNG)
-    this.authorSizes = [
-      { label: 'Kecil (140 px)', width: 140, maxHeight: 210 },
-      { label: 'Sedang (170 px)', width: 170, maxHeight: 260 },
-      { label: 'Besar (200 px)', width: 200, maxHeight: 310 },
-      { label: 'Ekstra (230 px)', width: 230, maxHeight: 360 }
-    ];
-    this.authorSizeIndex = 1; // Default Sedang (170px)
-    this.authorFrameMode = 'none'; // 'none' (Tanpa Bingkai & Transparan PNG) atau 'box'
+    // Pengaturan Gaya & Ukuran Foto Penulis Dinamis
+    this.authorPhotoWidth       = 170; // Lebar foto dalam pixel (bisa di-resize dinamis dengan seret pojok kanan bawah)
+    this.authorFrameMode        = 'none'; // 'none' (Tanpa Bingkai & Transparan PNG) atau 'box'
     this.viewByline             = document.getElementById('view-byline');
     this.viewHeadline           = document.getElementById('view-headline');
     this.viewSubheadline        = document.getElementById('view-subheadline');
@@ -249,8 +243,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnMakeAuthorTransparent?.addEventListener('click', () => this.makeAuthorPhotoTransparent());
     this.btnAuthorFrameNone?.addEventListener('click', () => this.setAuthorFrameMode('none'));
     this.btnAuthorFrameBox?.addEventListener('click', () => this.setAuthorFrameMode('box'));
-    this.btnAuthorSizeDec?.addEventListener('click', () => this.changeAuthorSize(-1));
-    this.btnAuthorSizeInc?.addEventListener('click', () => this.changeAuthorSize(1));
+    this.btnResetAuthorSize?.addEventListener('click', () => this.resetAuthorPhotoWidth());
     this.chkShowAuthorBadge?.addEventListener('change', () => this.toggleAuthorBadge(this.chkShowAuthorBadge.checked));
     this.inpActivityPhoto?.addEventListener('change', (e) => this.handleActivityPhotoUpload(e));
 
@@ -265,6 +258,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
     });
     this.initDraggables();
+    this.initAuthorResizeHandle();
 
     // Show/Hide Activity Photo
     this.chkShowActivityImg?.addEventListener('change', () => {
@@ -758,13 +752,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const savedFrameMode = localStorage.getItem('alqalam_author_frame_mode') || 'none';
     this.authorFrameMode = savedFrameMode;
 
-    // 2. Ukuran
-    const savedSizeIndex = localStorage.getItem('alqalam_author_size_index');
-    if (savedSizeIndex !== null) {
-      const idx = parseInt(savedSizeIndex, 10);
-      if (!isNaN(idx) && idx >= 0 && idx < this.authorSizes.length) {
-        this.authorSizeIndex = idx;
-      }
+    // 2. Ukuran Foto Dinamis (Width dalam Pixel)
+    const savedWidth = localStorage.getItem('alqalam_author_photo_width');
+    if (savedWidth !== null) {
+      const w = parseInt(savedWidth, 10);
+      this.authorPhotoWidth = (!isNaN(w) && w >= 80 && w <= 600) ? w : 170;
+    } else {
+      this.authorPhotoWidth = 170;
     }
 
     // 3. Kotak Teks Nama Penulis (Badge Terpisah)
@@ -782,6 +776,21 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.applyAuthorCardStyles();
   }
 
+  setAuthorPhotoWidth(width, save = true) {
+    this.authorPhotoWidth = Math.round(Math.max(80, Math.min(600, width)));
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_author_photo_width', this.authorPhotoWidth);
+      } catch (e) {}
+    }
+    this.applyAuthorCardStyles();
+  }
+
+  resetAuthorPhotoWidth() {
+    localStorage.removeItem('alqalam_author_photo_width');
+    this.setAuthorPhotoWidth(170, true);
+  }
+
   setAuthorFrameMode(mode) {
     this.authorFrameMode = mode;
     try {
@@ -790,34 +799,30 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.applyAuthorCardStyles();
   }
 
-  changeAuthorSize(delta) {
-    this.authorSizeIndex = Math.max(0, Math.min(this.authorSizes.length - 1, this.authorSizeIndex + delta));
-    try {
-      localStorage.setItem('alqalam_author_size_index', this.authorSizeIndex);
-    } catch (e) {}
-    this.applyAuthorCardStyles();
-  }
-
   applyAuthorCardStyles() {
     const isBox = (this.authorFrameMode === 'box');
-    const curSize = this.authorSizes[this.authorSizeIndex] || this.authorSizes[1];
+    const width = this.authorPhotoWidth || 170;
 
     if (this.labelAuthorSize) {
-      this.labelAuthorSize.innerText = curSize.label;
+      this.labelAuthorSize.innerText = `${width} px`;
     }
     if (this.containerAuthorPhoto) {
-      this.containerAuthorPhoto.style.width = `${curSize.width}px`;
+      this.containerAuthorPhoto.style.width = `${width}px`;
     }
     if (this.authorSlotSpacer) {
-      this.authorSlotSpacer.style.width = `${curSize.width}px`;
+      this.authorSlotSpacer.style.width = `${width}px`;
     }
 
     if (this.authorPhotoFrame) {
       if (isBox) {
-        this.authorPhotoFrame.className = 'w-full h-52 bg-white rounded-lg overflow-hidden border border-slate-300 shadow-md relative flex items-center justify-center transition-all';
+        this.authorPhotoFrame.className = 'w-full bg-white rounded-lg overflow-hidden border border-slate-300 shadow-md relative flex items-center justify-center transition-all';
+        this.authorPhotoFrame.style.height = `${Math.round(width * 1.3)}px`;
+        this.authorPhotoFrame.style.minHeight = '';
       } else {
         // Tanpa Frame & Transparan PNG (Cutout Editorial)
-        this.authorPhotoFrame.className = 'w-full min-h-[160px] bg-transparent border-0 shadow-none rounded-none overflow-visible relative flex flex-col items-center justify-end transition-all';
+        this.authorPhotoFrame.className = 'w-full bg-transparent border-0 shadow-none rounded-none overflow-visible relative flex flex-col items-center justify-end transition-all';
+        this.authorPhotoFrame.style.height = '';
+        this.authorPhotoFrame.style.minHeight = `${Math.round(width * 1.0)}px`;
       }
     }
 
@@ -828,7 +833,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         this.viewAuthorImg.style.maxHeight = '';
       } else {
         this.viewAuthorImg.className = (isHidden ? 'hidden ' : '') + 'w-auto max-w-full object-contain object-bottom pointer-events-none select-none';
-        this.viewAuthorImg.style.maxHeight = `${curSize.maxHeight}px`;
+        this.viewAuthorImg.style.maxHeight = `${Math.round(width * 1.55)}px`;
       }
     }
 
@@ -926,6 +931,77 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       32,
       235
     );
+  }
+
+  initAuthorResizeHandle() {
+    const handle = this.handleResizeAuthor;
+    const container = this.containerAuthorPhoto;
+    if (!handle || !container || !this.a3Sheet) return;
+
+    let isResizing = false;
+    let startX = 0;
+    let startY = 0;
+    let initialWidth = 170;
+
+    const onResizeStart = (e) => {
+      // Hentikan agar drag perpindahan foto tidak ikut terpicu
+      e.stopPropagation();
+      if (e.type === 'mousedown' && e.button !== 0) return;
+
+      isResizing = true;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+      startX = clientX;
+      startY = clientY;
+
+      initialWidth = container.offsetWidth || parseFloat(container.style.width) || this.authorPhotoWidth || 170;
+
+      container.classList.add('ring-2', 'ring-emerald-400', 'ring-dashed');
+      handle.classList.add('scale-125', 'bg-emerald-400');
+      document.body.style.cursor = 'nwse-resize';
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onResizeMove = (e) => {
+      if (!isResizing) return;
+
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+      const zoom = this.zoomScale || 1;
+      const dx = (clientX - startX) / zoom;
+      const dy = (clientY - startY) / zoom;
+
+      // Geser ke kanan bawah (dx>0, dy>0) membesar, geser ke atas kiri (dx<0, dy<0) mengecil
+      const delta = (dx + dy) / 1.414;
+      const newWidth = Math.round(Math.max(80, Math.min(550, initialWidth + delta)));
+
+      this.setAuthorPhotoWidth(newWidth, false);
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onResizeEnd = () => {
+      if (!isResizing) return;
+      isResizing = false;
+
+      container.classList.remove('ring-2', 'ring-emerald-400', 'ring-dashed');
+      handle.classList.remove('scale-125', 'bg-emerald-400');
+      document.body.style.cursor = '';
+
+      const finalWidth = container.offsetWidth || parseFloat(container.style.width) || this.authorPhotoWidth || 170;
+      this.setAuthorPhotoWidth(finalWidth, true);
+    };
+
+    handle.addEventListener('mousedown', onResizeStart);
+    window.addEventListener('mousemove', onResizeMove);
+    window.addEventListener('mouseup', onResizeEnd);
+
+    handle.addEventListener('touchstart', onResizeStart, { passive: false });
+    window.addEventListener('touchmove', onResizeMove, { passive: false });
+    window.addEventListener('touchend', onResizeEnd);
   }
 
   makeElementDraggable(elem, storageKey, defaultLeft, defaultTop) {
@@ -1169,7 +1245,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
-        imageTimeout: 15000
+        imageTimeout: 15000,
+        ignoreElements: (element) => element.classList?.contains('export-ignore')
       });
 
       return canvas;
