@@ -103,6 +103,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.placeholderPreviewAuthor = document.getElementById('placeholder-preview-author');
     this.labelAuthorPhoto       = document.getElementById('label-author-photo');
     this.btnClearAuthorPhoto    = document.getElementById('btn-clear-author-photo');
+    this.btnMakeAuthorTransparent = document.getElementById('btn-make-author-transparent');
+    this.btnAuthorFrameNone     = document.getElementById('btn-author-frame-none');
+    this.btnAuthorFrameBox      = document.getElementById('btn-author-frame-box');
+    this.btnAuthorSizeDec       = document.getElementById('btn-author-size-dec');
+    this.btnAuthorSizeInc       = document.getElementById('btn-author-size-inc');
+    this.labelAuthorSize        = document.getElementById('label-author-size');
+    this.chkShowAuthorBadge     = document.getElementById('chk-show-author-badge');
     this.inpHeadline            = document.getElementById('inp-headline');
     this.inpSubheadline         = document.getElementById('inp-subheadline');
     this.inpBodyText            = document.getElementById('inp-body-text');
@@ -123,12 +130,23 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.viewEditionNum         = document.getElementById('view-edition-num');
     this.viewAuthorImg          = document.getElementById('view-author-img');
     this.placeholderViewAuthor  = document.getElementById('placeholder-view-author');
+    this.authorPhotoFrame       = document.getElementById('author-photo-frame');
     this.viewAuthorBadge        = document.getElementById('view-author-badge');
     this.containerAuthorCard    = document.getElementById('container-author-card');
     this.authorSlotSpacer       = document.getElementById('author-slot-spacer');
     this.btnResetAuthorPos      = document.getElementById('btn-reset-author-pos');
     this.chkHeadlineSpacer      = document.getElementById('chk-headline-spacer');
     this.btnPosPresets          = document.querySelectorAll('.btn-pos-preset');
+
+    // Pengaturan Gaya & Ukuran Foto Penulis (Tanpa Frame & Transparan PNG)
+    this.authorSizes = [
+      { label: 'Kecil (140 px)', width: 140, maxHeight: 210 },
+      { label: 'Sedang (170 px)', width: 170, maxHeight: 260 },
+      { label: 'Besar (200 px)', width: 200, maxHeight: 310 },
+      { label: 'Ekstra (230 px)', width: 230, maxHeight: 360 }
+    ];
+    this.authorSizeIndex = 1; // Default Sedang (170px)
+    this.authorFrameMode = 'none'; // 'none' (Tanpa Bingkai & Transparan PNG) atau 'box'
     this.viewByline             = document.getElementById('view-byline');
     this.viewHeadline           = document.getElementById('view-headline');
     this.viewSubheadline        = document.getElementById('view-subheadline');
@@ -223,9 +241,15 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     // Body Text Live Formatter
     this.inpBodyText?.addEventListener('input', () => this.formatNewspaperContent());
 
-    // Photo Uploads
+    // Photo Uploads & Gaya Tampilan Penulis
     this.inpAuthorPhoto?.addEventListener('change', (e) => this.handleAuthorPhotoUpload(e));
     this.btnClearAuthorPhoto?.addEventListener('click', () => this.setAuthorPhoto(null));
+    this.btnMakeAuthorTransparent?.addEventListener('click', () => this.makeAuthorPhotoTransparent());
+    this.btnAuthorFrameNone?.addEventListener('click', () => this.setAuthorFrameMode('none'));
+    this.btnAuthorFrameBox?.addEventListener('click', () => this.setAuthorFrameMode('box'));
+    this.btnAuthorSizeDec?.addEventListener('click', () => this.changeAuthorSize(-1));
+    this.btnAuthorSizeInc?.addEventListener('click', () => this.changeAuthorSize(1));
+    this.chkShowAuthorBadge?.addEventListener('change', () => this.toggleAuthorBadge(this.chkShowAuthorBadge.checked));
     this.inpActivityPhoto?.addEventListener('change', (e) => this.handleActivityPhotoUpload(e));
 
     // Author Card Drag & Drop Events & Presets
@@ -592,6 +616,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (this.containerViewIllustration) this.containerViewIllustration.style.display = 'none';
 
     this.updateBottomInsertsVisibility();
+    this.initAuthorCardStyles();
 
     if (window.lucide) window.lucide.createIcons();
   }
@@ -690,9 +715,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       if (this.btnClearAuthorPhoto) {
         this.btnClearAuthorPhoto.classList.remove('hidden');
       }
+      if (this.btnMakeAuthorTransparent) {
+        this.btnMakeAuthorTransparent.classList.remove('hidden');
+      }
       if (this.labelAuthorPhoto) {
         this.labelAuthorPhoto.innerText = 'Ganti Foto Penulis';
       }
+      this.applyAuthorCardStyles();
     } else {
       if (this.viewAuthorImg) {
         this.viewAuthorImg.src = '';
@@ -711,6 +740,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       if (this.btnClearAuthorPhoto) {
         this.btnClearAuthorPhoto.classList.add('hidden');
       }
+      if (this.btnMakeAuthorTransparent) {
+        this.btnMakeAuthorTransparent.classList.add('hidden');
+      }
       if (this.labelAuthorPhoto) {
         this.labelAuthorPhoto.innerText = 'Upload Foto Penulis';
       }
@@ -720,6 +752,146 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       localStorage.removeItem('alqalam_author_photo');
     }
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  initAuthorCardStyles() {
+    // 1. Gaya Bingkai
+    const savedFrameMode = localStorage.getItem('alqalam_author_frame_mode') || 'none';
+    this.authorFrameMode = savedFrameMode;
+
+    // 2. Ukuran
+    const savedSizeIndex = localStorage.getItem('alqalam_author_size_index');
+    if (savedSizeIndex !== null) {
+      const idx = parseInt(savedSizeIndex, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < this.authorSizes.length) {
+        this.authorSizeIndex = idx;
+      }
+    }
+
+    // 3. Pita Nama
+    const savedShowBadge = localStorage.getItem('alqalam_author_show_badge');
+    const showBadge = (savedShowBadge !== null) ? (savedShowBadge === 'true') : true;
+    if (this.chkShowAuthorBadge) this.chkShowAuthorBadge.checked = showBadge;
+    this.toggleAuthorBadge(showBadge, false);
+
+    this.applyAuthorCardStyles();
+  }
+
+  setAuthorFrameMode(mode) {
+    this.authorFrameMode = mode;
+    try {
+      localStorage.setItem('alqalam_author_frame_mode', mode);
+    } catch (e) {}
+    this.applyAuthorCardStyles();
+  }
+
+  changeAuthorSize(delta) {
+    this.authorSizeIndex = Math.max(0, Math.min(this.authorSizes.length - 1, this.authorSizeIndex + delta));
+    try {
+      localStorage.setItem('alqalam_author_size_index', this.authorSizeIndex);
+    } catch (e) {}
+    this.applyAuthorCardStyles();
+  }
+
+  applyAuthorCardStyles() {
+    const isBox = (this.authorFrameMode === 'box');
+    const curSize = this.authorSizes[this.authorSizeIndex] || this.authorSizes[1];
+
+    if (this.labelAuthorSize) {
+      this.labelAuthorSize.innerText = curSize.label;
+    }
+    if (this.containerAuthorCard) {
+      this.containerAuthorCard.style.width = `${curSize.width}px`;
+    }
+    if (this.authorSlotSpacer) {
+      this.authorSlotSpacer.style.width = `${curSize.width}px`;
+    }
+
+    if (this.authorPhotoFrame) {
+      if (isBox) {
+        this.authorPhotoFrame.className = 'w-full h-52 bg-white rounded-lg overflow-hidden border border-slate-300 shadow-md relative flex items-center justify-center transition-all';
+      } else {
+        // Tanpa Frame & Transparan PNG (Cutout Editorial)
+        this.authorPhotoFrame.className = 'w-full min-h-[160px] bg-transparent border-0 shadow-none rounded-none overflow-visible relative flex flex-col items-center justify-end transition-all';
+      }
+    }
+
+    if (this.viewAuthorImg) {
+      const isHidden = this.viewAuthorImg.classList.contains('hidden');
+      if (isBox) {
+        this.viewAuthorImg.className = (isHidden ? 'hidden ' : '') + 'w-full h-full object-cover pointer-events-none select-none';
+        this.viewAuthorImg.style.maxHeight = '';
+      } else {
+        this.viewAuthorImg.className = (isHidden ? 'hidden ' : '') + 'w-auto max-w-full object-contain object-bottom pointer-events-none select-none';
+        this.viewAuthorImg.style.maxHeight = `${curSize.maxHeight}px`;
+      }
+    }
+
+    const updateBtn = (btn, active) => {
+      if (!btn) return;
+      if (active) {
+        btn.className = 'px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm';
+      } else {
+        btn.className = 'px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white flex items-center justify-center gap-1.5 transition cursor-pointer';
+      }
+    };
+    updateBtn(this.btnAuthorFrameNone, !isBox);
+    updateBtn(this.btnAuthorFrameBox, isBox);
+  }
+
+  toggleAuthorBadge(show, save = true) {
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_author_show_badge', show ? 'true' : 'false');
+      } catch (e) {}
+    }
+    if (this.viewAuthorBadge) {
+      this.viewAuthorBadge.style.display = show ? 'block' : 'none';
+    }
+  }
+
+  makeAuthorPhotoTransparent() {
+    if (!this.viewAuthorImg || !this.viewAuthorImg.src || this.viewAuthorImg.classList.contains('hidden')) {
+      alert('Silakan upload foto penulis terlebih dahulu.');
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const cvs = document.createElement('canvas');
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      cvs.width = w;
+      cvs.height = h;
+      const ctx = cvs.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      // Hapus latar putih/sangat terang dan ubah jadi transparan
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        if (r > 230 && g > 230 && b > 230) {
+          data[i + 3] = 0; // 100% transparan
+        } else if (r > 215 && g > 215 && b > 215) {
+          const factor = (255 - Math.max(r, g, b)) / 25;
+          data[i + 3] = Math.round(data[i + 3] * factor);
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      const transparentDataUrl = cvs.toDataURL('image/png');
+      this.setAuthorPhoto(transparentDataUrl);
+      try {
+        localStorage.setItem('alqalam_author_photo', transparentDataUrl);
+      } catch (e) {}
+      alert('✨ Berhasil!\n\nLatar putih pada foto penulis telah dibersihkan menjadi transparan PNG tanpa frame.');
+    };
+    img.src = this.viewAuthorImg.src;
   }
 
   initAuthorDraggable() {

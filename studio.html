@@ -353,26 +353,64 @@
             <label class="block text-[11px] text-slate-400 mb-1">Foto Penulis (Pasfoto / Pose Resmi)</label>
             <div class="flex items-center gap-3">
               <div class="w-16 h-20 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex items-center justify-center relative flex-shrink-0">
-                <img id="preview-author-img" src="" alt="Foto Penulis" class="hidden w-full h-full object-cover">
+                <img id="preview-author-img" src="" alt="Foto Penulis" class="hidden w-full h-full object-contain">
                 <div id="placeholder-preview-author" class="flex flex-col items-center justify-center text-slate-500">
                   <i data-lucide="user" class="w-6 h-6"></i>
                   <span class="text-[9px] mt-1">Kosong</span>
                 </div>
               </div>
               <div class="flex-1 space-y-1.5">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <label for="inp-author-photo" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
                     <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
                     <span id="label-author-photo">Upload Foto Penulis</span>
                   </label>
+                  <button type="button" id="btn-make-author-transparent" class="hidden px-2.5 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-700 transition cursor-pointer flex items-center gap-1" title="Hapus latar belakang putih menjadi transparan PNG">
+                    <i data-lucide="wand-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>🪄 Jadikan Transparan</span>
+                  </button>
                   <button type="button" id="btn-clear-author-photo" class="hidden px-2 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-lg text-xs font-medium border border-rose-800/80 transition cursor-pointer" title="Kosongkan Foto">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                   </button>
                   <input type="file" id="inp-author-photo" accept="image/*" class="hidden">
                 </div>
-                <p class="text-[10px] text-slate-500">Disarankan foto vertikal berlatar belakang bersih atau transparan.</p>
+                <p class="text-[10px] text-slate-500">Mendukung format PNG Transparan (Cutout tanpa latar), JPG, atau WebP.</p>
               </div>
             </div>
+          </div>
+
+          <!-- Pilihan Gaya Bingkai Foto Penulis -->
+          <div class="space-y-1.5 pt-1">
+            <label class="block text-[11px] text-slate-400">Gaya Tampilan Foto Penulis:</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="btn-author-frame-none" class="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>✨ Tanpa Frame (PNG Transparan)</span>
+              </button>
+              <button type="button" id="btn-author-frame-box" class="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white flex items-center justify-center gap-1.5 transition cursor-pointer">
+                <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                <span>🖼️ Bingkai Kotak Pasfoto</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Kontrol Ukuran & Pita Nama Foto Penulis -->
+          <div class="flex items-center justify-between bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 gap-2">
+            <div>
+              <div class="text-[11px] font-semibold text-slate-300">Ukuran Foto Penulis</div>
+              <div id="label-author-size" class="text-[10px] text-emerald-400 font-mono">Sedang (170 px)</div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" id="btn-author-size-dec" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center justify-center text-xs font-bold border border-slate-700 transition active:scale-95 cursor-pointer" title="Perkecil Ukuran Foto">➖</button>
+              <button type="button" id="btn-author-size-inc" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg flex items-center justify-center text-xs font-bold border border-slate-700 transition active:scale-95 cursor-pointer" title="Perbesar Ukuran Foto">➕</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none">
+              <input type="checkbox" id="chk-show-author-badge" checked class="w-3.5 h-3.5 rounded accent-emerald-500">
+              <span>Tampilkan pita nama (badge) di bawah foto</span>
+            </label>
           </div>
 
           <!-- Pengatur Posisi Foto Penulis (Drag & Drop) -->
@@ -653,18 +691,18 @@
                 <span>Geser Bebas (Drag)</span>
               </div>
 
-              <!-- Photo Frame -->
-              <div class="w-40 h-52 bg-slate-100 rounded-lg overflow-hidden border border-slate-300 shadow-md relative flex items-center justify-center group-hover:ring-2 group-hover:ring-emerald-400/70 transition-all bg-white">
-                <img id="view-author-img" src="" alt="Foto Penulis" class="hidden w-full h-full object-cover pointer-events-none">
+              <!-- Photo Frame (Tanpa Frame & Transparan PNG) -->
+              <div id="author-photo-frame" class="w-full min-h-[160px] bg-transparent border-0 shadow-none rounded-none overflow-visible relative flex flex-col items-center justify-end transition-all">
+                <img id="view-author-img" src="" alt="Foto Penulis" class="hidden w-auto max-w-full max-h-[260px] object-contain object-bottom pointer-events-none select-none">
                 <!-- Neutral Placeholder when empty -->
-                <div id="placeholder-view-author" class="flex flex-col items-center justify-center text-slate-400 p-4 text-center pointer-events-none">
-                  <i data-lucide="user" class="w-16 h-16 text-slate-300 stroke-[1.5]"></i>
+                <div id="placeholder-view-author" class="w-40 h-52 flex flex-col items-center justify-center text-slate-400 p-4 text-center pointer-events-none border border-dashed border-slate-300 rounded-xl bg-slate-50/40">
+                  <i data-lucide="user" class="w-14 h-14 text-slate-300 stroke-[1.5]"></i>
                   <span class="text-[10px] font-sans text-slate-400 mt-2 font-medium">Foto Penulis (Kosong)</span>
                 </div>
               </div>
 
               <!-- Author Badge -->
-              <div class="w-full -mt-3.5 bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-2 text-center rounded-md shadow-md tracking-wider truncate z-10 pointer-events-none" id="view-author-badge">
+              <div class="w-full mt-1 bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-2 text-center rounded-md shadow-md tracking-wider truncate z-10 pointer-events-none" id="view-author-badge">
                 MOHAMAD JAMIL, S.Pd.
               </div>
             </div>
@@ -736,6 +774,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261030_17"></script>
+  <script src="js/studio.js?v=20261030_18"></script>
 </body>
 </html>
