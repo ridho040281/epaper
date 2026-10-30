@@ -74,20 +74,20 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.viewEditionNumCustomBar    = document.getElementById('view-edition-num-custom-bar');
 
     // Penyesuaian Offset Vertikal Hari & Tanggal (Sejajar Huruf M)
-    this.dateOffset                 = 42;
+    this.dateOffset                 = 48;
     this.btnDateUp                  = document.getElementById('btn-date-up');
     this.btnDateDown                = document.getElementById('btn-date-down');
     this.labelDateOffset            = document.getElementById('label-date-offset');
     this.viewDefaultDateBox         = document.getElementById('view-default-date-box');
 
-    // Pengatur Ukuran & Lebar Kop Utama
+    // Pengatur Ukuran & Lebar Kop Utama (Bawaan & Upload)
     this.kopSizes = [
-      { label: 'Normal', h: 100, dateMt: 26 },
-      { label: 'Lebar', h: 144, dateMt: 42 },
-      { label: 'Ekstra Lebar', h: 180, dateMt: 62 },
-      { label: 'Maksimal', h: 220, dateMt: 82 }
+      { label: 'Sedang', h: 120, customScale: 1.0, dateMt: 32 },
+      { label: 'Lebar', h: 160, customScale: 1.08, dateMt: 48 },
+      { label: 'Ekstra Lebar', h: 195, customScale: 1.18, dateMt: 66 },
+      { label: 'Maksimal', h: 235, customScale: 1.30, dateMt: 88 }
     ];
-    this.kopSizeIndex               = 1; // Default 'Lebar' (144px, ~312px wide)
+    this.kopSizeIndex               = 1; // Default 'Lebar' (160px height, ~347px wide for brand logo)
     this.btnKopSizeDown             = document.getElementById('btn-kop-size-down');
     this.btnKopSizeUp               = document.getElementById('btn-kop-size-up');
     this.labelKopSize               = document.getElementById('label-kop-size');
@@ -412,9 +412,18 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (this.labelKopSize) {
       this.labelKopSize.innerText = current.label;
     }
+
+    // 1. Perubahan skala untuk Kop Bawaan (AL QALAM Logo Resmi)
     if (this.viewBrandHeaderImg) {
       this.viewBrandHeaderImg.style.height = `${current.h}px`;
     }
+
+    // 2. Perubahan skala untuk Kop Upload (Master Custom Header Image)
+    if (this.viewCustomHeaderImg) {
+      this.viewCustomHeaderImg.style.transform = `scale(${current.customScale})`;
+      this.viewCustomHeaderImg.style.transformOrigin = 'center top';
+    }
+
     this.setDateOffset(current.dateMt);
   }
 
@@ -422,9 +431,16 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const isFull = this.chkFullWidthHeader?.checked ?? false;
     if (this.containerSheetHeader) {
       if (isFull) {
-        this.containerSheetHeader.classList.add('-mx-8', '-mt-8', 'px-8', 'pt-6', 'bg-white');
+        // Melebar menembus batas margin kertas A3 (Full Bleed 100% tepi ke tepi)
+        this.containerSheetHeader.classList.add('-mx-8', '-mt-8', 'bg-white');
+        if (this.viewDefaultHeaderWrapper) {
+          this.viewDefaultHeaderWrapper.classList.add('px-8', 'pt-6');
+        }
       } else {
-        this.containerSheetHeader.classList.remove('-mx-8', '-mt-8', 'px-8', 'pt-6', 'bg-white');
+        this.containerSheetHeader.classList.remove('-mx-8', '-mt-8', 'bg-white');
+        if (this.viewDefaultHeaderWrapper) {
+          this.viewDefaultHeaderWrapper.classList.remove('px-8', 'pt-6');
+        }
       }
     }
   }
