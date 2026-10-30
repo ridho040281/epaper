@@ -35,9 +35,34 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.initEvents();
     this.loadDemoPreset();
     this.adjustZoomToFit();
+    this.loadMasterHeader();
   }
 
   initElements() {
+    // Header Master & Kop Inputs
+    this.headerMode                 = 'default';
+    this.btnModeDefaultHeader       = document.getElementById('btn-mode-default-header');
+    this.btnModeCustomHeader        = document.getElementById('btn-mode-custom-header');
+    this.badgeHeaderStatus          = document.getElementById('badge-header-status');
+    this.containerHeaderControls    = document.getElementById('container-header-upload-controls');
+    this.containerPreviewHeader     = document.getElementById('container-preview-header');
+    this.previewCustomHeaderImg     = document.getElementById('preview-custom-header-img');
+    this.btnResetMasterHeader       = document.getElementById('btn-reset-master-header');
+    this.labelUploadHeader          = document.getElementById('label-upload-header');
+    this.inpCustomHeader            = document.getElementById('inp-custom-header');
+    this.containerCustomEditionToggle = document.getElementById('container-custom-edition-toggle');
+    this.chkShowCustomEditionBar    = document.getElementById('chk-show-custom-edition-bar');
+
+    // Live Views Header on A3 Sheet
+    this.viewCustomHeaderWrapper    = document.getElementById('view-custom-header-wrapper');
+    this.viewDefaultHeaderWrapper   = document.getElementById('view-default-header-wrapper');
+    this.viewCustomHeaderImg        = document.getElementById('view-custom-header-img');
+    this.viewCustomHeaderEditionBar = document.getElementById('view-custom-header-edition-bar');
+    this.viewDayCustom              = document.getElementById('view-day-custom');
+    this.viewDateMasehiCustom       = document.getElementById('view-date-masehi-custom');
+    this.viewDateHijriCustom        = document.getElementById('view-date-hijri-custom');
+    this.viewEditionNumCustom       = document.getElementById('view-edition-num-custom');
+
     // Inputs
     this.inpDay             = document.getElementById('inp-day');
     this.inpDateMasehi      = document.getElementById('inp-date-masehi');
@@ -101,6 +126,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   }
 
   initEvents() {
+    // Kop Master & Header Event Listeners
+    this.btnModeDefaultHeader?.addEventListener('click', () => this.setHeaderMode('default'));
+    this.btnModeCustomHeader?.addEventListener('click', () => this.setHeaderMode('custom'));
+    this.inpCustomHeader?.addEventListener('change', (e) => this.handleCustomHeaderUpload(e));
+    this.btnResetMasterHeader?.addEventListener('click', () => this.resetMasterHeader());
+    this.chkShowCustomEditionBar?.addEventListener('change', () => this.updateHeaderDisplay());
+
     // Live Input Event Listeners
     const bindLive = (inp, view, callback = null) => {
       if (!inp || !view) return;
@@ -110,10 +142,18 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
     };
 
-    bindLive(this.inpDay, this.viewDay);
-    bindLive(this.inpDateMasehi, this.viewDateMasehi);
-    bindLive(this.inpDateHijri, this.viewDateHijri);
-    bindLive(this.inpEditionNum, this.viewEditionNum);
+    bindLive(this.inpDay, this.viewDay, () => {
+      if (this.viewDayCustom) this.viewDayCustom.innerText = this.inpDay.value;
+    });
+    bindLive(this.inpDateMasehi, this.viewDateMasehi, () => {
+      if (this.viewDateMasehiCustom) this.viewDateMasehiCustom.innerText = this.inpDateMasehi.value;
+    });
+    bindLive(this.inpDateHijri, this.viewDateHijri, () => {
+      if (this.viewDateHijriCustom) this.viewDateHijriCustom.innerText = this.inpDateHijri.value;
+    });
+    bindLive(this.inpEditionNum, this.viewEditionNum, () => {
+      if (this.viewEditionNumCustom) this.viewEditionNumCustom.innerText = this.inpEditionNum.value;
+    });
     bindLive(this.inpHeadline, this.viewHeadline);
     bindLive(this.inpSubheadline, this.viewSubheadline);
     bindLive(this.inpCalloutQuote, this.viewCalloutQuote, () => {
@@ -220,6 +260,141 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const scaleH = stageH / sheetH;
     const bestScale = Math.min(scaleW, scaleH);
     this.setZoom(Math.max(0.4, Math.min(1.0, bestScale)));
+  }
+
+  handleCustomHeaderUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target.result;
+      this.applyCustomHeader(dataUrl, true);
+
+      // Simpan di local storage browser
+      try {
+        localStorage.setItem('alqalam_master_header', dataUrl);
+      } catch (err) {
+        console.warn('LocalStorage quota limit:', err);
+      }
+
+      // Unggah ke server template agar semua pengguna/perangkat menggunakan kop yang sama
+      const fd = new FormData();
+      fd.append('header_file', file);
+      fetch('api.php?action=upload_header', {
+        method: 'POST',
+        body: fd
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          console.log('Master header tersimpan di server:', data.header_url);
+        }
+      })
+      .catch(err => console.error('Gagal simpan header ke server:', err));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async loadMasterHeader() {
+    // 1. Coba ambil dari server template terlebih dahulu (sinkronisasi antar komputer)
+    try {
+      const res = await fetch('api.php?action=get_template_header');
+      const data = await res.json();
+      if (data.success && data.has_custom_header && data.header_url) {
+        this.applyCustomHeader(data.header_url, true);
+        return;
+      }
+    } catch (e) {
+      console.warn('Gagal cek header di server, coba cache lokal:', e);
+    }
+
+    // 2. Jika di server belum ada, periksa cache lokal
+    const localHeader = localStorage.getItem('alqalam_master_header');
+    if (localHeader) {
+      this.applyCustomHeader(localHeader, true);
+    }
+  }
+
+  applyCustomHeader(url, setMode = true) {
+    if (this.viewCustomHeaderImg) this.viewCustomHeaderImg.src = url;
+    if (this.previewCustomHeaderImg) this.previewCustomHeaderImg.src = url;
+    if (this.containerPreviewHeader) this.containerPreviewHeader.classList.remove('hidden');
+    if (this.labelUploadHeader) this.labelUploadHeader.innerText = 'Ganti File Kop Master';
+    if (setMode) {
+      this.setHeaderMode('custom');
+    }
+  }
+
+  setHeaderMode(mode) {
+    this.headerMode = mode;
+    this.updateHeaderDisplay();
+  }
+
+  updateHeaderDisplay() {
+    if (this.headerMode === 'custom') {
+      // Tombol selector model kop
+      this.btnModeCustomHeader?.classList.add('border-emerald-500', 'bg-emerald-500/10', 'text-emerald-300');
+      this.btnModeCustomHeader?.classList.remove('border-slate-700', 'bg-slate-800/60', 'text-slate-400');
+      this.btnModeDefaultHeader?.classList.remove('border-emerald-500', 'bg-emerald-500/10', 'text-emerald-300');
+      this.btnModeDefaultHeader?.classList.add('border-slate-700', 'bg-slate-800/60', 'text-slate-400');
+
+      if (this.badgeHeaderStatus) {
+        this.badgeHeaderStatus.innerText = 'Kop Master Aktif';
+        this.badgeHeaderStatus.className = 'text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30';
+      }
+
+      this.containerCustomEditionToggle?.classList.remove('hidden');
+
+      // Tampilan di Sheet A3
+      this.viewCustomHeaderWrapper?.classList.remove('hidden');
+      this.viewDefaultHeaderWrapper?.classList.add('hidden');
+
+      const showBar = this.chkShowCustomEditionBar?.checked ?? true;
+      if (this.viewCustomHeaderEditionBar) {
+        this.viewCustomHeaderEditionBar.style.display = showBar ? 'flex' : 'none';
+      }
+    } else {
+      // Kop bawaan AL QALAM
+      this.btnModeDefaultHeader?.classList.add('border-emerald-500', 'bg-emerald-500/10', 'text-emerald-300');
+      this.btnModeDefaultHeader?.classList.remove('border-slate-700', 'bg-slate-800/60', 'text-slate-400');
+      this.btnModeCustomHeader?.classList.remove('border-emerald-500', 'bg-emerald-500/10', 'text-emerald-300');
+      this.btnModeCustomHeader?.classList.add('border-slate-700', 'bg-slate-800/60', 'text-slate-400');
+
+      if (this.badgeHeaderStatus) {
+        this.badgeHeaderStatus.innerText = 'Kop Bawaan';
+        this.badgeHeaderStatus.className = 'text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700';
+      }
+
+      this.containerCustomEditionToggle?.classList.add('hidden');
+
+      // Tampilan di Sheet A3
+      this.viewCustomHeaderWrapper?.classList.add('hidden');
+      this.viewDefaultHeaderWrapper?.classList.remove('hidden');
+      if (this.viewCustomHeaderEditionBar) {
+        this.viewCustomHeaderEditionBar.style.display = 'none';
+      }
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async resetMasterHeader() {
+    if (!confirm('Kembalikan ke kop bawaan AL QALAM dan hapus kop master tersimpan?')) return;
+
+    localStorage.removeItem('alqalam_master_header');
+    if (this.viewCustomHeaderImg) this.viewCustomHeaderImg.src = '';
+    if (this.previewCustomHeaderImg) this.previewCustomHeaderImg.src = '';
+    if (this.containerPreviewHeader) this.containerPreviewHeader.classList.add('hidden');
+    if (this.labelUploadHeader) this.labelUploadHeader.innerText = 'Upload File Kop / Header Master';
+    if (this.inpCustomHeader) this.inpCustomHeader.value = '';
+
+    this.setHeaderMode('default');
+
+    try {
+      await fetch('api.php?action=reset_template_header');
+    } catch (e) {
+      console.warn('Gagal reset master header di server:', e);
+    }
   }
 
   handleImageUpload(event, targetImg, previewImg) {

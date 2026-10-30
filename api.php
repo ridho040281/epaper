@@ -354,6 +354,78 @@ switch ($action) {
         ]);
         break;
 
+    case 'upload_template_header':
+    case 'upload_header':
+        if (!isset($_FILES['header_file']) || $_FILES['header_file']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'message' => 'Gagal mengunggah file header.']);
+            exit;
+        }
+        $file = $_FILES['header_file'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowedExts = ['jpg', 'jpeg', 'png', 'webp'];
+        if (!in_array($ext, $allowedExts)) {
+            echo json_encode(['success' => false, 'message' => 'Format file harus JPG, PNG, atau WEBP.']);
+            exit;
+        }
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template';
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0777, true);
+        }
+        // Hapus file header master lama jika ada
+        foreach ($allowedExts as $oldExt) {
+            $oldFile = $targetDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $oldExt;
+            if (file_exists($oldFile)) {
+                @unlink($oldFile);
+            }
+        }
+        $destName = 'master_custom_header.' . $ext;
+        $destination = $targetDir . DIRECTORY_SEPARATOR . $destName;
+        if (move_uploaded_file($file['tmp_name'], $destination)) {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Header master berhasil disimpan di server!',
+                'header_url' => 'assets/template/' . $destName . '?t=' . time()
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Gagal memindahkan file header ke folder template server.']);
+        }
+        exit;
+        break;
+
+    case 'get_template_header':
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template';
+        $found = null;
+        if (is_dir($targetDir)) {
+            foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+                $file = $targetDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
+                if (file_exists($file)) {
+                    $found = 'assets/template/master_custom_header.' . $ext . '?t=' . filemtime($file);
+                    break;
+                }
+            }
+        }
+        echo json_encode([
+            'success' => true,
+            'has_custom_header' => ($found !== null),
+            'header_url' => $found
+        ]);
+        exit;
+        break;
+
+    case 'reset_template_header':
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template';
+        if (is_dir($targetDir)) {
+            foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
+                $file = $targetDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
+                if (file_exists($file)) {
+                    @unlink($file);
+                }
+            }
+        }
+        echo json_encode(['success' => true, 'message' => 'Header master telah dikembalikan ke bawaan sistem']);
+        exit;
+        break;
+
     default:
         echo json_encode(['success' => false, 'message' => 'Aksi tidak dikenal.']);
         break;
