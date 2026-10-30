@@ -179,6 +179,18 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnToggleEditor    = document.getElementById('btn-toggle-editor');
     this.btnTogglePreview   = document.getElementById('btn-toggle-preview');
 
+    // Smart Paste & Clipboard Modal
+    this.modalPasteTarget       = document.getElementById('modal-paste-target');
+    this.previewPastedImg       = document.getElementById('preview-pasted-img');
+    this.labelPastedDimensions  = document.getElementById('label-pasted-dimensions');
+    this.btnClosePasteModal     = document.getElementById('btn-close-paste-modal');
+    this.btnCancelPasteModal    = document.getElementById('btn-cancel-paste-modal');
+    this.btnPasteToAuthor       = document.getElementById('btn-paste-to-author');
+    this.btnPasteToHeader       = document.getElementById('btn-paste-to-header');
+    this.btnPasteToActivity     = document.getElementById('btn-paste-to-activity');
+    this.btnPasteAuthorDirect   = document.getElementById('btn-paste-author-direct');
+    this.btnPasteHeaderDirect   = document.getElementById('btn-paste-header-direct');
+
     // Loading overlay
     this.loadingOverlay     = document.getElementById('studio-loading');
     this.loadingTitle       = document.getElementById('studio-loading-title');
@@ -271,6 +283,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     });
     this.initDraggables();
     this.initAuthorResizeHandle();
+    this.initClipboardPaste();
 
     // Show/Hide Activity Photo
     this.chkShowActivityImg?.addEventListener('change', () => {
@@ -1504,6 +1517,279 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       console.error(err);
       alert('Gagal menerbitkan naskah: ' + err.message);
     }
+  }
+
+  // ==========================================
+  // SMART CLIPBOARD PASTE (CANVA DESKTOP & WEB)
+  // ==========================================
+  initClipboardPaste() {
+    // 1. Tombol Paste Langsung di Bagian Kop
+    this.btnPasteHeaderDirect?.addEventListener('click', () => {
+      this.triggerDirectPaste('header');
+    });
+
+    // 2. Tombol Paste Langsung di Bagian Foto Penulis
+    this.btnPasteAuthorDirect?.addEventListener('click', () => {
+      this.triggerDirectPaste('author');
+    });
+
+    // 3. Tombol-tombol di Modal Pemilih Bagian Koran
+    this.btnClosePasteModal?.addEventListener('click', () => this.closePasteModal());
+    this.btnCancelPasteModal?.addEventListener('click', () => this.closePasteModal());
+    this.btnPasteToAuthor?.addEventListener('click', () => this.applyPastedToAuthor());
+    this.btnPasteToHeader?.addEventListener('click', () => this.applyPastedToHeader());
+    this.btnPasteToActivity?.addEventListener('click', () => this.applyPastedToActivity());
+
+    // Tutup modal jika klik di luar box modal (backdrop)
+    this.modalPasteTarget?.addEventListener('click', (e) => {
+      if (e.target === this.modalPasteTarget) {
+        this.closePasteModal();
+      }
+    });
+
+    // 4. Tombol Esc untuk menutup modal
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.modalPasteTarget && !this.modalPasteTarget.classList.contains('hidden')) {
+        this.closePasteModal();
+      }
+    });
+
+    // 5. Global Paste Listener (Ctrl + V di mana saja di halaman)
+    window.addEventListener('paste', (e) => {
+      const activeElem = document.activeElement;
+      const isInput = activeElem && (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA');
+
+      const items = (e.clipboardData || window.clipboardData)?.items;
+      if (!items) return;
+
+      let imageItem = null;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          imageItem = items[i];
+          break;
+        }
+      }
+
+      // Jika tidak ada gambar di clipboard dan kursor sedang di form input/teks, biarkan paste teks berjalan normal
+      if (!imageItem) return;
+
+      // Cegah perilaku default browser
+      e.preventDefault();
+
+      const file = imageItem.getAsFile();
+      if (file) {
+        this.handlePastedImageFile(file);
+      }
+    });
+
+    // 6. Dukungan Drag & Drop File Gambar langsung dari Desktop/Canva ke Lembaran Kertas A3
+    const stage = document.getElementById('preview-stage');
+    const dropTargets = [this.a3Sheet, stage].filter(Boolean);
+    dropTargets.forEach(dt => {
+      dt.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        this.a3Sheet?.classList.add('ring-4', 'ring-emerald-400');
+      });
+      dt.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        this.a3Sheet?.classList.remove('ring-4', 'ring-emerald-400');
+      });
+      dt.addEventListener('drop', (e) => {
+        e.preventDefault();
+        this.a3Sheet?.classList.remove('ring-4', 'ring-emerald-400');
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0 && files[0].type.startsWith('image/')) {
+          this.handlePastedImageFile(files[0]);
+        }
+      });
+    });
+  }
+
+  async triggerDirectPaste(targetMode) {
+    if (navigator.clipboard && navigator.clipboard.read) {
+      try {
+        const clipItems = await navigator.clipboard.read();
+        for (const item of clipItems) {
+          for (const type of item.types) {
+            if (type.startsWith('image/')) {
+              const blob = await item.getType(type);
+              const file = new File([blob], 'canva_pasted.png', { type: blob.type || 'image/png' });
+              if (targetMode === 'author') {
+                this.processAndApplyAuthorFile(file);
+              } else if (targetMode === 'header') {
+                this.processAndApplyHeaderFile(file);
+              } else {
+                this.handlePastedImageFile(file);
+              }
+              return;
+            }
+          }
+        }
+        alert('📋 Belum ada gambar di clipboard.\n\nCara pakai:\n1. Buka Canva Desktop, klik kanan pada gambar lalu pilih "Salin Gambar" (atau tekan Ctrl+C).\n2. Kembali ke sini dan klik tombol ini lagi atau langsung tekan Ctrl+V.');
+      } catch (err) {
+        alert('📋 Tip Canva Desktop:\n\nSilakan tekan tombol keyboard Ctrl + V langsung di halaman ini untuk menempelkan gambar yang sudah Anda salin dari Canva.');
+      }
+    } else {
+      alert('📋 Tip Canva Desktop:\n\nSilakan tekan tombol keyboard Ctrl + V langsung di halaman ini untuk menempelkan gambar yang sudah Anda salin dari Canva.');
+    }
+  }
+
+  handlePastedImageFile(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target.result;
+      this.pendingPastedFile = file;
+      this.pendingPastedDataUrl = dataUrl;
+
+      if (this.previewPastedImg) {
+        this.previewPastedImg.src = dataUrl;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        if (this.labelPastedDimensions) {
+          this.labelPastedDimensions.innerText = `Dimensi Asli: ${img.naturalWidth} x ${img.naturalHeight} px`;
+        }
+      };
+      img.src = dataUrl;
+
+      if (this.modalPasteTarget) {
+        this.modalPasteTarget.classList.remove('hidden');
+      }
+      if (window.lucide) window.lucide.createIcons();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  closePasteModal() {
+    if (this.modalPasteTarget) {
+      this.modalPasteTarget.classList.add('hidden');
+    }
+    this.pendingPastedFile = null;
+    this.pendingPastedDataUrl = null;
+  }
+
+  applyPastedToAuthor() {
+    if (!this.pendingPastedDataUrl) return;
+    const dataUrl = this.pendingPastedDataUrl;
+    this.closePasteModal();
+
+    const testImg = new Image();
+    testImg.onload = () => {
+      const cvs = document.createElement('canvas');
+      cvs.width = testImg.naturalWidth;
+      cvs.height = testImg.naturalHeight;
+      cvs.getContext('2d').drawImage(testImg, 0, 0);
+      const trimmedCvs = this.trimCanvas(cvs);
+      const finalUrl = trimmedCvs.toDataURL('image/png');
+      this.setAuthorPhoto(finalUrl);
+      try {
+        localStorage.setItem('alqalam_author_photo', finalUrl);
+      } catch (e) {}
+      alert('✨ Berhasil!\n\nGambar dari Canva telah ditempel sebagai Foto Penulis dan tepiannya dirapatkan.');
+    };
+    testImg.src = dataUrl;
+  }
+
+  processAndApplyAuthorFile(file) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const testImg = new Image();
+      testImg.onload = () => {
+        const cvs = document.createElement('canvas');
+        cvs.width = testImg.naturalWidth;
+        cvs.height = testImg.naturalHeight;
+        cvs.getContext('2d').drawImage(testImg, 0, 0);
+        const trimmedCvs = this.trimCanvas(cvs);
+        const finalUrl = trimmedCvs.toDataURL('image/png');
+        this.setAuthorPhoto(finalUrl);
+        try {
+          localStorage.setItem('alqalam_author_photo', finalUrl);
+        } catch (e) {}
+        alert('✨ Berhasil!\n\nFoto Penulis dari Canva telah ditempel dan siap diatur posisinya.');
+      };
+      testImg.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  applyPastedToHeader() {
+    if (!this.pendingPastedDataUrl) return;
+    const file = this.pendingPastedFile;
+    const dataUrl = this.pendingPastedDataUrl;
+    this.closePasteModal();
+
+    this.applyCustomHeader(dataUrl, true);
+    try {
+      localStorage.setItem('alqalam_master_header', dataUrl);
+    } catch (e) {}
+
+    if (file) {
+      const fd = new FormData();
+      fd.append('header_file', file);
+      fetch('api.php?action=upload_header', {
+        method: 'POST',
+        body: fd
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.header_url) {
+          try { localStorage.setItem('alqalam_master_header', data.header_url); } catch(e){}
+        }
+      })
+      .catch(err => console.warn('Sync header server:', err));
+    }
+
+    if (this.labelUploadHeader) this.labelUploadHeader.innerText = 'Ganti File Kop';
+    alert('🎉 Berhasil!\n\nKop Koran dari Canva berhasil dipasang sebagai Header Master AL QALAM.');
+  }
+
+  processAndApplyHeaderFile(file) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target.result;
+      this.applyCustomHeader(dataUrl, true);
+      try {
+        localStorage.setItem('alqalam_master_header', dataUrl);
+      } catch (e) {}
+
+      const fd = new FormData();
+      fd.append('header_file', file);
+      fetch('api.php?action=upload_header', { method: 'POST', body: fd })
+      .catch(e => console.warn(e));
+
+      if (this.labelUploadHeader) this.labelUploadHeader.innerText = 'Ganti File Kop';
+      alert('🎉 Berhasil!\n\nKop Koran dari Canva berhasil dipasang sebagai Header Master AL QALAM.');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  applyPastedToActivity() {
+    if (!this.pendingPastedDataUrl) return;
+    const dataUrl = this.pendingPastedDataUrl;
+    this.closePasteModal();
+
+    if (this.viewActivityImg) {
+      this.viewActivityImg.src = dataUrl;
+      this.viewActivityImg.classList.remove('hidden');
+    }
+    if (this.previewActivityImg) {
+      this.previewActivityImg.src = dataUrl;
+      this.previewActivityImg.classList.remove('hidden');
+    }
+    if (this.placeholderPreviewActivity) {
+      this.placeholderPreviewActivity.classList.add('hidden');
+    }
+    if (this.labelActivityPhoto) {
+      this.labelActivityPhoto.innerText = 'Ganti Foto Kegiatan';
+    }
+    if (this.chkShowActivityImg) {
+      this.chkShowActivityImg.checked = true;
+    }
+    this.updateBottomInsertsVisibility();
+    alert('📸 Berhasil!\n\nGambar dari Canva telah dipasang pada Foto Kegiatan.');
   }
 }
 
