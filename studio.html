@@ -317,6 +317,19 @@
               <input type="text" id="inp-edition-num" value="Tahun 2026 | Nomor : 0006" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
             </div>
           </div>
+
+          <!-- Pengatur Posisi Vertikal Hari & Tanggal (Sejajar Huruf M) -->
+          <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+            <span class="text-slate-400 font-medium text-[11px] flex items-center gap-1.5">
+              <i data-lucide="move-vertical" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>Posisi Naik/Turun Hari:</span>
+            </span>
+            <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-1">
+              <button type="button" id="btn-date-up" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Geser Hari ke Atas">▲</button>
+              <span id="label-date-offset" class="font-mono text-emerald-400 text-[11px] font-semibold w-12 text-center select-none">28 px</span>
+              <button type="button" id="btn-date-down" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Geser Hari ke Bawah">▼</button>
+            </div>
+          </div>
         </div>
 
         <!-- Section 2: Penulis & Profil -->
@@ -483,8 +496,8 @@
             <div id="view-custom-header-wrapper" class="hidden w-full relative">
               <img id="view-custom-header-img" src="" alt="Header Master Koran" class="w-full h-auto object-contain block mx-auto">
               
-              <!-- Floating Overlay Edition Box (Pojok Kanan Atas, Rata Kanan seperti koran AL QALAM) -->
-              <div id="view-custom-header-overlay-box" class="absolute top-5 right-5 text-right font-serif leading-snug text-slate-900 pointer-events-none select-none z-10">
+              <!-- Floating Overlay Edition Box (Pojok Kanan Atas, Sejajar Bawah Huruf M) -->
+              <div id="view-custom-header-overlay-box" style="top: 52px; right: 24px;" class="absolute text-right font-serif leading-snug text-slate-900 pointer-events-none select-none z-10">
                 <div id="view-day-custom-overlay" class="text-[11px] text-slate-900 font-normal">Senin Wage</div>
                 <div id="view-date-masehi-custom-overlay" class="text-[11px] text-slate-900 font-normal">25 Agustus 2025</div>
                 <div id="view-date-hijri-custom-overlay" class="text-[11px] text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
@@ -505,10 +518,10 @@
                 <!-- Right: Partner Logos & Edition Box -->
                 <div class="flex flex-col items-end text-right">
                   <!-- Logos row (Kemenag, Pusaka, BerAKHLAK, Hari Santri) -->
-                  <img src="assets/template/top_partner_logos.png" alt="Logos Resmi" class="h-7 object-contain mb-1.5">
+                  <img src="assets/template/top_partner_logos.png" alt="Logos Resmi" class="h-6 object-contain">
                   
-                  <!-- Edition info box (Rata Kanan) -->
-                  <div class="text-[11px] font-serif leading-snug text-slate-900 text-right">
+                  <!-- Edition info box (Rata Kanan - Sejajar Bawah Huruf M) -->
+                  <div id="view-default-date-box" style="margin-top: 28px;" class="text-[11px] font-serif leading-snug text-slate-900 text-right">
                     <div id="view-day" class="text-slate-900 font-normal">Senin Wage</div>
                     <div id="view-date-masehi" class="text-slate-900 font-normal">25 Agustus 2025</div>
                     <div id="view-date-hijri" class="text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
@@ -654,6 +667,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261030_08"></script>
+  <script src="js/studio.js?v=20261030_09"></script>
 </body>
 </html>

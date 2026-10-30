@@ -73,6 +73,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.viewDateHijriCustomBar     = document.getElementById('view-date-hijri-custom-bar');
     this.viewEditionNumCustomBar    = document.getElementById('view-edition-num-custom-bar');
 
+    // Penyesuaian Offset Vertikal Hari & Tanggal (Sejajar Huruf M)
+    this.dateOffset                 = 28;
+    this.btnDateUp                  = document.getElementById('btn-date-up');
+    this.btnDateDown                = document.getElementById('btn-date-down');
+    this.labelDateOffset            = document.getElementById('label-date-offset');
+    this.viewDefaultDateBox         = document.getElementById('view-default-date-box');
+
     // Inputs
     this.inpDay             = document.getElementById('inp-day');
     this.inpDateMasehi      = document.getElementById('inp-date-masehi');
@@ -155,6 +162,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnPosOverlay?.addEventListener('click', () => this.setHeaderDatePosition('overlay'));
     this.btnPosBelow?.addEventListener('click', () => this.setHeaderDatePosition('below'));
     this.btnPosHide?.addEventListener('click', () => this.setHeaderDatePosition('hide'));
+
+    // Pengatur Naik/Turun Vertikal Hari & Tanggal (Sejajar Huruf M)
+    this.btnDateUp?.addEventListener('click', () => this.setDateOffset(this.dateOffset - 2));
+    this.btnDateDown?.addEventListener('click', () => this.setDateOffset(this.dateOffset + 2));
 
     // Live Input Event Listeners
     const bindLive = (inp, views) => {
@@ -351,6 +362,19 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   setHeaderMode(mode) {
     this.headerMode = mode;
     this.updateHeaderDisplay();
+  }
+
+  setDateOffset(val) {
+    this.dateOffset = Math.max(0, Math.min(120, val));
+    if (this.labelDateOffset) {
+      this.labelDateOffset.innerText = `${this.dateOffset} px`;
+    }
+    if (this.viewDefaultDateBox) {
+      this.viewDefaultDateBox.style.marginTop = `${this.dateOffset}px`;
+    }
+    if (this.viewCustomHeaderOverlayBox) {
+      this.viewCustomHeaderOverlayBox.style.top = `${this.dateOffset + 24}px`;
+    }
   }
 
   setHeaderDatePosition(pos) {
