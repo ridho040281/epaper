@@ -348,15 +348,24 @@
             <label class="block text-[11px] text-slate-400 mb-1">Foto Penulis (Pasfoto / Pose Resmi)</label>
             <div class="flex items-center gap-3">
               <div class="w-16 h-20 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex items-center justify-center relative flex-shrink-0">
-                <img id="preview-author-img" src="assets/template/demo_author_jamil.jpg" alt="Foto Penulis" class="w-full h-full object-cover">
+                <img id="preview-author-img" src="" alt="Foto Penulis" class="hidden w-full h-full object-cover">
+                <div id="placeholder-preview-author" class="flex flex-col items-center justify-center text-slate-500">
+                  <i data-lucide="user" class="w-6 h-6"></i>
+                  <span class="text-[9px] mt-1">Kosong</span>
+                </div>
               </div>
-              <div class="flex-1">
-                <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
-                  <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
-                  <span>Ganti Foto Penulis</span>
+              <div class="flex-1 space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <label for="inp-author-photo" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
+                    <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span id="label-author-photo">Upload Foto Penulis</span>
+                  </label>
+                  <button type="button" id="btn-clear-author-photo" class="hidden px-2 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-lg text-xs font-medium border border-rose-800/80 transition cursor-pointer" title="Kosongkan Foto">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
                   <input type="file" id="inp-author-photo" accept="image/*" class="hidden">
-                </label>
-                <p class="text-[10px] text-slate-500 mt-1">Disarankan foto vertikal berlatar belakang bersih atau transparan.</p>
+                </div>
+                <p class="text-[10px] text-slate-500">Disarankan foto vertikal berlatar belakang bersih atau transparan.</p>
               </div>
             </div>
           </div>
@@ -577,10 +586,15 @@
               
               <!-- Author Photo & Badge -->
               <div class="w-44 flex-shrink-0 flex flex-col items-center">
-                <div class="w-40 h-52 bg-slate-100 rounded-lg overflow-hidden border border-slate-300 shadow-md">
-                  <img id="view-author-img" src="assets/template/demo_author_jamil.jpg" alt="Foto Penulis" class="w-full h-full object-cover">
+                <div class="w-40 h-52 bg-slate-100 rounded-lg overflow-hidden border border-slate-300 shadow-md relative flex items-center justify-center">
+                  <img id="view-author-img" src="" alt="Foto Penulis" class="hidden w-full h-full object-cover">
+                  <!-- Neutral Placeholder when empty -->
+                  <div id="placeholder-view-author" class="flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+                    <i data-lucide="user" class="w-16 h-16 text-slate-300 stroke-[1.5]"></i>
+                    <span class="text-[10px] font-sans text-slate-400 mt-2 font-medium">Foto Penulis (Kosong)</span>
+                  </div>
                 </div>
-                <div class="w-full -mt-3.5 bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-2 text-center rounded-md shadow-md uppercase tracking-wider truncate" id="view-author-badge">
+                <div class="w-full -mt-3.5 bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-2 text-center rounded-md shadow-md uppercase tracking-wider truncate z-10" id="view-author-badge">
                   MOHAMAD JAMIL, S.Pd.
                 </div>
               </div>
@@ -667,6 +681,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261030_09"></script>
+  <script src="js/studio.js?v=20261030_10"></script>
 </body>
 </html>

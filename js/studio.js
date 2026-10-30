@@ -33,7 +33,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     this.initElements();
     this.initEvents();
-    this.loadDemoPreset();
+    this.initDefaultContent();
     this.adjustZoomToFit();
     this.loadMasterHeader();
   }
@@ -85,27 +85,31 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.inpDateMasehi      = document.getElementById('inp-date-masehi');
     this.inpDateHijri       = document.getElementById('inp-date-hijri');
     this.inpEditionNum      = document.getElementById('inp-edition-num');
-    this.inpAuthorName      = document.getElementById('inp-author-name');
-    this.inpAuthorPhoto     = document.getElementById('inp-author-photo');
-    this.previewAuthorImg   = document.getElementById('preview-author-img');
-    this.inpHeadline        = document.getElementById('inp-headline');
-    this.inpSubheadline     = document.getElementById('inp-subheadline');
-    this.inpBodyText        = document.getElementById('inp-body-text');
-    this.textWordCount      = document.getElementById('text-word-count');
-    this.inpActivityPhoto   = document.getElementById('inp-activity-photo');
-    this.previewActivityImg = document.getElementById('preview-activity-img');
-    this.chkShowActivityImg = document.getElementById('chk-show-activity-img');
-    this.inpCalloutQuote    = document.getElementById('inp-callout-quote');
-    this.selEventLogo       = document.getElementById('sel-event-logo');
-    this.inpPageNum         = document.getElementById('inp-page-num');
+    this.inpAuthorName          = document.getElementById('inp-author-name');
+    this.inpAuthorPhoto         = document.getElementById('inp-author-photo');
+    this.previewAuthorImg       = document.getElementById('preview-author-img');
+    this.placeholderPreviewAuthor = document.getElementById('placeholder-preview-author');
+    this.labelAuthorPhoto       = document.getElementById('label-author-photo');
+    this.btnClearAuthorPhoto    = document.getElementById('btn-clear-author-photo');
+    this.inpHeadline            = document.getElementById('inp-headline');
+    this.inpSubheadline         = document.getElementById('inp-subheadline');
+    this.inpBodyText            = document.getElementById('inp-body-text');
+    this.textWordCount          = document.getElementById('text-word-count');
+    this.inpActivityPhoto       = document.getElementById('inp-activity-photo');
+    this.previewActivityImg     = document.getElementById('preview-activity-img');
+    this.chkShowActivityImg     = document.getElementById('chk-show-activity-img');
+    this.inpCalloutQuote        = document.getElementById('inp-callout-quote');
+    this.selEventLogo           = document.getElementById('sel-event-logo');
+    this.inpPageNum             = document.getElementById('inp-page-num');
 
     // Live Views on A3 Sheet
-    this.viewDay            = document.getElementById('view-day');
-    this.viewDateMasehi     = document.getElementById('view-date-masehi');
-    this.viewDateHijri      = document.getElementById('view-date-hijri');
-    this.viewEditionNum     = document.getElementById('view-edition-num');
-    this.viewAuthorImg      = document.getElementById('view-author-img');
-    this.viewAuthorBadge    = document.getElementById('view-author-badge');
+    this.viewDay                = document.getElementById('view-day');
+    this.viewDateMasehi         = document.getElementById('view-date-masehi');
+    this.viewDateHijri          = document.getElementById('view-date-hijri');
+    this.viewEditionNum         = document.getElementById('view-edition-num');
+    this.viewAuthorImg          = document.getElementById('view-author-img');
+    this.placeholderViewAuthor  = document.getElementById('placeholder-view-author');
+    this.viewAuthorBadge        = document.getElementById('view-author-badge');
     this.viewByline         = document.getElementById('view-byline');
     this.viewHeadline       = document.getElementById('view-headline');
     this.viewSubheadline    = document.getElementById('view-subheadline');
@@ -200,7 +204,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.inpBodyText?.addEventListener('input', () => this.formatNewspaperContent());
 
     // Photo Uploads
-    this.inpAuthorPhoto?.addEventListener('change', (e) => this.handleImageUpload(e, this.viewAuthorImg, this.previewAuthorImg));
+    this.inpAuthorPhoto?.addEventListener('change', (e) => this.handleAuthorPhotoUpload(e));
+    this.btnClearAuthorPhoto?.addEventListener('click', () => this.setAuthorPhoto(null));
     this.inpActivityPhoto?.addEventListener('change', (e) => this.handleImageUpload(e, this.viewActivityImg, this.previewActivityImg));
 
     // Show/Hide Activity Photo
@@ -510,6 +515,88 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.viewNewspaperContent.innerHTML = html;
   }
 
+  initDefaultContent() {
+    this.formatNewspaperContent();
+
+    // Pulihkan foto penulis dari localStorage jika pernah diunggah, jika belum ada biarkan KOSONG secara default
+    const savedAuthorPhoto = localStorage.getItem('alqalam_author_photo');
+    if (savedAuthorPhoto) {
+      this.setAuthorPhoto(savedAuthorPhoto);
+    } else {
+      this.setAuthorPhoto(null); // Kosongkan secara default sesuai permintaan pengguna
+    }
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  handleAuthorPhotoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target.result;
+      this.setAuthorPhoto(dataUrl);
+      try {
+        localStorage.setItem('alqalam_author_photo', dataUrl);
+      } catch (err) {
+        console.warn('LocalStorage limit for author photo:', err);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  setAuthorPhoto(dataUrl) {
+    if (dataUrl) {
+      if (this.viewAuthorImg) {
+        this.viewAuthorImg.src = dataUrl;
+        this.viewAuthorImg.classList.remove('hidden');
+      }
+      if (this.placeholderViewAuthor) {
+        this.placeholderViewAuthor.classList.add('hidden');
+      }
+      if (this.previewAuthorImg) {
+        this.previewAuthorImg.src = dataUrl;
+        this.previewAuthorImg.classList.remove('hidden');
+      }
+      if (this.placeholderPreviewAuthor) {
+        this.placeholderPreviewAuthor.classList.add('hidden');
+      }
+      if (this.btnClearAuthorPhoto) {
+        this.btnClearAuthorPhoto.classList.remove('hidden');
+      }
+      if (this.labelAuthorPhoto) {
+        this.labelAuthorPhoto.innerText = 'Ganti Foto Penulis';
+      }
+    } else {
+      if (this.viewAuthorImg) {
+        this.viewAuthorImg.src = '';
+        this.viewAuthorImg.classList.add('hidden');
+      }
+      if (this.placeholderViewAuthor) {
+        this.placeholderViewAuthor.classList.remove('hidden');
+      }
+      if (this.previewAuthorImg) {
+        this.previewAuthorImg.src = '';
+        this.previewAuthorImg.classList.add('hidden');
+      }
+      if (this.placeholderPreviewAuthor) {
+        this.placeholderPreviewAuthor.classList.remove('hidden');
+      }
+      if (this.btnClearAuthorPhoto) {
+        this.btnClearAuthorPhoto.classList.add('hidden');
+      }
+      if (this.labelAuthorPhoto) {
+        this.labelAuthorPhoto.innerText = 'Upload Foto Penulis';
+      }
+      if (this.inpAuthorPhoto) {
+        this.inpAuthorPhoto.value = '';
+      }
+      localStorage.removeItem('alqalam_author_photo');
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   loadDemoPreset() {
     // Populate form fields
     if (this.inpDay) this.inpDay.value = 'Selasa Pahing';
@@ -535,9 +622,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (this.viewCalloutQuote) this.viewCalloutQuote.innerText = `"${this.inpCalloutQuote.value}"`;
     if (this.viewFooterPage) this.viewFooterPage.innerText = 'Halaman 6';
 
-    // Default Images
-    if (this.viewAuthorImg) this.viewAuthorImg.src = 'assets/template/demo_author_jamil.jpg';
-    if (this.previewAuthorImg) this.previewAuthorImg.src = 'assets/template/demo_author_jamil.jpg';
+    // Author & Activity Images for Demo
+    this.setAuthorPhoto('assets/template/demo_author_jamil.jpg');
     if (this.viewActivityImg) this.viewActivityImg.src = 'assets/template/demo_activity_math.jpg';
     if (this.previewActivityImg) this.previewActivityImg.src = 'assets/template/demo_activity_math.jpg';
 
