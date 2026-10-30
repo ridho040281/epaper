@@ -437,18 +437,22 @@
 
           <div class="space-y-3">
             <div class="w-full h-36 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden relative flex items-center justify-center">
-              <img id="preview-activity-img" src="assets/template/demo_activity_math.jpg" alt="Foto Kegiatan" class="w-full h-full object-cover">
+              <img id="preview-activity-img" src="" alt="Foto Kegiatan" class="hidden w-full h-full object-cover">
+              <div id="placeholder-preview-activity" class="flex flex-col items-center justify-center text-slate-500 p-2 text-center">
+                <i data-lucide="image" class="w-8 h-8 text-slate-600"></i>
+                <span class="text-[10px] mt-1 text-slate-500 font-sans">Belum ada foto kegiatan (opsional)</span>
+              </div>
             </div>
 
             <div class="flex items-center justify-between gap-3">
               <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
                 <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Ganti Foto Kegiatan</span>
+                <span id="label-activity-photo">Upload Foto Kegiatan</span>
                 <input type="file" id="inp-activity-photo" accept="image/*" class="hidden">
               </label>
 
               <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" id="chk-show-activity-img" checked class="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500">
+                <input type="checkbox" id="chk-show-activity-img" class="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500">
                 <span>Tampilkan Foto</span>
               </label>
             </div>
@@ -464,16 +468,16 @@
 
           <div>
             <label class="block text-[11px] text-slate-400 mb-1">Kutipan Kunci (Callout Box)</label>
-            <textarea id="inp-callout-quote" rows="3" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs p-2.5 rounded-xl outline-none focus:border-emerald-500 transition italic">Oleh karena itu, belajar matematika tidak harus selalu dilakukan dengan menghafal rumus dan mengerjakan soal di buku. Murid dapat mulai belajar melalui kegiatan yang dekat dengan kehidupan sehari-hari.</textarea>
+            <textarea id="inp-callout-quote" rows="3" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs p-2.5 rounded-xl outline-none focus:border-emerald-500 transition italic" placeholder="Ketik kutipan penting jika ada (opsional)..."></textarea>
           </div>
 
           <div class="grid grid-cols-2 gap-3 pt-2">
             <div>
               <label class="block text-[11px] text-slate-400 mb-1">Logo Peringatan / Event</label>
               <select id="sel-event-logo" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-2.5 py-2 rounded-xl outline-none focus:border-emerald-500">
+                <option value="none" selected>Tanpa Logo Event</option>
                 <option value="sumpah_pemuda">98 Th Sumpah Pemuda</option>
                 <option value="hari_santri">Hari Santri 2026</option>
-                <option value="none">Tanpa Logo Event</option>
               </select>
             </div>
             <div>
@@ -521,7 +525,7 @@
         <div id="a3-sheet" class="a3-sheet p-8 flex flex-col justify-between">
           
           <!-- SHEET HEADER CONTAINER -->
-          <div id="container-sheet-header" class="w-full flex-shrink-0 border-b-2 border-slate-900 pb-2 mb-4">
+          <div id="container-sheet-header" class="w-full flex-shrink-0 mb-4 pb-1">
             
             <!-- OPTION A: Custom Uploaded Master Header View -->
             <div id="view-custom-header-wrapper" class="hidden w-full relative">
@@ -642,27 +646,28 @@
               <!-- Rendered dynamically -->
             </div>
 
-            <!-- Mid/Bottom Visual Inserts: Classroom Photo + Callout + Logo Sumpah Pemuda -->
-            <div class="mt-4 pt-3 border-t-2 border-slate-300 grid grid-cols-12 gap-4 items-center">
+            <!-- Mid/Bottom Visual Inserts: Classroom Photo + Callout + Logo (Hidden by default) -->
+            <div id="container-bottom-inserts" style="display: none;" class="mt-4 pt-3 border-t-2 border-slate-300 grid grid-cols-12 gap-4 items-center">
               
               <!-- Activity Photo (Left 7 cols) -->
-              <div class="col-span-7 flex flex-col" id="container-view-activity">
+              <div class="col-span-7 flex flex-col" id="container-view-activity" style="display: none;">
                 <div class="w-full h-44 bg-slate-100 rounded-lg overflow-hidden border border-slate-300 shadow-sm">
-                  <img id="view-activity-img" src="assets/template/demo_activity_math.jpg" alt="Foto Kegiatan" class="w-full h-full object-cover">
+                  <img id="view-activity-img" src="" alt="Foto Kegiatan" class="w-full h-full object-cover">
                 </div>
-                <div class="mt-2 p-2.5 bg-amber-50/80 border-l-4 border-amber-500 text-[11px] font-serif italic text-slate-800 leading-snug rounded-r" id="view-callout-quote">
-                  "Oleh karena itu, belajar matematika tidak harus selalu dilakukan dengan menghafal rumus dan mengerjakan soal di buku. Murid dapat mulai belajar melalui kegiatan yang dekat dengan kehidupan sehari-hari."
+                <div class="mt-2 p-2.5 bg-amber-50/80 border-l-4 border-amber-500 text-[11px] font-serif italic text-slate-800 leading-snug rounded-r" id="view-callout-quote" style="display: none;">
                 </div>
               </div>
 
-              <!-- Doodle & Sumpah Pemuda (Right 5 cols) -->
+              <!-- Doodle & Event Logo (Right 5 cols) -->
               <div class="col-span-5 flex flex-col items-center justify-between h-full py-1">
                 <!-- Math doodle / Illustration -->
-                <img src="assets/template/demo_math_doodle.jpg" alt="Ilustrasi" class="max-h-20 object-contain mb-2">
+                <div id="container-view-illustration" style="display: none;" class="mb-2">
+                  <img id="view-illustration-img" src="" alt="Ilustrasi" class="max-h-20 object-contain">
+                </div>
 
-                <!-- Event logo (Sumpah Pemuda) -->
-                <div id="container-view-event-logo" class="flex flex-col items-center">
-                  <img id="view-event-logo-img" src="assets/template/demo_logo_sumpah_pemuda.jpg" alt="Logo Peringatan" class="max-h-24 object-contain">
+                <!-- Event logo -->
+                <div id="container-view-event-logo" style="display: none;" class="flex flex-col items-center">
+                  <img id="view-event-logo-img" src="" alt="Logo Peringatan" class="max-h-24 object-contain">
                 </div>
               </div>
 
@@ -703,6 +708,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261030_11"></script>
+  <script src="js/studio.js?v=20261030_12"></script>
 </body>
 </html>

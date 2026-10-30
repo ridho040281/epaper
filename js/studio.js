@@ -112,6 +112,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.textWordCount          = document.getElementById('text-word-count');
     this.inpActivityPhoto       = document.getElementById('inp-activity-photo');
     this.previewActivityImg     = document.getElementById('preview-activity-img');
+    this.placeholderPreviewActivity = document.getElementById('placeholder-preview-activity');
+    this.labelActivityPhoto     = document.getElementById('label-activity-photo');
     this.chkShowActivityImg     = document.getElementById('chk-show-activity-img');
     this.inpCalloutQuote        = document.getElementById('inp-callout-quote');
     this.selEventLogo           = document.getElementById('sel-event-logo');
@@ -125,16 +127,19 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.viewAuthorImg          = document.getElementById('view-author-img');
     this.placeholderViewAuthor  = document.getElementById('placeholder-view-author');
     this.viewAuthorBadge        = document.getElementById('view-author-badge');
-    this.viewByline         = document.getElementById('view-byline');
-    this.viewHeadline       = document.getElementById('view-headline');
-    this.viewSubheadline    = document.getElementById('view-subheadline');
-    this.viewNewspaperContent = document.getElementById('view-newspaper-content');
-    this.viewActivityImg    = document.getElementById('view-activity-img');
-    this.containerViewActivity = document.getElementById('container-view-activity');
-    this.viewCalloutQuote   = document.getElementById('view-callout-quote');
+    this.viewByline             = document.getElementById('view-byline');
+    this.viewHeadline           = document.getElementById('view-headline');
+    this.viewSubheadline        = document.getElementById('view-subheadline');
+    this.viewNewspaperContent   = document.getElementById('view-newspaper-content');
+    this.containerBottomInserts = document.getElementById('container-bottom-inserts');
+    this.viewActivityImg        = document.getElementById('view-activity-img');
+    this.containerViewActivity  = document.getElementById('container-view-activity');
+    this.viewCalloutQuote       = document.getElementById('view-callout-quote');
+    this.containerViewIllustration = document.getElementById('container-view-illustration');
+    this.viewIllustrationImg    = document.getElementById('view-illustration-img');
     this.containerViewEventLogo = document.getElementById('container-view-event-logo');
-    this.viewEventLogoImg   = document.getElementById('view-event-logo-img');
-    this.viewFooterPage     = document.getElementById('view-footer-page');
+    this.viewEventLogoImg       = document.getElementById('view-event-logo-img');
+    this.viewFooterPage         = document.getElementById('view-footer-page');
 
     // Preview Stage & Zoom
     this.a3Sheet            = document.getElementById('a3-sheet');
@@ -208,8 +213,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     bindLive(this.inpEditionNum, [this.viewEditionNum, this.viewEditionNumCustomOverlay, this.viewEditionNumCustomBar]);
     bindLive(this.inpHeadline, this.viewHeadline);
     bindLive(this.inpSubheadline, this.viewSubheadline);
-    bindLive(this.inpCalloutQuote, this.viewCalloutQuote, () => {
-      this.viewCalloutQuote.innerText = `"${this.inpCalloutQuote.value}"`;
+    // Callout quote updates
+    this.inpCalloutQuote?.addEventListener('input', () => {
+      this.updateBottomInsertsVisibility();
     });
     bindLive(this.inpPageNum, this.viewFooterPage);
 
@@ -226,28 +232,26 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     // Photo Uploads
     this.inpAuthorPhoto?.addEventListener('change', (e) => this.handleAuthorPhotoUpload(e));
     this.btnClearAuthorPhoto?.addEventListener('click', () => this.setAuthorPhoto(null));
-    this.inpActivityPhoto?.addEventListener('change', (e) => this.handleImageUpload(e, this.viewActivityImg, this.previewActivityImg));
+    this.inpActivityPhoto?.addEventListener('change', (e) => this.handleActivityPhotoUpload(e));
 
     // Show/Hide Activity Photo
     this.chkShowActivityImg?.addEventListener('change', () => {
-      if (this.containerViewActivity) {
-        this.containerViewActivity.style.display = this.chkShowActivityImg.checked ? 'flex' : 'none';
-      }
+      this.updateBottomInsertsVisibility();
     });
 
     // Event Logo Selector
     this.selEventLogo?.addEventListener('change', () => {
       const val = this.selEventLogo.value;
-      if (!this.containerViewEventLogo || !this.viewEventLogoImg) return;
-      if (val === 'none') {
-        this.containerViewEventLogo.style.display = 'none';
-      } else if (val === 'hari_santri') {
-        this.containerViewEventLogo.style.display = 'flex';
-        this.viewEventLogoImg.src = 'covers/alqalam.jpg'; // fallback
-      } else {
-        this.containerViewEventLogo.style.display = 'flex';
-        this.viewEventLogoImg.src = 'assets/template/demo_logo_sumpah_pemuda.jpg';
+      if (this.viewEventLogoImg) {
+        if (val === 'hari_santri') {
+          this.viewEventLogoImg.src = 'covers/alqalam.jpg';
+        } else if (val === 'sumpah_pemuda') {
+          this.viewEventLogoImg.src = 'assets/template/demo_logo_sumpah_pemuda.jpg';
+        } else {
+          this.viewEventLogoImg.src = '';
+        }
       }
+      this.updateBottomInsertsVisibility();
     });
 
     // Zoom Controls
@@ -569,7 +573,90 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.setAuthorPhoto(null); // Kosongkan secara default sesuai permintaan pengguna
     }
 
+    // Default: Kosongkan & sembunyikan foto kegiatan, doodle, dan logo event
+    if (this.chkShowActivityImg) this.chkShowActivityImg.checked = false;
+    if (this.viewActivityImg) {
+      this.viewActivityImg.src = '';
+      this.viewActivityImg.classList.add('hidden');
+    }
+    if (this.previewActivityImg) {
+      this.previewActivityImg.src = '';
+      this.previewActivityImg.classList.add('hidden');
+    }
+    if (this.placeholderPreviewActivity) this.placeholderPreviewActivity.classList.remove('hidden');
+    if (this.labelActivityPhoto) this.labelActivityPhoto.innerText = 'Upload Foto Kegiatan';
+
+    if (this.inpCalloutQuote) this.inpCalloutQuote.value = '';
+    if (this.viewCalloutQuote) this.viewCalloutQuote.style.display = 'none';
+
+    if (this.selEventLogo) this.selEventLogo.value = 'none';
+    if (this.viewEventLogoImg) this.viewEventLogoImg.src = '';
+    if (this.containerViewEventLogo) this.containerViewEventLogo.style.display = 'none';
+
+    if (this.viewIllustrationImg) this.viewIllustrationImg.src = '';
+    if (this.containerViewIllustration) this.containerViewIllustration.style.display = 'none';
+
+    this.updateBottomInsertsVisibility();
+
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  handleActivityPhotoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target.result;
+      if (this.viewActivityImg) {
+        this.viewActivityImg.src = dataUrl;
+        this.viewActivityImg.classList.remove('hidden');
+      }
+      if (this.previewActivityImg) {
+        this.previewActivityImg.src = dataUrl;
+        this.previewActivityImg.classList.remove('hidden');
+      }
+      if (this.placeholderPreviewActivity) {
+        this.placeholderPreviewActivity.classList.add('hidden');
+      }
+      if (this.labelActivityPhoto) {
+        this.labelActivityPhoto.innerText = 'Ganti Foto Kegiatan';
+      }
+      if (this.chkShowActivityImg) {
+        this.chkShowActivityImg.checked = true;
+      }
+      this.updateBottomInsertsVisibility();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  updateBottomInsertsVisibility() {
+    const hasActivity = (this.chkShowActivityImg?.checked && this.viewActivityImg?.getAttribute('src')) ? true : false;
+    const quoteText = this.inpCalloutQuote?.value?.trim() || '';
+    const hasQuote = quoteText !== '';
+    const logoVal = this.selEventLogo?.value || 'none';
+    const hasLogo = (logoVal !== 'none' && this.viewEventLogoImg?.getAttribute('src')) ? true : false;
+    const hasIllustration = (this.containerViewIllustration && this.containerViewIllustration.style.display !== 'none' && this.viewIllustrationImg?.getAttribute('src')) ? true : false;
+
+    if (this.containerViewActivity) {
+      this.containerViewActivity.style.display = hasActivity ? 'flex' : 'none';
+    }
+    if (this.viewCalloutQuote) {
+      if (hasQuote) {
+        this.viewCalloutQuote.innerText = `"${quoteText}"`;
+        this.viewCalloutQuote.style.display = 'block';
+      } else {
+        this.viewCalloutQuote.style.display = 'none';
+      }
+    }
+    if (this.containerViewEventLogo) {
+      this.containerViewEventLogo.style.display = hasLogo ? 'flex' : 'none';
+    }
+
+    const shouldShowSection = hasActivity || hasQuote || hasLogo || hasIllustration;
+    if (this.containerBottomInserts) {
+      this.containerBottomInserts.style.display = shouldShowSection ? 'grid' : 'none';
+    }
   }
 
   handleAuthorPhotoUpload(e) {
@@ -662,15 +749,37 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (this.viewByline) this.viewByline.innerText = 'MOHAMAD JAMIL, S.Pd.';
     if (this.viewHeadline) this.viewHeadline.innerText = 'SIAPA BILANG MEMBOSANKAN !!!';
     if (this.viewSubheadline) this.viewSubheadline.innerText = 'Temukan Keseruan Matematika dalam Kehidupan Sehari-hari!';
-    if (this.viewCalloutQuote) this.viewCalloutQuote.innerText = `"${this.inpCalloutQuote.value}"`;
     if (this.viewFooterPage) this.viewFooterPage.innerText = 'Halaman 6';
 
     // Author & Activity Images for Demo
     this.setAuthorPhoto('assets/template/demo_author_jamil.jpg');
-    if (this.viewActivityImg) this.viewActivityImg.src = 'assets/template/demo_activity_math.jpg';
-    if (this.previewActivityImg) this.previewActivityImg.src = 'assets/template/demo_activity_math.jpg';
+
+    if (this.viewActivityImg) {
+      this.viewActivityImg.src = 'assets/template/demo_activity_math.jpg';
+      this.viewActivityImg.classList.remove('hidden');
+    }
+    if (this.previewActivityImg) {
+      this.previewActivityImg.src = 'assets/template/demo_activity_math.jpg';
+      this.previewActivityImg.classList.remove('hidden');
+    }
+    if (this.placeholderPreviewActivity) this.placeholderPreviewActivity.classList.add('hidden');
+    if (this.labelActivityPhoto) this.labelActivityPhoto.innerText = 'Ganti Foto Kegiatan';
+    if (this.chkShowActivityImg) this.chkShowActivityImg.checked = true;
+
+    // Doodle Illustration & Event Logo for Demo
+    if (this.viewIllustrationImg) {
+      this.viewIllustrationImg.src = 'assets/template/demo_math_doodle.jpg';
+    }
+    if (this.containerViewIllustration) {
+      this.containerViewIllustration.style.display = 'block';
+    }
+    if (this.selEventLogo) this.selEventLogo.value = 'sumpah_pemuda';
+    if (this.viewEventLogoImg) {
+      this.viewEventLogoImg.src = 'assets/template/demo_logo_sumpah_pemuda.jpg';
+    }
 
     this.formatNewspaperContent();
+    this.updateBottomInsertsVisibility();
     if (window.lucide) window.lucide.createIcons();
   }
 
