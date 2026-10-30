@@ -357,7 +357,8 @@ switch ($action) {
     case 'upload_template_header':
     case 'upload_header':
         if (!isset($_FILES['header_file']) || $_FILES['header_file']['error'] !== UPLOAD_ERR_OK) {
-            echo json_encode(['success' => false, 'message' => 'Gagal mengunggah file header.']);
+            $errCode = $_FILES['header_file']['error'] ?? 'no file';
+            echo json_encode(['success' => false, 'message' => "Gagal mengunggah file header (Kode: $errCode)."]);
             exit;
         }
         $file = $_FILES['header_file'];
@@ -367,43 +368,76 @@ switch ($action) {
             echo json_encode(['success' => false, 'message' => 'Format file harus JPG, PNG, atau WEBP.']);
             exit;
         }
-        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template';
+
+        // Folder covers dipastikan writable oleh server web
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
         if (!is_dir($targetDir)) {
-            mkdir($targetDir, 0777, true);
+            @mkdir($targetDir, 0777, true);
+            @chmod($targetDir, 0777);
         }
-        // Hapus file header master lama jika ada
-        foreach ($allowedExts as $oldExt) {
-            $oldFile = $targetDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $oldExt;
-            if (file_exists($oldFile)) {
-                @unlink($oldFile);
-            }
-        }
+
         $destName = 'master_custom_header.' . $ext;
         $destination = $targetDir . DIRECTORY_SEPARATOR . $destName;
-        if (move_uploaded_file($file['tmp_name'], $destination)) {
+
+        // Bersihkan header master lama
+        foreach ($allowedExts as $oldExt) {
+            $old1 = $targetDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $oldExt;
+            if (file_exists($old1)) @unlink($old1);
+            $old2 = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template' . DIRECTORY_SEPARATOR . 'master_custom_header.' . $oldExt;
+            if (file_exists($old2)) @unlink($old2);
+        }
+
+        $moved = @move_uploaded_file($file['tmp_name'], $destination);
+        if (!$moved) {
+            $data = @file_get_contents($file['tmp_name']);
+            if ($data && @file_put_contents($destination, $data) !== false) {
+                $moved = true;
+            }
+        }
+
+        if ($moved) {
+            @chmod($destination, 0666);
             echo json_encode([
                 'success' => true,
                 'message' => 'Header master berhasil disimpan di server!',
-                'header_url' => 'assets/template/' . $destName . '?t=' . time()
+                'header_url' => 'covers/' . $destName . '?t=' . time()
             ]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Gagal memindahkan file header ke folder template server.']);
+            echo json_encode(['success' => false, 'message' => 'Gagal memindahkan file header ke folder server.']);
         }
         exit;
         break;
 
     case 'get_template_header':
-        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template';
         $found = null;
-        if (is_dir($targetDir)) {
-            foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-                $file = $targetDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
+        $allowedExts = ['png', 'jpg', 'jpeg', 'webp'];
+        
+        // 1. Cek di covers/
+        $coversDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
+        if (is_dir($coversDir)) {
+            foreach ($allowedExts as $ext) {
+                $file = $coversDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
                 if (file_exists($file)) {
-                    $found = 'assets/template/master_custom_header.' . $ext . '?t=' . filemtime($file);
+                    $found = 'covers/master_custom_header.' . $ext . '?t=' . filemtime($file);
                     break;
                 }
             }
         }
+
+        // 2. Cek di assets/template/
+        if (!$found) {
+            $assetsDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template';
+            if (is_dir($assetsDir)) {
+                foreach ($allowedExts as $ext) {
+                    $file = $assetsDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
+                    if (file_exists($file)) {
+                        $found = 'assets/template/master_custom_header.' . $ext . '?t=' . filemtime($file);
+                        break;
+                    }
+                }
+            }
+        }
+
         echo json_encode([
             'success' => true,
             'has_custom_header' => ($found !== null),
@@ -413,12 +447,18 @@ switch ($action) {
         break;
 
     case 'reset_template_header':
-        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template';
-        if (is_dir($targetDir)) {
-            foreach (['png', 'jpg', 'jpeg', 'webp'] as $ext) {
-                $file = $targetDir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
-                if (file_exists($file)) {
-                    @unlink($file);
+        $allowedExts = ['png', 'jpg', 'jpeg', 'webp'];
+        $dirs = [
+            __DIR__ . DIRECTORY_SEPARATOR . 'covers',
+            __DIR__ . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'template'
+        ];
+        foreach ($dirs as $dir) {
+            if (is_dir($dir)) {
+                foreach ($allowedExts as $ext) {
+                    $file = $dir . DIRECTORY_SEPARATOR . 'master_custom_header.' . $ext;
+                    if (file_exists($file)) {
+                        @unlink($file);
+                    }
                 }
             }
         }

@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>AL QALAM Studio - Generator Template E-Paper A3 MTsN 1 Blitar</title>
   <meta name="description" content="Aplikasi pembuat naskah dan layout koran A3 AL QALAM MTsN 1 Blitar secara instan dan otomatis siap terbit.">
 
@@ -250,18 +253,25 @@
           <!-- Upload Container -->
           <div id="container-header-upload-controls" class="space-y-2 pt-1">
             <!-- Thumbnail preview of custom header if any -->
-            <div id="container-preview-header" class="hidden w-full h-20 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden p-1 flex items-center justify-center relative">
-              <img id="preview-custom-header-img" src="" alt="Thumbnail Kop Master" class="w-full h-full object-contain">
-              <button type="button" id="btn-reset-master-header" class="absolute top-1.5 right-1.5 bg-rose-600/90 hover:bg-rose-600 text-white p-1 rounded-lg text-[10px] shadow transition" title="Hapus Kop Master & kembali ke bawaan">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-              </button>
+            <div id="container-preview-header" class="hidden w-full bg-slate-900 border border-emerald-500/50 rounded-xl overflow-hidden p-2 relative flex flex-col gap-1.5">
+              <div class="flex items-center justify-between text-[11px] text-emerald-400 font-semibold px-1">
+                <span class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Kop Master Terpasang</span>
+                <button type="button" id="btn-reset-master-header" class="text-rose-400 hover:text-rose-300 text-[10px] flex items-center gap-1 bg-rose-950/60 hover:bg-rose-900 px-2 py-0.5 rounded border border-rose-800 transition cursor-pointer" title="Hapus Kop Master & kembali ke bawaan">
+                  <i data-lucide="trash-2" class="w-3 h-3"></i> Hapus
+                </button>
+              </div>
+              <div class="w-full h-16 bg-slate-950 rounded-lg flex items-center justify-center p-1 border border-slate-800">
+                <img id="preview-custom-header-img" src="" alt="Thumbnail Kop Master" class="w-full h-full object-contain">
+              </div>
             </div>
 
-            <label class="cursor-pointer w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/40 hover:to-teal-600/40 border border-emerald-500/40 text-emerald-200 rounded-xl text-xs font-semibold transition active:scale-95 shadow-sm text-center">
-              <i data-lucide="upload-cloud" class="w-4 h-4 text-emerald-400"></i>
-              <span id="label-upload-header">Upload File Kop / Header Master</span>
-              <input type="file" id="inp-custom-header" accept="image/*" class="hidden">
-            </label>
+            <div class="relative">
+              <input type="file" id="inp-custom-header" accept="image/png,image/jpeg,image/webp,image/jpg" class="hidden">
+              <button type="button" id="btn-trigger-upload-header" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/40 hover:to-teal-600/40 border border-emerald-500/40 text-emerald-200 rounded-xl text-xs font-semibold transition active:scale-95 shadow-sm text-center cursor-pointer">
+                <i data-lucide="upload-cloud" class="w-4 h-4 text-emerald-400"></i>
+                <span id="label-upload-header">Upload File Kop / Header Master</span>
+              </button>
+            </div>
             <p class="text-[10px] text-slate-500">Mendukung file PNG (latar transparan), JPG, atau WEBP beresolusi tinggi.</p>
           </div>
 
@@ -632,6 +642,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js"></script>
+  <script src="js/studio.js?v=20261030_07"></script>
 </body>
 </html>

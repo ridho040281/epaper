@@ -49,6 +49,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.previewCustomHeaderImg     = document.getElementById('preview-custom-header-img');
     this.btnResetMasterHeader       = document.getElementById('btn-reset-master-header');
     this.labelUploadHeader          = document.getElementById('label-upload-header');
+    this.btnTriggerUploadHeader     = document.getElementById('btn-trigger-upload-header');
     this.inpCustomHeader            = document.getElementById('inp-custom-header');
     this.containerCustomEditionToggle = document.getElementById('container-custom-edition-toggle');
     this.chkShowCustomEditionBar    = document.getElementById('chk-show-custom-edition-bar');
@@ -127,8 +128,17 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
   initEvents() {
     // Kop Master & Header Event Listeners
+    this.btnTriggerUploadHeader?.addEventListener('click', () => {
+      this.inpCustomHeader?.click();
+    });
     this.btnModeDefaultHeader?.addEventListener('click', () => this.setHeaderMode('default'));
-    this.btnModeCustomHeader?.addEventListener('click', () => this.setHeaderMode('custom'));
+    this.btnModeCustomHeader?.addEventListener('click', () => {
+      this.setHeaderMode('custom');
+      const curSrc = this.viewCustomHeaderImg?.getAttribute('src');
+      if (!curSrc || curSrc === '') {
+        this.inpCustomHeader?.click();
+      }
+    });
     this.inpCustomHeader?.addEventListener('change', (e) => this.handleCustomHeaderUpload(e));
     this.btnResetMasterHeader?.addEventListener('click', () => this.resetMasterHeader());
     this.chkShowCustomEditionBar?.addEventListener('change', () => this.updateHeaderDisplay());
@@ -289,9 +299,14 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       .then(data => {
         if (data.success) {
           console.log('Master header tersimpan di server:', data.header_url);
+        } else {
+          console.warn('Server upload notice:', data.message);
         }
       })
       .catch(err => console.error('Gagal simpan header ke server:', err));
+
+      if (this.labelUploadHeader) this.labelUploadHeader.innerText = 'Ganti File Kop Master';
+      alert('🎉 File Kop Master Berhasil Dipasang!\n\nKop telah diterapkan pada lembaran koran A3 dan otomatis disimpan sebagai master.');
     };
     reader.readAsDataURL(file);
   }
