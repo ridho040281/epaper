@@ -104,6 +104,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.labelAuthorPhoto       = document.getElementById('label-author-photo');
     this.btnClearAuthorPhoto    = document.getElementById('btn-clear-author-photo');
     this.btnMakeAuthorTransparent = document.getElementById('btn-make-author-transparent');
+    this.btnTrimAuthorPhoto     = document.getElementById('btn-trim-author-photo');
     this.btnAuthorFrameNone     = document.getElementById('btn-author-frame-none');
     this.btnAuthorFrameBox      = document.getElementById('btn-author-frame-box');
     this.btnAuthorAlignLeft     = document.getElementById('btn-author-align-left');
@@ -243,9 +244,16 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.inpAuthorPhoto?.addEventListener('change', (e) => this.handleAuthorPhotoUpload(e));
     this.btnClearAuthorPhoto?.addEventListener('click', () => this.setAuthorPhoto(null));
     this.btnMakeAuthorTransparent?.addEventListener('click', () => this.makeAuthorPhotoTransparent());
+    this.btnTrimAuthorPhoto?.addEventListener('click', () => this.trimAuthorPhoto(true));
     this.btnAuthorFrameNone?.addEventListener('click', () => this.setAuthorFrameMode('none'));
     this.btnAuthorFrameBox?.addEventListener('click', () => this.setAuthorFrameMode('box'));
-    this.btnAuthorAlignLeft?.addEventListener('click', () => this.setAuthorAlign('left'));
+    this.btnAuthorAlignLeft?.addEventListener('click', () => {
+      this.setAuthorAlign('left');
+      const curLeft = parseFloat(this.containerAuthorPhoto?.style.left);
+      if (!isNaN(curLeft) && curLeft > -10 && curLeft < 350) {
+        this.setAuthorPhotoPosition(-32, parseFloat(this.containerAuthorPhoto?.style.top) || 35, true);
+      }
+    });
     this.btnAuthorAlignCenter?.addEventListener('click', () => this.setAuthorAlign('center'));
     this.btnResetAuthorSize?.addEventListener('click', () => this.resetAuthorPhotoWidth());
     this.chkShowAuthorBadge?.addEventListener('change', () => this.toggleAuthorBadge(this.chkShowAuthorBadge.checked));
@@ -683,12 +691,30 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const reader = new FileReader();
     reader.onload = (evt) => {
       const dataUrl = evt.target.result;
-      this.setAuthorPhoto(dataUrl);
-      try {
-        localStorage.setItem('alqalam_author_photo', dataUrl);
-      } catch (err) {
-        console.warn('LocalStorage limit for author photo:', err);
-      }
+      const testImg = new Image();
+      testImg.onload = () => {
+        try {
+          const cvs = document.createElement('canvas');
+          cvs.width = testImg.naturalWidth || testImg.width;
+          cvs.height = testImg.naturalHeight || testImg.height;
+          const ctx = cvs.getContext('2d');
+          ctx.drawImage(testImg, 0, 0);
+          const trimmedCvs = this.trimCanvas(cvs);
+          const finalUrl = trimmedCvs.toDataURL('image/png');
+          this.setAuthorPhoto(finalUrl);
+          try {
+            localStorage.setItem('alqalam_author_photo', finalUrl);
+          } catch (err) {
+            console.warn('LocalStorage limit for author photo:', err);
+          }
+        } catch (e) {
+          this.setAuthorPhoto(dataUrl);
+        }
+      };
+      testImg.onerror = () => {
+        this.setAuthorPhoto(dataUrl);
+      };
+      testImg.src = dataUrl;
     };
     reader.readAsDataURL(file);
   }
@@ -715,6 +741,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       if (this.btnMakeAuthorTransparent) {
         this.btnMakeAuthorTransparent.classList.remove('hidden');
       }
+      if (this.btnTrimAuthorPhoto) {
+        this.btnTrimAuthorPhoto.classList.remove('hidden');
+      }
       if (this.labelAuthorPhoto) {
         this.labelAuthorPhoto.innerText = 'Ganti Foto Penulis';
       }
@@ -739,6 +768,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
       if (this.btnMakeAuthorTransparent) {
         this.btnMakeAuthorTransparent.classList.add('hidden');
+      }
+      if (this.btnTrimAuthorPhoto) {
+        this.btnTrimAuthorPhoto.classList.add('hidden');
       }
       if (this.labelAuthorPhoto) {
         this.labelAuthorPhoto.innerText = 'Upload Foto Penulis';
@@ -897,6 +929,78 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     }
   }
 
+  trimCanvas(canvas) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    if (w === 0 || h === 0) return canvas;
+
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    let minX = w, maxX = -1, minY = h, maxY = -1;
+
+    for (let y = 0; y < h; y++) {
+      const rowOffset = y * w * 4;
+      for (let x = 0; x < w; x++) {
+        const alpha = data[rowOffset + x * 4 + 3];
+        if (alpha > 15) { // Bukan pixel transparan
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    // Jika seluruhnya kosong/transparan
+    if (maxX < minX || maxY < minY) return canvas;
+
+    // Margin aman 1px
+    minX = Math.max(0, minX - 1);
+    minY = Math.max(0, minY - 1);
+    maxX = Math.min(w - 1, maxX + 1);
+    maxY = Math.min(h - 1, maxY + 1);
+
+    const trimW = maxX - minX + 1;
+    const trimH = maxY - minY + 1;
+
+    const trimmed = document.createElement('canvas');
+    trimmed.width = trimW;
+    trimmed.height = trimH;
+    const tCtx = trimmed.getContext('2d');
+    tCtx.drawImage(canvas, minX, minY, trimW, trimH, 0, 0, trimW, trimH);
+    return trimmed;
+  }
+
+  trimAuthorPhoto(showSuccessAlert = true) {
+    if (!this.viewAuthorImg || !this.viewAuthorImg.src || this.viewAuthorImg.classList.contains('hidden')) {
+      if (showSuccessAlert) alert('Silakan upload foto penulis terlebih dahulu.');
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const cvs = document.createElement('canvas');
+      cvs.width = img.naturalWidth || img.width;
+      cvs.height = img.naturalHeight || img.height;
+      const ctx = cvs.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const trimmedCvs = this.trimCanvas(cvs);
+      const trimmedDataUrl = trimmedCvs.toDataURL('image/png');
+      this.setAuthorPhoto(trimmedDataUrl);
+      try {
+        localStorage.setItem('alqalam_author_photo', trimmedDataUrl);
+      } catch (e) {}
+      if (showSuccessAlert) {
+        alert('✨ Selesai!\n\nRuang kosong transparan di sekeliling foto telah dipotong rapi sehingga foto bisa langsung menempel mepet pas ke tepi halaman.');
+      }
+    };
+    img.src = this.viewAuthorImg.src;
+  }
+
   makeAuthorPhotoTransparent() {
     if (!this.viewAuthorImg || !this.viewAuthorImg.src || this.viewAuthorImg.classList.contains('hidden')) {
       alert('Silakan upload foto penulis terlebih dahulu.');
@@ -931,12 +1035,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
 
       ctx.putImageData(imgData, 0, 0);
-      const transparentDataUrl = cvs.toDataURL('image/png');
+      const trimmedCvs = this.trimCanvas(cvs);
+      const transparentDataUrl = trimmedCvs.toDataURL('image/png');
       this.setAuthorPhoto(transparentDataUrl);
       try {
         localStorage.setItem('alqalam_author_photo', transparentDataUrl);
       } catch (e) {}
-      alert('✨ Berhasil!\n\nLatar putih pada foto penulis telah dibersihkan menjadi transparan PNG tanpa frame.');
+      alert('✨ Berhasil!\n\nLatar putih pada foto telah dibersihkan menjadi transparan PNG dan tepiannya dirapatkan agar mepet pas ke tepi halaman.');
     };
     img.src = this.viewAuthorImg.src;
   }
@@ -1067,8 +1172,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       startX = clientX;
       startY = clientY;
 
-      initialLeft = parseFloat(elem.style.left) || defaultLeft;
-      initialTop = parseFloat(elem.style.top) || defaultTop;
+      const pLeft = parseFloat(elem.style.left);
+      initialLeft = (!isNaN(pLeft)) ? pLeft : defaultLeft;
+      const pTop = parseFloat(elem.style.top);
+      initialTop = (!isNaN(pTop)) ? pTop : defaultTop;
 
       elem.classList.add('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
       elem.style.cursor = 'grabbing';
@@ -1097,11 +1204,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const elemH = elem.offsetHeight || 150;
 
       const isPhoto = (elem.id === 'container-author-photo');
-      // Untuk foto penulis, izinkan drag menembus tepi kertas (bleed mepet tepi hingga -80px)
-      const minLeft = isPhoto ? -80 : 0;
-      const maxLeft = sheetW - (isPhoto ? 40 : elemW);
-      const minTop = isPhoto ? -50 : 0;
-      const maxTop = sheetH - (isPhoto ? 40 : elemH);
+      // Bebas geser tembus tepi kiri dan kanan secara simetris
+      // Untuk foto penulis, izinkan drag menembus keluar lembaran (bleed mepet tepi)
+      // Sisakan minimal 40px di atas lembaran agar handle tetap bisa disentuh/ditarik kembali
+      const minLeft = isPhoto ? -(elemW - 40) : 0;
+      const maxLeft = isPhoto ? (sheetW - 40) : (sheetW - elemW);
+      const minTop  = isPhoto ? -(elemH - 60) : 0;
+      const maxTop  = isPhoto ? (sheetH - 60) : (sheetH - elemH);
 
       newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
       newTop = Math.max(minTop, Math.min(maxTop, newTop));
@@ -1119,8 +1228,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       elem.classList.remove('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
       elem.style.cursor = 'grab';
 
-      const currentLeft = parseFloat(elem.style.left) || defaultLeft;
-      const currentTop = parseFloat(elem.style.top) || defaultTop;
+      const pLeft = parseFloat(elem.style.left);
+      const currentLeft = (!isNaN(pLeft)) ? pLeft : defaultLeft;
+      const pTop = parseFloat(elem.style.top);
+      const currentTop = (!isNaN(pTop)) ? pTop : defaultTop;
 
       try {
         localStorage.setItem(storageKey, JSON.stringify({ left: currentLeft, top: currentTop }));
@@ -1175,14 +1286,14 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const currentW = this.authorPhotoWidth || 170;
 
     const presets = {
-      'mepet-kiri':   { photo: { left: -10, top: 35 },  badge: { left: 20,  top: 320 }, align: 'left', spacer: true },
-      'mepet-kanan':  { photo: { left: Math.max(0, sheetW - currentW + 10), top: 35 }, badge: { left: Math.max(0, sheetW - 220), top: 320 }, align: 'right', spacer: false },
+      'mepet-kiri':   { photo: { left: -32, top: 35 },  badge: { left: 20,  top: 320 }, align: 'left', spacer: true },
+      'mepet-kanan':  { photo: { left: Math.max(0, sheetW - currentW + 32), top: 35 }, badge: { left: Math.max(0, sheetW - 220), top: 320 }, align: 'right', spacer: false },
       'on-kop':       { photo: { left: 0,   top: 35 },  badge: { left: 32,  top: 235 }, align: 'left', spacer: false },
       'top-left':     { photo: { left: 0,   top: 235 }, badge: { left: 32,  top: 495 }, align: 'left', spacer: true },
-      'top-right':    { photo: { left: 630, top: 235 }, badge: { left: 630, top: 495 }, align: 'center', spacer: false },
+      'top-right':    { photo: { left: Math.max(0, sheetW - currentW - 32), top: 235 }, badge: { left: Math.max(0, sheetW - 220), top: 495 }, align: 'right', spacer: false },
       'mid-col2':     { photo: { left: 332, top: 520 }, badge: { left: 332, top: 780 }, align: 'center', spacer: false },
       'bottom-left':  { photo: { left: 0,   top: 820 }, badge: { left: 32,  top: 1080 }, align: 'left', spacer: false },
-      'bottom-right': { photo: { left: 630, top: 820 }, badge: { left: 630, top: 1080 }, align: 'center', spacer: false }
+      'bottom-right': { photo: { left: Math.max(0, sheetW - currentW - 32), top: 820 }, badge: { left: Math.max(0, sheetW - 220), top: 1080 }, align: 'right', spacer: false }
     };
     const target = presets[key];
     if (!target) return;
