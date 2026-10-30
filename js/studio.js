@@ -1555,30 +1555,62 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     });
 
     // 5. Global Paste Listener (Ctrl + V di mana saja di halaman)
-    window.addEventListener('paste', (e) => {
+    window.addEventListener('paste', async (e) => {
       const activeElem = document.activeElement;
       const isInput = activeElem && (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA');
 
       const items = (e.clipboardData || window.clipboardData)?.items;
-      if (!items) return;
-
-      let imageItem = null;
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith('image/')) {
-          imageItem = items[i];
-          break;
+      
+      // 1. Cek Image Blob langsung (dari Snipping Tool, Canva "Copy to clipboard", atau salin gambar browser)
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type && items[i].type.startsWith('image/')) {
+            const file = items[i].getAsFile();
+            if (file) {
+              e.preventDefault();
+              this.handlePastedImageFile(file);
+              return;
+            }
+          }
         }
       }
 
-      // Jika tidak ada gambar di clipboard dan kursor sedang di form input/teks, biarkan paste teks berjalan normal
-      if (!imageItem) return;
+      // 2. Cek text/html jika ada tag <img> atau <svg> dari Canva
+      const html = (e.clipboardData || window.clipboardData)?.getData('text/html');
+      if (html) {
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          const img = doc.querySelector('img');
+          if (img && img.src && !img.src.startsWith('about:')) {
+            e.preventDefault();
+            this.handlePastedImageUrl(img.src);
+            return;
+          }
+          const svg = doc.querySelector('svg');
+          if (svg) {
+            e.preventDefault();
+            const svgString = new XMLSerializer().serializeToString(svg);
+            const svgUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+            this.handlePastedImageUrl(svgUrl);
+            return;
+          }
+        } catch (err) {
+          console.warn('HTML parse error:', err);
+        }
+      }
 
-      // Cegah perilaku default browser
-      e.preventDefault();
+      // 3. Cek text/plain jika berisi URL gambar atau Base64
+      const text = (e.clipboardData || window.clipboardData)?.getData('text/plain')?.trim();
+      if (text && (text.startsWith('data:image/') || text.match(/\.(png|jpe?g|webp|svg)(\?.*)?$/i) || text.includes('canva.com/media'))) {
+        e.preventDefault();
+        this.handlePastedImageUrl(text);
+        return;
+      }
 
-      const file = imageItem.getAsFile();
-      if (file) {
-        this.handlePastedImageFile(file);
+      // Jika user sedang di luar form input dan menekan Ctrl+V tapi tidak ada gambar terdeteksi
+      if (!isInput) {
+        console.log('Clipboard paste contains no supported image data.');
       }
     });
 
@@ -1626,13 +1658,40 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
             }
           }
         }
-        alert('📋 Belum ada gambar di clipboard.\n\nCara pakai:\n1. Buka Canva Desktop, klik kanan pada gambar lalu pilih "Salin Gambar" (atau tekan Ctrl+C).\n2. Kembali ke sini dan klik tombol ini lagi atau langsung tekan Ctrl+V.');
       } catch (err) {
-        alert('📋 Tip Canva Desktop:\n\nSilakan tekan tombol keyboard Ctrl + V langsung di halaman ini untuk menempelkan gambar yang sudah Anda salin dari Canva.');
+        console.warn('Clipboard read notice:', err);
       }
-    } else {
-      alert('📋 Tip Canva Desktop:\n\nSilakan tekan tombol keyboard Ctrl + V langsung di halaman ini untuk menempelkan gambar yang sudah Anda salin dari Canva.');
     }
+
+    // Jika belum ada data gambar di clipboard, buka pemilih file Canva langsung
+    if (targetMode === 'header') {
+      this.inpCustomHeader?.click();
+    } else {
+      this.inpAuthorPhoto?.click();
+    }
+  }
+
+  handlePastedImageUrl(url) {
+    if (!url) return;
+    this.pendingPastedFile = null;
+    this.pendingPastedDataUrl = url;
+
+    if (this.previewPastedImg) {
+      this.previewPastedImg.src = url;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      if (this.labelPastedDimensions) {
+        this.labelPastedDimensions.innerText = `Dimensi: ${img.naturalWidth} x ${img.naturalHeight} px`;
+      }
+    };
+    img.src = url;
+
+    if (this.modalPasteTarget) {
+      this.modalPasteTarget.classList.remove('hidden');
+    }
+    if (window.lucide) window.lucide.createIcons();
   }
 
   handlePastedImageFile(file) {
@@ -1676,28 +1735,17 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const dataUrl = this.pendingPastedDataUrl;
     this.closePasteModal();
 
-    const testImg = new Image();
-    testImg.onload = () => {
-      const cvs = document.createElement('canvas');
-      cvs.width = testImg.naturalWidth;
-      cvs.height = testImg.naturalHeight;
-      cvs.getContext('2d').drawImage(testImg, 0, 0);
-      const trimmedCvs = this.trimCanvas(cvs);
-      const finalUrl = trimmedCvs.toDataURL('image/png');
-      this.setAuthorPhoto(finalUrl);
-      try {
-        localStorage.setItem('alqalam_author_photo', finalUrl);
-      } catch (e) {}
-      alert('✨ Berhasil!\n\nGambar dari Canva telah ditempel sebagai Foto Penulis dan tepiannya dirapatkan.');
-    };
-    testImg.src = dataUrl;
-  }
+    // Langsung terapkan seketika agar tidak blank
+    this.setAuthorPhoto(dataUrl);
+    try {
+      localStorage.setItem('alqalam_author_photo', dataUrl);
+    } catch (e) {}
 
-  processAndApplyAuthorFile(file) {
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const testImg = new Image();
-      testImg.onload = () => {
+    // Rapatkan tepi transparan di background
+    const testImg = new Image();
+    testImg.crossOrigin = 'anonymous';
+    testImg.onload = () => {
+      try {
         const cvs = document.createElement('canvas');
         cvs.width = testImg.naturalWidth;
         cvs.height = testImg.naturalHeight;
@@ -1708,9 +1756,43 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         try {
           localStorage.setItem('alqalam_author_photo', finalUrl);
         } catch (e) {}
-        alert('✨ Berhasil!\n\nFoto Penulis dari Canva telah ditempel dan siap diatur posisinya.');
+      } catch (err) {
+        console.warn('Trim canvas notice:', err);
+      }
+    };
+    testImg.src = dataUrl;
+
+    alert('✨ Berhasil!\n\nGambar dari Canva telah ditempel sebagai Foto Penulis.');
+  }
+
+  processAndApplyAuthorFile(file) {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target.result;
+      this.setAuthorPhoto(dataUrl);
+      try {
+        localStorage.setItem('alqalam_author_photo', dataUrl);
+      } catch (e) {}
+
+      const testImg = new Image();
+      testImg.crossOrigin = 'anonymous';
+      testImg.onload = () => {
+        try {
+          const cvs = document.createElement('canvas');
+          cvs.width = testImg.naturalWidth;
+          cvs.height = testImg.naturalHeight;
+          cvs.getContext('2d').drawImage(testImg, 0, 0);
+          const trimmedCvs = this.trimCanvas(cvs);
+          const finalUrl = trimmedCvs.toDataURL('image/png');
+          this.setAuthorPhoto(finalUrl);
+          try {
+            localStorage.setItem('alqalam_author_photo', finalUrl);
+          } catch (e) {}
+        } catch (err) {}
       };
-      testImg.src = evt.target.result;
+      testImg.src = dataUrl;
+
+      alert('✨ Berhasil!\n\nFoto Penulis dari Canva telah ditempel dan siap diatur posisinya.');
     };
     reader.readAsDataURL(file);
   }
