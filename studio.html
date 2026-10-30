@@ -406,11 +406,21 @@
             </div>
           </div>
 
-          <div>
-            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none">
-              <input type="checkbox" id="chk-show-author-badge" checked class="w-3.5 h-3.5 rounded accent-emerald-500">
-              <span>Tampilkan pita nama (badge) di bawah foto</span>
-            </label>
+          <!-- Pengatur Kotak Teks Nama Penulis (Badge Terpisah) -->
+          <div class="pt-3 border-t border-slate-800/80 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none">
+                <input type="checkbox" id="chk-show-author-badge" checked class="w-3.5 h-3.5 rounded accent-emerald-500">
+                <span class="font-bold text-slate-200">Tampilkan Kotak Teks Nama (Badge)</span>
+              </label>
+              <button type="button" id="btn-reset-author-badge-pos" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer" title="Kembalikan posisi kotak nama">
+                <i data-lucide="rotate-ccw" class="w-3 h-3 text-emerald-400"></i>
+                <span>Reset Nama</span>
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-snug">
+              ✨ <b>Mandiri & Terpisah:</b> Kotak nama penulis kini berdiri sendiri dan bisa di-drag bebas ke posisi mana saja (misal di bawah judul, di samping naskah, atau di bawah foto)!
+            </p>
           </div>
 
           <!-- Pengatur Posisi Foto Penulis (Drag & Drop) -->
@@ -418,29 +428,29 @@
             <div class="flex items-center justify-between">
               <span class="text-slate-300 font-bold flex items-center gap-1.5 text-[11px]">
                 <i data-lucide="move" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Posisi Foto Penulis:</span>
+                <span>Posisi Foto Penulis (Drag & Drop):</span>
               </span>
-              <button type="button" id="btn-reset-author-pos" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer" title="Kembalikan foto ke posisi semula">
+              <button type="button" id="btn-reset-author-photo-pos" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer" title="Kembalikan foto ke posisi semula">
                 <i data-lucide="rotate-ccw" class="w-3 h-3 text-emerald-400"></i>
-                <span>Reset Posisi</span>
+                <span>Reset Foto</span>
               </button>
             </div>
             
             <p class="text-[10px] text-slate-400 leading-snug">
-              ✨ <b>Dinamis Drag & Drop:</b> Anda bisa langsung klik & geser foto penulis ke posisi mana saja di koran! Atau pilih posisi cepat:
+              ✨ Anda bisa langsung klik & geser foto penulis ke posisi mana saja di koran! Atau pilih posisi cepat:
             </p>
 
             <div class="grid grid-cols-3 gap-1.5 pt-0.5">
+              <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="on-kop">Di Atas Kop</button>
               <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="top-left">Kiri Judul</button>
               <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="top-right">Kanan Judul</button>
               <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="mid-col2">Tengah Kolom</button>
               <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="bottom-left">Kiri Bawah</button>
-              <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="bottom-mid">Tengah Bawah</button>
               <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="bottom-right">Kanan Bawah</button>
             </div>
 
             <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none pt-1">
-              <input type="checkbox" id="chk-headline-spacer" checked class="w-3.5 h-3.5 rounded accent-emerald-500">
+              <input type="checkbox" id="chk-headline-spacer" class="w-3.5 h-3.5 rounded accent-emerald-500">
               <span>Sisihkan ruang kosong di samping judul</span>
             </label>
           </div>
@@ -664,7 +674,7 @@
             <div class="flex items-start gap-5 mb-4 relative min-h-[175px]">
               
               <!-- Author Slot Spacer (Sisihkan ruang kosong di samping judul saat foto di posisi kiri) -->
-              <div id="author-slot-spacer" class="w-44 flex-shrink-0 transition-all duration-300"></div>
+              <div id="author-slot-spacer" class="hidden w-44 flex-shrink-0 transition-all duration-300"></div>
 
               <!-- Headline & Subheadline & Byline -->
               <div class="flex-1 pt-1" id="container-hero-text">
@@ -682,13 +692,13 @@
 
             </div>
 
-            <!-- FLOATING DRAGGABLE AUTHOR CARD (Bebas Di-drag & Drop ke Mana Saja di Koran) -->
-            <div id="container-author-card" style="left: 32px; top: 235px;" class="absolute w-44 flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow">
+            <!-- 1. FLOATING DRAGGABLE AUTHOR PHOTO (Foto Penulis Mandiri - Bebas Di-drag ke Mana Saja) -->
+            <div id="container-author-photo" style="left: 32px; top: 40px;" class="absolute w-44 flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow">
               
               <!-- Drag Handle Indicator Pill on Hover -->
-              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none">
+              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap">
                 <i data-lucide="move" class="w-2.5 h-2.5 text-emerald-400"></i>
-                <span>Geser Bebas (Drag)</span>
+                <span>Geser Foto Penulis (Drag)</span>
               </div>
 
               <!-- Photo Frame (Tanpa Frame & Transparan PNG) -->
@@ -700,9 +710,17 @@
                   <span class="text-[10px] font-sans text-slate-400 mt-2 font-medium">Foto Penulis (Kosong)</span>
                 </div>
               </div>
+            </div>
 
-              <!-- Author Badge -->
-              <div class="w-full mt-1 bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-2 text-center rounded-md shadow-md tracking-wider truncate z-10 pointer-events-none" id="view-author-badge">
+            <!-- 2. FLOATING DRAGGABLE AUTHOR NAME BADGE (Teksbok Nama Penulis Mandiri & Terpisah) -->
+            <div id="container-author-badge" style="left: 32px; top: 235px;" class="absolute flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow">
+              <!-- Drag Handle Indicator Pill on Hover -->
+              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap">
+                <i data-lucide="move" class="w-2.5 h-2.5 text-emerald-400"></i>
+                <span>Geser Kotak Nama (Drag)</span>
+              </div>
+
+              <div id="view-author-badge" class="bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-3 text-center rounded-md shadow-md tracking-wider truncate max-w-xs pointer-events-none select-none">
                 MOHAMAD JAMIL, S.Pd.
               </div>
             </div>
@@ -774,6 +792,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261030_18"></script>
+  <script src="js/studio.js?v=20261030_19"></script>
 </body>
 </html>

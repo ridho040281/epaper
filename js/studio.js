@@ -131,10 +131,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.viewAuthorImg          = document.getElementById('view-author-img');
     this.placeholderViewAuthor  = document.getElementById('placeholder-view-author');
     this.authorPhotoFrame       = document.getElementById('author-photo-frame');
+    this.containerAuthorPhoto   = document.getElementById('container-author-photo') || document.getElementById('container-author-card');
     this.viewAuthorBadge        = document.getElementById('view-author-badge');
-    this.containerAuthorCard    = document.getElementById('container-author-card');
+    this.containerAuthorBadge   = document.getElementById('container-author-badge');
     this.authorSlotSpacer       = document.getElementById('author-slot-spacer');
-    this.btnResetAuthorPos      = document.getElementById('btn-reset-author-pos');
+    this.btnResetAuthorPhotoPos = document.getElementById('btn-reset-author-photo-pos') || document.getElementById('btn-reset-author-pos');
+    this.btnResetAuthorBadgePos = document.getElementById('btn-reset-author-badge-pos');
     this.chkHeadlineSpacer      = document.getElementById('chk-headline-spacer');
     this.btnPosPresets          = document.querySelectorAll('.btn-pos-preset');
 
@@ -252,20 +254,17 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.chkShowAuthorBadge?.addEventListener('change', () => this.toggleAuthorBadge(this.chkShowAuthorBadge.checked));
     this.inpActivityPhoto?.addEventListener('change', (e) => this.handleActivityPhotoUpload(e));
 
-    // Author Card Drag & Drop Events & Presets
-    this.btnResetAuthorPos?.addEventListener('click', () => this.resetAuthorCardPosition());
-    this.chkHeadlineSpacer?.addEventListener('change', () => {
-      if (this.authorSlotSpacer) {
-        this.authorSlotSpacer.style.display = this.chkHeadlineSpacer.checked ? 'block' : 'none';
-      }
-    });
+    // Author Photo & Name Badge Drag & Drop Events & Presets
+    this.btnResetAuthorPhotoPos?.addEventListener('click', () => this.resetAuthorPhotoPosition());
+    this.btnResetAuthorBadgePos?.addEventListener('click', () => this.resetAuthorBadgePosition());
+    this.chkHeadlineSpacer?.addEventListener('change', () => this.toggleHeadlineSpacer(this.chkHeadlineSpacer.checked));
     this.btnPosPresets?.forEach(btn => {
       btn.addEventListener('click', () => {
         const posKey = btn.getAttribute('data-pos');
         this.applyAuthorPosPreset(posKey);
       });
     });
-    this.initAuthorDraggable();
+    this.initDraggables();
 
     // Show/Hide Activity Photo
     this.chkShowActivityImg?.addEventListener('change', () => {
@@ -768,11 +767,17 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
     }
 
-    // 3. Pita Nama
+    // 3. Kotak Teks Nama Penulis (Badge Terpisah)
     const savedShowBadge = localStorage.getItem('alqalam_author_show_badge');
     const showBadge = (savedShowBadge !== null) ? (savedShowBadge === 'true') : true;
     if (this.chkShowAuthorBadge) this.chkShowAuthorBadge.checked = showBadge;
     this.toggleAuthorBadge(showBadge, false);
+
+    // 4. Spacer Samping Judul (Default: false agar judul lebar penuh jika foto di kop)
+    const savedSpacer = localStorage.getItem('alqalam_author_headline_spacer');
+    const showSpacer = (savedSpacer !== null) ? (savedSpacer === 'true') : false;
+    if (this.chkHeadlineSpacer) this.chkHeadlineSpacer.checked = showSpacer;
+    this.toggleHeadlineSpacer(showSpacer, false);
 
     this.applyAuthorCardStyles();
   }
@@ -800,8 +805,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (this.labelAuthorSize) {
       this.labelAuthorSize.innerText = curSize.label;
     }
-    if (this.containerAuthorCard) {
-      this.containerAuthorCard.style.width = `${curSize.width}px`;
+    if (this.containerAuthorPhoto) {
+      this.containerAuthorPhoto.style.width = `${curSize.width}px`;
     }
     if (this.authorSlotSpacer) {
       this.authorSlotSpacer.style.width = `${curSize.width}px`;
@@ -845,8 +850,19 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         localStorage.setItem('alqalam_author_show_badge', show ? 'true' : 'false');
       } catch (e) {}
     }
-    if (this.viewAuthorBadge) {
-      this.viewAuthorBadge.style.display = show ? 'block' : 'none';
+    if (this.containerAuthorBadge) {
+      this.containerAuthorBadge.style.display = show ? 'flex' : 'none';
+    }
+  }
+
+  toggleHeadlineSpacer(show, save = true) {
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_author_headline_spacer', show ? 'true' : 'false');
+      } catch (e) {}
+    }
+    if (this.authorSlotSpacer) {
+      this.authorSlotSpacer.style.display = show ? 'block' : 'none';
     }
   }
 
@@ -894,28 +910,49 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     img.src = this.viewAuthorImg.src;
   }
 
-  initAuthorDraggable() {
-    const card = this.containerAuthorCard;
+  initDraggables() {
+    // 1. Inisialisasi Drag & Drop untuk Foto Penulis Mandiri
+    this.makeElementDraggable(
+      this.containerAuthorPhoto,
+      'alqalam_author_photo_pos',
+      32,
+      40
+    );
+
+    // 2. Inisialisasi Drag & Drop untuk Kotak Teks Nama Penulis (Badge Terpisah)
+    this.makeElementDraggable(
+      this.containerAuthorBadge,
+      'alqalam_author_badge_pos',
+      32,
+      235
+    );
+  }
+
+  makeElementDraggable(elem, storageKey, defaultLeft, defaultTop) {
+    if (!elem || !this.a3Sheet) return;
     const sheet = this.a3Sheet;
-    if (!card || !sheet) return;
 
     let isDragging = false;
     let startX = 0;
     let startY = 0;
-    let initialLeft = 32;
-    let initialTop = 235;
+    let initialLeft = defaultLeft;
+    let initialTop = defaultTop;
 
     // Pulihkan posisi tersimpan jika pernah digeser
-    const savedPos = localStorage.getItem('alqalam_author_card_pos');
+    const savedPos = localStorage.getItem(storageKey);
     if (savedPos) {
       try {
         const pos = JSON.parse(savedPos);
         if (typeof pos.left === 'number' && typeof pos.top === 'number') {
-          this.setAuthorCardPosition(pos.left, pos.top, false);
+          elem.style.left = `${pos.left}px`;
+          elem.style.top = `${pos.top}px`;
         }
       } catch (e) {
-        console.warn('Gagal memuat posisi kartu penulis:', e);
+        console.warn(`Gagal memuat posisi ${storageKey}:`, e);
       }
+    } else {
+      elem.style.left = `${defaultLeft}px`;
+      elem.style.top = `${defaultTop}px`;
     }
 
     const onStart = (e) => {
@@ -928,11 +965,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       startX = clientX;
       startY = clientY;
 
-      initialLeft = parseFloat(card.style.left) || 32;
-      initialTop = parseFloat(card.style.top) || 235;
+      initialLeft = parseFloat(elem.style.left) || defaultLeft;
+      initialTop = parseFloat(elem.style.top) || defaultTop;
 
-      card.classList.add('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
-      card.style.cursor = 'grabbing';
+      elem.classList.add('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
+      elem.style.cursor = 'grabbing';
 
       if (e.cancelable) e.preventDefault();
     };
@@ -954,14 +991,14 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       // Batasi di dalam lembaran kertas A3
       const sheetW = sheet.offsetWidth || 840;
       const sheetH = sheet.offsetHeight || 1188;
-      const cardW = card.offsetWidth || 176;
-      const cardH = card.offsetHeight || 230;
+      const elemW = elem.offsetWidth || 150;
+      const elemH = elem.offsetHeight || 150;
 
-      newLeft = Math.max(0, Math.min(sheetW - cardW, newLeft));
-      newTop = Math.max(0, Math.min(sheetH - cardH, newTop));
+      newLeft = Math.max(0, Math.min(sheetW - elemW, newLeft));
+      newTop = Math.max(0, Math.min(sheetH - elemH, newTop));
 
-      card.style.left = `${newLeft}px`;
-      card.style.top = `${newTop}px`;
+      elem.style.left = `${newLeft}px`;
+      elem.style.top = `${newTop}px`;
 
       if (e.cancelable) e.preventDefault();
     };
@@ -970,69 +1007,80 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       if (!isDragging) return;
       isDragging = false;
 
-      card.classList.remove('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
-      card.style.cursor = 'grab';
+      elem.classList.remove('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
+      elem.style.cursor = 'grab';
 
-      const currentLeft = parseFloat(card.style.left) || 32;
-      const currentTop = parseFloat(card.style.top) || 235;
+      const currentLeft = parseFloat(elem.style.left) || defaultLeft;
+      const currentTop = parseFloat(elem.style.top) || defaultTop;
 
       try {
-        localStorage.setItem('alqalam_author_card_pos', JSON.stringify({ left: currentLeft, top: currentTop }));
+        localStorage.setItem(storageKey, JSON.stringify({ left: currentLeft, top: currentTop }));
       } catch (err) {
-        console.warn('LocalStorage author pos:', err);
+        console.warn(`LocalStorage ${storageKey}:`, err);
       }
     };
 
-    card.addEventListener('mousedown', onStart);
+    elem.addEventListener('mousedown', onStart);
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onEnd);
 
-    card.addEventListener('touchstart', onStart, { passive: false });
+    elem.addEventListener('touchstart', onStart, { passive: false });
     window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('touchend', onEnd);
   }
 
-  setAuthorCardPosition(left, top, save = true) {
-    if (!this.containerAuthorCard) return;
-    this.containerAuthorCard.style.left = `${left}px`;
-    this.containerAuthorCard.style.top = `${top}px`;
+  setAuthorPhotoPosition(left, top, save = true) {
+    if (!this.containerAuthorPhoto) return;
+    this.containerAuthorPhoto.style.left = `${left}px`;
+    this.containerAuthorPhoto.style.top = `${top}px`;
     if (save) {
       try {
-        localStorage.setItem('alqalam_author_card_pos', JSON.stringify({ left, top }));
+        localStorage.setItem('alqalam_author_photo_pos', JSON.stringify({ left, top }));
       } catch (e) {}
     }
   }
 
+  setAuthorBadgePosition(left, top, save = true) {
+    if (!this.containerAuthorBadge) return;
+    this.containerAuthorBadge.style.left = `${left}px`;
+    this.containerAuthorBadge.style.top = `${top}px`;
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_author_badge_pos', JSON.stringify({ left, top }));
+      } catch (e) {}
+    }
+  }
+
+  resetAuthorPhotoPosition() {
+    localStorage.removeItem('alqalam_author_photo_pos');
+    this.setAuthorPhotoPosition(32, 40, false);
+  }
+
+  resetAuthorBadgePosition() {
+    localStorage.removeItem('alqalam_author_badge_pos');
+    this.setAuthorBadgePosition(32, 235, false);
+  }
+
   applyAuthorPosPreset(key) {
     const presets = {
-      'top-left':     { left: 32,  top: 235, spacer: true },
-      'top-right':    { left: 630, top: 235, spacer: false },
-      'mid-col2':     { left: 332, top: 520, spacer: false },
-      'bottom-left':  { left: 32,  top: 820, spacer: false },
-      'bottom-mid':   { left: 332, top: 820, spacer: false },
-      'bottom-right': { left: 630, top: 820, spacer: false }
+      'on-kop':       { photo: { left: 32,  top: 40 },  badge: { left: 32,  top: 235 }, spacer: false },
+      'top-left':     { photo: { left: 32,  top: 235 }, badge: { left: 32,  top: 495 }, spacer: true },
+      'top-right':    { photo: { left: 630, top: 235 }, badge: { left: 630, top: 495 }, spacer: false },
+      'mid-col2':     { photo: { left: 332, top: 520 }, badge: { left: 332, top: 780 }, spacer: false },
+      'bottom-left':  { photo: { left: 32,  top: 820 }, badge: { left: 32,  top: 1080 }, spacer: false },
+      'bottom-right': { photo: { left: 630, top: 820 }, badge: { left: 630, top: 1080 }, spacer: false }
     };
     const target = presets[key];
     if (!target) return;
 
-    this.setAuthorCardPosition(target.left, target.top, true);
+    this.setAuthorPhotoPosition(target.photo.left, target.photo.top, true);
+    if (target.badge) {
+      this.setAuthorBadgePosition(target.badge.left, target.badge.top, true);
+    }
 
     if (this.chkHeadlineSpacer) {
       this.chkHeadlineSpacer.checked = target.spacer;
-      if (this.authorSlotSpacer) {
-        this.authorSlotSpacer.style.display = target.spacer ? 'block' : 'none';
-      }
-    }
-  }
-
-  resetAuthorCardPosition() {
-    localStorage.removeItem('alqalam_author_card_pos');
-    this.setAuthorCardPosition(32, 235, false);
-    if (this.chkHeadlineSpacer) {
-      this.chkHeadlineSpacer.checked = true;
-      if (this.authorSlotSpacer) {
-        this.authorSlotSpacer.style.display = 'block';
-      }
+      this.toggleHeadlineSpacer(target.spacer, true);
     }
   }
 
