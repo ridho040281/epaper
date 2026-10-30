@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AL QALAM Studio - Generator Template E-Paper A3 MTsN 1 Blitar</title>
+  <meta name="description" content="Aplikasi pembuat naskah dan layout koran A3 AL QALAM MTsN 1 Blitar secara instan dan otomatis siap terbit.">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="logo-mtsn.png">
+
+  <!-- Google Fonts: Editorial Serif, Sans, & Arabic Calligraphy -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,600&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS (Local Offline) -->
+  <script src="js/tailwind.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            serif: ['Merriweather', 'serif'],
+            editorial: ['Playfair Display', 'serif'],
+            title: ['Cinzel', 'serif'],
+            arabic: ['Amiri', 'serif']
+          },
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons (Local Offline) -->
+  <script src="js/lucide.min.js"></script>
+
+  <!-- jsPDF & html2canvas (Local Offline) -->
+  <script src="js/jspdf.umd.min.js"></script>
+  <script src="js/html2canvas.min.js"></script>
+
+  <style>
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(16, 185, 129, 0.6);
+    }
+
+    /* A3 Sheet Paper Styling */
+    .a3-sheet {
+      width: 840px;
+      min-height: 1188px;
+      background: #ffffff;
+      color: #111827;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      position: relative;
+      transform-origin: top center;
+      transition: transform 0.2s ease-out;
+    }
+
+    /* Newspaper Typography Rules */
+    .newspaper-columns {
+      column-count: 3;
+      column-gap: 20px;
+      column-rule: 1px solid #e2e8f0;
+      text-align: justify;
+      text-justify: inter-word;
+      hyphens: auto;
+    }
+
+    .drop-cap::first-letter {
+      float: left;
+      font-family: 'Playfair Display', serif;
+      font-size: 3.5rem;
+      line-height: 2.8rem;
+      padding-top: 4px;
+      padding-right: 8px;
+      padding-bottom: 2px;
+      font-weight: 900;
+      color: #047857;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #print-area, #print-area * {
+        visibility: visible;
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
+
+  <!-- ==================== TOP NAVIGATION HEADER ==================== -->
+  <header class="h-16 flex-shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 flex items-center justify-between z-30 shadow-md">
+    
+    <!-- Left: Brand & Title -->
+    <div class="flex items-center gap-3">
+      <a href="index.html" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 hover:border-emerald-500/50 shadow transition active:scale-95 group text-xs font-semibold" title="Kembali ke Flipbook">
+        <i data-lucide="arrow-left" class="w-4 h-4 text-emerald-400 group-hover:-translate-x-0.5 transition-transform"></i>
+        <span class="hidden sm:inline">Kembali ke E-Paper</span>
+      </a>
+
+      <div class="h-6 w-px bg-slate-800 hidden sm:block"></div>
+
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 p-0.5 flex items-center justify-center shadow-md flex-shrink-0">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+            <i data-lucide="layout-template" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+        </div>
+        <div>
+          <h1 class="text-sm font-bold text-white flex items-center gap-2 leading-tight">
+            <span>AL QALAM Studio</span>
+            <span class="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">Template A3</span>
+          </h1>
+          <p class="text-[11px] text-slate-400 leading-tight">Pembuat Halaman Koran Otomatis MTsN 1 Blitar</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Mobile View Toggle (Editor vs Preview) -->
+    <div class="flex lg:hidden items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700">
+      <button id="btn-toggle-editor" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition">
+        ✏️ Edit Form
+      </button>
+      <button id="btn-toggle-preview" class="px-3 py-1 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">
+        👁️ Lihat Koran A3
+      </button>
+    </div>
+
+    <!-- Right: Action Buttons -->
+    <div class="flex items-center gap-2">
+      <button id="btn-demo-preset" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/40 text-xs font-semibold shadow transition active:scale-95" title="Isi otomatis dengan artikel contoh (Pak Mohamad Jamil, S.Pd.)">
+        <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i>
+        <span class="hidden md:inline">Isi Contoh Naskah</span>
+      </button>
+
+      <button id="btn-export-pdf" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition active:scale-95" title="Unduh File PDF A3 Siap Cetak">
+        <i data-lucide="download" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Unduh PDF A3</span>
+      </button>
+
+      <button id="btn-publish-epaper" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-950/40 transition active:scale-95" title="Terbitkan Halaman Ini Langsung ke Flipbook Online">
+        <i data-lucide="send" class="w-4 h-4"></i>
+        <span>Terbitkan ke E-Paper</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN WORKSPACE ==================== -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- ==================== LEFT: FORM CONTROLS PANEL ==================== -->
+    <aside id="editor-panel" class="w-full lg:w-[460px] xl:w-[500px] flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-hidden z-20">
+      
+      <!-- Panel Header Tabs -->
+      <div class="px-5 py-3 border-b border-slate-800/80 bg-slate-950/40 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-4 h-4 text-emerald-400"></i>
+            <span>Pengaturan Naskah</span>
+          </span>
+        </div>
+        <span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
+          Ukuran: A3 (297x420 mm)
+        </span>
+      </div>
+
+      <!-- Form Inputs Container -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-6 select-text">
+
+        <!-- Template Style Selector -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-300">Pilih Model Tata Letak:</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" data-template-type="teacher_opinion" class="btn-template-select p-2.5 rounded-xl border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-xs font-bold flex items-center gap-2 text-left transition shadow-sm">
+              <i data-lucide="newspaper" class="w-4 h-4 flex-shrink-0 text-emerald-400"></i>
+              <div>
+                <div>Opini Guru / Penulis</div>
+                <div class="text-[10px] font-normal text-slate-400">3 Kolom + Foto Guru</div>
+              </div>
+            </button>
+            <button type="button" data-template-type="news_report" class="btn-template-select p-2.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-xs font-semibold flex items-center gap-2 text-left transition">
+              <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i>
+              <div>
+                <div>Liputan Berita</div>
+                <div class="text-[10px] font-normal text-slate-500">Headline Lebar + 2 Foto</div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 1: Edisi & Tanggal -->
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            <span>Informasi Edisi & Penomoran</span>
+          </h3>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Hari & Pasaran</label>
+              <input type="text" id="inp-day" value="Selasa Pahing" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Tanggal Masehi</label>
+              <input type="text" id="inp-date-masehi" value="27 Oktober 2026" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Tanggal Hijriah</label>
+              <input type="text" id="inp-date-hijri" value="16 Jumadil Awal 1448 H" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Nomor Edisi & Tahun</label>
+              <input type="text" id="inp-edition-num" value="Tahun 2026 | Nomor : 0006" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Penulis & Profil -->
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+            <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+            <span>Profil Guru / Penulis</span>
+          </h3>
+          
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Nama Lengkap & Gelar</label>
+            <input type="text" id="inp-author-name" value="MOHAMAD JAMIL, S.Pd." placeholder="Contoh: MOHAMAD JAMIL, S.Pd." class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Foto Penulis (Pasfoto / Pose Resmi)</label>
+            <div class="flex items-center gap-3">
+              <div class="w-16 h-20 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex items-center justify-center relative flex-shrink-0">
+                <img id="preview-author-img" src="assets/template/demo_author_jamil.jpg" alt="Foto Penulis" class="w-full h-full object-cover">
+              </div>
+              <div class="flex-1">
+                <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
+                  <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+                  <span>Ganti Foto Penulis</span>
+                  <input type="file" id="inp-author-photo" accept="image/*" class="hidden">
+                </label>
+                <p class="text-[10px] text-slate-500 mt-1">Disarankan foto vertikal berlatar belakang bersih atau transparan.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Judul & Subjudul -->
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+            <i data-lucide="type" class="w-3.5 h-3.5"></i>
+            <span>Judul & Subjudul Artikel</span>
+          </h3>
+
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Judul Utama (Headline)</label>
+            <input type="text" id="inp-headline" value="SIAPA BILANG MEMBOSANKAN !!!" placeholder="Contoh: SIAPA BILANG MEMBOSANKAN !!!" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl font-bold uppercase outline-none focus:border-emerald-500 transition">
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Subjudul (Penjelasan Singkat)</label>
+            <input type="text" id="inp-subheadline" value="Temukan Keseruan Matematika dalam Kehidupan Sehari-hari!" placeholder="Contoh: Temukan Keseruan Matematika..." class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl italic outline-none focus:border-emerald-500 transition">
+          </div>
+        </div>
+
+        <!-- Section 4: Isi Teks Artikel -->
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+              <i data-lucide="align-left" class="w-3.5 h-3.5"></i>
+              <span>Naskah Tulisan (3 Kolom Otomatis)</span>
+            </h3>
+            <span class="text-[10px] text-slate-400" id="text-word-count">0 kata</span>
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Tempelkan Naskah dari Word / WhatsApp:</label>
+            <textarea id="inp-body-text" rows="10" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs p-3 rounded-xl outline-none focus:border-emerald-500 transition font-sans leading-relaxed resize-y" placeholder="Tempel naskah artikel Anda di sini..."></textarea>
+            <p class="text-[10px] text-slate-500 mt-1">💡 Pisahkan paragraf dengan menekan Enter 2 kali. Huruf pertama paragraf 1 otomatis menjadi Drop Cap.</p>
+          </div>
+        </div>
+
+        <!-- Section 5: Foto Dokumentasi Kegiatan -->
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+            <i data-lucide="image" class="w-3.5 h-3.5"></i>
+            <span>Dokumentasi Pembelajaran / Kegiatan</span>
+          </h3>
+
+          <div class="space-y-3">
+            <div class="w-full h-36 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden relative flex items-center justify-center">
+              <img id="preview-activity-img" src="assets/template/demo_activity_math.jpg" alt="Foto Kegiatan" class="w-full h-full object-cover">
+            </div>
+
+            <div class="flex items-center justify-between gap-3">
+              <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
+                <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Ganti Foto Kegiatan</span>
+                <input type="file" id="inp-activity-photo" accept="image/*" class="hidden">
+              </label>
+
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="chk-show-activity-img" checked class="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500">
+                <span>Tampilkan Foto</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 6: Kutipan & Logo Peringatan -->
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+            <i data-lucide="award" class="w-3.5 h-3.5"></i>
+            <span>Kutipan Kunci & Logo Acara</span>
+          </h3>
+
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Kutipan Kunci (Callout Box)</label>
+            <textarea id="inp-callout-quote" rows="3" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs p-2.5 rounded-xl outline-none focus:border-emerald-500 transition italic">Oleh karena itu, belajar matematika tidak harus selalu dilakukan dengan menghafal rumus dan mengerjakan soal di buku. Murid dapat mulai belajar melalui kegiatan yang dekat dengan kehidupan sehari-hari.</textarea>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3 pt-2">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Logo Peringatan / Event</label>
+              <select id="sel-event-logo" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-2.5 py-2 rounded-xl outline-none focus:border-emerald-500">
+                <option value="sumpah_pemuda">98 Th Sumpah Pemuda</option>
+                <option value="hari_santri">Hari Santri 2026</option>
+                <option value="none">Tanpa Logo Event</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Nomor Halaman</label>
+              <input type="text" id="inp-page-num" value="Halaman 6" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-2.5 py-2 rounded-xl outline-none focus:border-emerald-500">
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- ==================== RIGHT: REALTIME A3 PREVIEW CANVAS ==================== -->
+    <main id="preview-panel" class="flex-1 bg-slate-950 relative flex flex-col h-full overflow-hidden">
+      
+      <!-- Preview Viewport Toolbar -->
+      <div class="h-11 bg-slate-900/70 border-b border-slate-800/80 px-4 flex items-center justify-between text-xs text-slate-400 flex-shrink-0 z-10">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1.5 font-semibold text-slate-200">
+            <i data-lucide="eye" class="w-4 h-4 text-emerald-400"></i>
+            <span>Pratinjau Lembaran Koran A3</span>
+          </span>
+          <span class="hidden sm:inline text-slate-600">|</span>
+          <span class="hidden sm:inline text-[11px] text-slate-400">Resolusi Cetak Standar 300 DPI</span>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <button id="btn-zoom-out" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white" title="Perkecil Preview">
+            <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+          </button>
+          <span id="label-zoom" class="w-12 text-center font-mono font-bold text-emerald-400 text-xs">75%</span>
+          <button id="btn-zoom-in" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white" title="Perbesar Preview">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          </button>
+          <button id="btn-zoom-fit" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold" title="Sesuaikan dengan Layar">
+            Fit
+          </button>
+        </div>
+      </div>
+
+      <!-- Preview Sheet Stage (Scrollable) -->
+      <div id="preview-stage" class="flex-1 overflow-auto p-4 sm:p-8 flex items-start justify-center">
+        
+        <!-- THE A3 NEWSPAPER SHEET (Will be captured to 300 DPI Canvas/PDF) -->
+        <div id="a3-sheet" class="a3-sheet p-8 flex flex-col justify-between">
+          
+          <!-- SHEET HEADER -->
+          <div class="w-full flex-shrink-0 border-b-2 border-slate-900 pb-2 mb-4">
+            
+            <!-- Row 1: AL QALAM Kop & Partner Logos & Edition Box -->
+            <div class="flex items-start justify-between gap-4">
+              
+              <!-- Left/Center: AL QALAM Brand Logo with Madrasah Info -->
+              <div class="flex items-center gap-3">
+                <img src="assets/template/alqalam_brand_header.png" alt="Logo AL QALAM" class="h-20 object-contain">
+              </div>
+
+              <!-- Right: Partner Logos & Edition Box -->
+              <div class="flex flex-col items-end text-right">
+                <!-- Logos row (Kemenag, Pusaka, BerAKHLAK, Hari Santri) -->
+                <img src="assets/template/top_partner_logos.png" alt="Logos Resmi" class="h-7 object-contain mb-1.5">
+                
+                <!-- Edition info box -->
+                <div class="text-[11px] font-serif leading-snug text-slate-900 font-semibold">
+                  <div id="view-day" class="font-bold">Selasa Pahing</div>
+                  <div id="view-date-masehi">27 Oktober 2026</div>
+                  <div id="view-date-hijri" class="text-slate-700">16 Jumadil Awal 1448 H</div>
+                  <div id="view-edition-num" class="font-bold text-slate-900 mt-0.5">Tahun 2026 | Nomor : 0006</div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Row 2: Yellow Social Media Strip + Basmalah -->
+            <div class="mt-2.5 bg-[#fcd34d] border border-amber-400/80 rounded-full px-4 py-1 flex items-center justify-between text-[11px] font-medium text-slate-900 shadow-sm">
+              <div class="flex items-center gap-3">
+                <span class="flex items-center gap-1 font-bold">
+                  <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-900"></i>
+                  <span>www.mtsn1blitar.sch.id</span>
+                </span>
+                <span class="flex items-center gap-1 font-bold">
+                  <i data-lucide="facebook" class="w-3.5 h-3.5 text-blue-800"></i>
+                  <span>mtsn1blitar</span>
+                </span>
+                <span class="flex items-center gap-1 font-bold">
+                  <i data-lucide="youtube" class="w-3.5 h-3.5 text-rose-700"></i>
+                  <span>mtsn1blitar</span>
+                </span>
+                <span class="flex items-center gap-1 font-bold">
+                  <i data-lucide="instagram" class="w-3.5 h-3.5 text-pink-700"></i>
+                  <span>mtsn1blitar69</span>
+                </span>
+              </div>
+              <div class="font-arabic text-sm text-slate-900 font-bold pr-2">
+                بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
+              </div>
+            </div>
+
+          </div>
+
+          <!-- SHEET BODY (AUTHOR + HEADLINE + 3-COLUMN NEWSPAPER) -->
+          <div class="flex-1 flex flex-col">
+            
+            <!-- Top Hero: Author Profile & Headline -->
+            <div class="flex items-start gap-5 mb-4">
+              
+              <!-- Author Photo & Badge -->
+              <div class="w-44 flex-shrink-0 flex flex-col items-center">
+                <div class="w-40 h-52 bg-slate-100 rounded-lg overflow-hidden border border-slate-300 shadow-md">
+                  <img id="view-author-img" src="assets/template/demo_author_jamil.jpg" alt="Foto Penulis" class="w-full h-full object-cover">
+                </div>
+                <div class="w-full -mt-3.5 bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-2 text-center rounded-md shadow-md uppercase tracking-wider truncate" id="view-author-badge">
+                  MOHAMAD JAMIL, S.Pd.
+                </div>
+              </div>
+
+              <!-- Headline & Subheadline & Byline -->
+              <div class="flex-1 pt-1">
+                <h2 id="view-headline" class="font-title text-3xl font-black text-slate-950 leading-tight tracking-tight uppercase mb-2">
+                  SIAPA BILANG MEMBOSANKAN !!!
+                </h2>
+                <h3 id="view-subheadline" class="font-serif italic text-lg font-bold text-slate-800 leading-snug mb-3">
+                  Temukan Keseruan Matematika dalam Kehidupan Sehari-hari!
+                </h3>
+                <div class="flex items-center gap-2 border-t border-b border-slate-300 py-1 text-xs font-serif font-bold text-slate-900">
+                  <span>Oleh :</span>
+                  <span id="view-byline" class="text-rose-800">MOHAMAD JAMIL, S.Pd.</span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Newspaper 3-Columns Text -->
+            <div class="flex-1 newspaper-columns text-slate-900 font-serif text-[11.5px] leading-relaxed select-text" id="view-newspaper-content">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <!-- Mid/Bottom Visual Inserts: Classroom Photo + Callout + Logo Sumpah Pemuda -->
+            <div class="mt-4 pt-3 border-t-2 border-slate-300 grid grid-cols-12 gap-4 items-center">
+              
+              <!-- Activity Photo (Left 7 cols) -->
+              <div class="col-span-7 flex flex-col" id="container-view-activity">
+                <div class="w-full h-44 bg-slate-100 rounded-lg overflow-hidden border border-slate-300 shadow-sm">
+                  <img id="view-activity-img" src="assets/template/demo_activity_math.jpg" alt="Foto Kegiatan" class="w-full h-full object-cover">
+                </div>
+                <div class="mt-2 p-2.5 bg-amber-50/80 border-l-4 border-amber-500 text-[11px] font-serif italic text-slate-800 leading-snug rounded-r" id="view-callout-quote">
+                  "Oleh karena itu, belajar matematika tidak harus selalu dilakukan dengan menghafal rumus dan mengerjakan soal di buku. Murid dapat mulai belajar melalui kegiatan yang dekat dengan kehidupan sehari-hari."
+                </div>
+              </div>
+
+              <!-- Doodle & Sumpah Pemuda (Right 5 cols) -->
+              <div class="col-span-5 flex flex-col items-center justify-between h-full py-1">
+                <!-- Math doodle / Illustration -->
+                <img src="assets/template/demo_math_doodle.jpg" alt="Ilustrasi" class="max-h-20 object-contain mb-2">
+
+                <!-- Event logo (Sumpah Pemuda) -->
+                <div id="container-view-event-logo" class="flex flex-col items-center">
+                  <img id="view-event-logo-img" src="assets/template/demo_logo_sumpah_pemuda.jpg" alt="Logo Peringatan" class="max-h-24 object-contain">
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- SHEET FOOTER -->
+          <div class="w-full flex-shrink-0 pt-3 border-t border-slate-300 mt-4 flex items-center justify-between text-[10px] text-slate-500 font-sans">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 bg-cyan-500 inline-block"></span>
+              <span class="w-2.5 h-2.5 bg-pink-500 inline-block"></span>
+              <span class="w-2.5 h-2.5 bg-yellow-400 inline-block"></span>
+              <span class="w-2.5 h-2.5 bg-slate-900 inline-block"></span>
+              <span class="ml-2 font-semibold">MTsN 1 BLITAR • AL QALAM A3 PRESS</span>
+            </div>
+            <div id="view-footer-page" class="font-bold text-slate-800">
+              Halaman 6
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Loading Modal Overlay -->
+  <div id="studio-loading" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4">
+    <div class="w-16 h-16 relative mb-4">
+      <div class="w-16 h-16 rounded-full border-4 border-slate-800 border-t-emerald-400 animate-spin"></div>
+      <i data-lucide="sparkles" class="w-7 h-7 text-emerald-400 absolute inset-0 m-auto"></i>
+    </div>
+    <h3 id="studio-loading-title" class="text-base font-bold text-white mb-1">Memproses Halaman...</h3>
+    <p id="studio-loading-desc" class="text-xs text-slate-400 text-center max-w-sm">Sedang merender lembaran A3 ke dalam PDF resolusi tinggi (300 DPI)...</p>
+  </div>
+
+  <!-- Main Studio JavaScript -->
+  <script src="js/studio.js"></script>
+</body>
+</html>
