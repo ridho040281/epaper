@@ -125,8 +125,6 @@
     .canvas-selectable {
       cursor: grab;
       position: relative;
-      transition: outline 0.15s ease, box-shadow 0.15s ease;
-      border-radius: 6px;
       touch-action: none;
       user-select: none;
       -webkit-user-select: none;
@@ -137,16 +135,15 @@
       pointer-events: none;
     }
     .canvas-selectable:hover {
-      outline: 2px dashed rgba(16, 185, 129, 0.7) !important;
-      outline-offset: 3px;
+      outline: 1.5px dashed rgba(16, 185, 129, 0.4) !important;
+      outline-offset: 2px;
     }
     .canvas-selectable:active {
       cursor: grabbing;
     }
     .canvas-selectable.canvas-selected {
-      outline: 2px solid #059669 !important;
-      outline-offset: 3px;
-      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25);
+      outline: 1.5px dashed rgba(16, 185, 129, 0.5) !important;
+      outline-offset: 2px;
     }
     .canvas-inline-editing {
       outline: 2px solid #3b82f6 !important;
@@ -684,15 +681,6 @@
         
         <!-- THE A3 NEWSPAPER SHEET (Will be captured to 300 DPI Canvas/PDF) -->
         <div id="a3-sheet" class="a3-sheet relative p-8 flex flex-col justify-between overflow-hidden">
-          
-          <!-- DIRECT ON-CANVAS HUD TOOLBAR (Canva-style Interactive Selection & Controls) -->
-          <div id="canvas-hud-toolbar" class="export-ignore hidden absolute z-50 bg-slate-900/95 backdrop-blur-md border border-emerald-500/80 text-white rounded-xl shadow-2xl px-2.5 py-1.5 flex items-center gap-2 text-xs transition-all duration-150 select-none">
-            <span id="hud-title" class="font-bold text-emerald-400 flex items-center gap-1.5 pr-2 border-r border-slate-700/80 text-[11px] whitespace-nowrap"></span>
-            <div id="hud-controls" class="flex items-center gap-1.5 whitespace-nowrap"></div>
-            <button type="button" id="btn-hud-close" class="ml-1 text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition cursor-pointer" title="Tutup Pengatur">
-              <i data-lucide="x" class="w-3.5 h-3.5"></i>
-            </button>
-          </div>
 
           <!-- SHEET HEADER CONTAINER -->
           <div id="container-sheet-header" class="w-full flex-shrink-0 mb-4 pb-1">
@@ -801,13 +789,6 @@
 
             <!-- 1. FLOATING DRAGGABLE AUTHOR PHOTO (Foto Penulis Mandiri - Bebas Di-drag ke Mana Saja) -->
             <div id="container-author-photo" style="left: 0px; top: 35px;" class="absolute w-44 flex flex-col items-start cursor-grab select-none group touch-none z-30 transition-shadow canvas-selectable" data-canvas-type="author-photo" title="Klik untuk atur / perbesar foto penulis">
-              
-              <!-- Drag Handle Indicator Pill on Hover -->
-              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap export-ignore">
-                <i data-lucide="move" class="w-2.5 h-2.5 text-emerald-400"></i>
-                <span>Geser Foto Penulis (Drag)</span>
-              </div>
-
               <!-- Photo Frame (Tanpa Frame & Transparan PNG) -->
               <div id="author-photo-frame" class="w-full min-h-[160px] bg-transparent border-0 shadow-none rounded-none overflow-visible relative flex flex-col items-start justify-end transition-all">
                 <img id="view-author-img" src="" alt="Foto Penulis" class="hidden w-auto max-w-full max-h-[260px] object-contain object-left-bottom pointer-events-none select-none">
@@ -828,12 +809,6 @@
 
             <!-- 2. FLOATING DRAGGABLE AUTHOR NAME BADGE (Teksbok Nama Penulis Mandiri & Terpisah) -->
             <div id="container-author-badge" style="left: 32px; top: 235px;" class="absolute flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow canvas-selectable" data-canvas-type="author-badge" title="Klik untuk atur kotak nama">
-              <!-- Drag Handle Indicator Pill on Hover -->
-              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap export-ignore">
-                <i data-lucide="move" class="w-2.5 h-2.5 text-emerald-400"></i>
-                <span>Geser Kotak Nama (Drag)</span>
-              </div>
-
               <div id="view-author-badge" class="bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-3 text-center rounded-md shadow-md tracking-wider truncate max-w-xs pointer-events-none select-none">
                 MOHAMAD JAMIL, S.Pd.
               </div>
@@ -984,6 +959,6 @@
   </div>
 
   <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261101_drag02"></script>
+  <script src="js/studio.js?v=20261102_nohud01"></script>
 </body>
 </html>

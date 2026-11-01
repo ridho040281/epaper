@@ -240,11 +240,6 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnZoomOut         = document.getElementById('btn-zoom-out');
     this.btnZoomFit         = document.getElementById('btn-zoom-fit');
 
-    // Direct On-Canvas HUD Toolbar Elements
-    this.canvasHudToolbar       = document.getElementById('canvas-hud-toolbar');
-    this.hudTitle               = document.getElementById('hud-title');
-    this.hudControls            = document.getElementById('hud-controls');
-    this.btnHudClose            = document.getElementById('btn-hud-close');
     this.selectedCanvasElement  = null;
 
     this.headlineFontSize       = 30;
@@ -368,7 +363,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnResetAuthorBadgePos?.addEventListener('click', () => this.resetAuthorBadgePosition());
     this.chkHeadlineSpacer?.addEventListener('change', () => this.toggleHeadlineSpacer(this.chkHeadlineSpacer.checked));
     this.inpHeadlineIndent?.addEventListener('input', () => this.updateHeadlineIndent(this.inpHeadlineIndent.value, true));
-    this.btnResetHeadlineIndent?.addEventListener('click', () => this.updateHeadlineIndent(0, true));
+    this.btnResetHeadlineIndent?.addEventListener('click', () => {
+      this.updateHeadlineIndent(0, true);
+      this.setHeadlineOffset(0, 0, true);
+      this.setSubheadlineOffset(0, 0, true);
+      this.setBylineOffset(0, 0, true);
+    });
     this.btnPosPresets?.forEach(btn => {
       btn.addEventListener('click', () => {
         const posKey = btn.getAttribute('data-pos');
@@ -1546,15 +1546,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     // 2. Klik di luar canvas untuk deselect
     document.addEventListener('click', (e) => {
       if (this.justDragged) return;
-      if (!e.target.closest('#a3-sheet') && !e.target.closest('#canvas-hud-toolbar')) {
+      if (!e.target.closest('#a3-sheet')) {
         this.deselectCanvasElement();
       }
-    });
-
-    // 3. Tombol close HUD
-    this.btnHudClose?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.deselectCanvasElement();
     });
 
     // 4. Double click pada teks untuk inline WYSIWYG editing langsung di halaman
@@ -1570,29 +1564,17 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
     });
 
-    // 5. Update posisi HUD jika window di-resize
-    window.addEventListener('resize', () => {
-      if (this.selectedCanvasElement) this.repositionCanvasHud();
-    });
   }
 
   selectCanvasElement(el) {
-    if (!el || !this.canvasHudToolbar) return;
+    if (!el) return;
 
     if (this.selectedCanvasElement && this.selectedCanvasElement !== el) {
       this.selectedCanvasElement.classList.remove('canvas-selected');
     }
 
-    const isAlreadySelected = (this.selectedCanvasElement === el);
     this.selectedCanvasElement = el;
     el.classList.add('canvas-selected');
-
-    if (!isAlreadySelected || this.canvasHudToolbar.classList.contains('hidden')) {
-      this.renderHudControls(el);
-      this.canvasHudToolbar.classList.remove('hidden');
-      if (window.lucide) window.lucide.createIcons();
-    }
-    this.repositionCanvasHud();
   }
 
   deselectCanvasElement() {
@@ -1600,353 +1582,14 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.selectedCanvasElement.classList.remove('canvas-selected');
       this.selectedCanvasElement = null;
     }
-    if (this.canvasHudToolbar) {
-      this.canvasHudToolbar.classList.add('hidden');
-    }
-    const oldHeadlineHandle = document.getElementById('handle-resize-headline');
-    if (oldHeadlineHandle) oldHeadlineHandle.remove();
-    const oldHeaderHandle = document.getElementById('handle-resize-header');
-    if (oldHeaderHandle) oldHeaderHandle.remove();
   }
 
   repositionCanvasHud() {
-    const el = this.selectedCanvasElement;
-    if (!el || !this.canvasHudToolbar || !this.a3Sheet) return;
-
-    const sheetRect = this.a3Sheet.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    const zoom = this.zoomScale || 1;
-
-    const relTop = (elRect.top - sheetRect.top) / zoom;
-    const relLeft = (elRect.left - sheetRect.left) / zoom;
-
-    const hudHeight = 44;
-    let topPos = relTop - hudHeight - 10;
-    if (topPos < 10) {
-      // Jika terlalu mepet ke tepi atas kertas, taruh HUD di bawah elemen
-      topPos = relTop + (elRect.height / zoom) + 10;
-    }
-    const maxLeft = (sheetRect.width / zoom) - 400;
-    const leftPos = Math.max(12, Math.min(maxLeft, relLeft));
-
-    this.canvasHudToolbar.style.top = `${Math.round(topPos)}px`;
-    this.canvasHudToolbar.style.left = `${Math.round(leftPos)}px`;
+    // Toolbar HUD melayang di halaman ditiadakan agar lembaran koran bersih tanpa gangguan
   }
 
   renderHudControls(el) {
-    if (!this.hudTitle || !this.hudControls) return;
-    const type = el.getAttribute('data-canvas-type');
-
-    this.hudControls.innerHTML = '';
-    const oldHeadlineHandle = document.getElementById('handle-resize-headline');
-    if (oldHeadlineHandle) oldHeadlineHandle.remove();
-    const oldHeaderHandle = document.getElementById('handle-resize-header');
-    if (oldHeaderHandle) oldHeaderHandle.remove();
-
-    if (type === 'headline') {
-      this.hudTitle.innerHTML = `<i data-lucide="type" class="w-3.5 h-3.5 text-emerald-400"></i><span>Judul</span>`;
-      this.hudControls.innerHTML = `
-        <button type="button" id="btn-hud-headline-smaller" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Kecilkan Huruf Judul">−</button>
-        <span id="hud-val-headline-size" class="font-mono text-emerald-300 font-bold px-1">${this.headlineFontSize} px</span>
-        <button type="button" id="btn-hud-headline-bigger" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Besarkan Huruf Judul">+</button>
-        
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret judul bebas di lembaran"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
-
-        <button type="button" id="btn-hud-indent-left" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition" title="Geser Judul ke Kiri"><i data-lucide="chevron-left" class="w-3 h-3"></i><span>Geser</span></button>
-        <span id="hud-val-headline-indent" class="font-mono text-amber-300 font-bold px-1">${this.headlineIndent} px</span>
-        <button type="button" id="btn-hud-indent-right" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition" title="Geser Judul ke Kanan (Beri Ruang Foto)"><span>Geser</span><i data-lucide="chevron-right" class="w-3 h-3"></i></button>
-
-        <button type="button" id="btn-hud-headline-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Judul ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <button type="button" id="btn-hud-headline-edit" class="px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white flex items-center gap-1 transition font-medium" title="Ketik Judul Langsung di Halaman"><i data-lucide="edit-3" class="w-3 h-3"></i><span>Ketik Langsung</span></button>
-      `;
-
-      this.hudControls.querySelector('#btn-hud-headline-smaller')?.addEventListener('click', () => {
-        this.setHeadlineFontSize(this.headlineFontSize - 2);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-headline-bigger')?.addEventListener('click', () => {
-        this.setHeadlineFontSize(this.headlineFontSize + 2);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-indent-left')?.addEventListener('click', () => {
-        this.updateHeadlineIndent(Math.max(0, this.headlineIndent - 15));
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-indent-right')?.addEventListener('click', () => {
-        this.updateHeadlineIndent(Math.min(480, this.headlineIndent + 15));
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-headline-reset-pos')?.addEventListener('click', () => {
-        this.updateHeadlineIndent(0, true);
-        this.setHeadlineOffset(0, 0, true);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-headline-edit')?.addEventListener('click', () => {
-        this.startInlineEditing(el);
-      });
-
-      // Handle drag resize di pojok kanan bawah judul
-      this.attachHeadlineResizeHandle(el);
-
-    } else if (type === 'subheadline') {
-      this.hudTitle.innerHTML = `<i data-lucide="align-left" class="w-3.5 h-3.5 text-emerald-400"></i><span>Subjudul</span>`;
-      this.hudControls.innerHTML = `
-        <button type="button" id="btn-hud-subheadline-smaller" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Kecilkan Huruf">−</button>
-        <span id="hud-val-subheadline-size" class="font-mono text-emerald-300 font-bold px-1">${this.subheadlineFontSize} px</span>
-        <button type="button" id="btn-hud-subheadline-bigger" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Besarkan Huruf">+</button>
-        
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret subjudul bebas di lembaran"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
-
-        <button type="button" id="btn-hud-subheadline-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Subjudul ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <button type="button" id="btn-hud-subheadline-edit" class="px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white flex items-center gap-1 transition font-medium" title="Ketik Subjudul Langsung"><i data-lucide="edit-3" class="w-3 h-3"></i><span>Ketik Langsung</span></button>
-      `;
-
-      this.hudControls.querySelector('#btn-hud-subheadline-smaller')?.addEventListener('click', () => {
-        this.setSubheadlineFontSize(this.subheadlineFontSize - 2);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-subheadline-bigger')?.addEventListener('click', () => {
-        this.setSubheadlineFontSize(this.subheadlineFontSize + 2);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-subheadline-reset-pos')?.addEventListener('click', () => {
-        this.setSubheadlineOffset(0, 0, true);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-subheadline-edit')?.addEventListener('click', () => {
-        this.startInlineEditing(el);
-      });
-
-    } else if (type === 'byline') {
-      this.hudTitle.innerHTML = `<i data-lucide="user-check" class="w-3.5 h-3.5 text-rose-400"></i><span>Byline Penulis</span>`;
-      this.hudControls.innerHTML = `
-        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret byline penulis bebas di lembaran"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
-
-        <button type="button" id="btn-hud-byline-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Byline ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <button type="button" id="btn-hud-byline-edit" class="px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white flex items-center gap-1 transition font-medium" title="Ketik Nama Penulis Langsung"><i data-lucide="edit-3" class="w-3 h-3"></i><span>Ketik Nama</span></button>
-      `;
-
-      this.hudControls.querySelector('#btn-hud-byline-reset-pos')?.addEventListener('click', () => {
-        this.setBylineOffset(0, 0, true);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-byline-edit')?.addEventListener('click', () => {
-        this.startInlineEditing(this.viewByline || el);
-      });
-
-    } else if (type === 'author-photo') {
-      this.hudTitle.innerHTML = `<i data-lucide="user" class="w-3.5 h-3.5 text-emerald-400"></i><span>Foto Penulis</span>`;
-      this.hudControls.innerHTML = `
-        <button type="button" id="btn-hud-author-smaller" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Perkecil Foto">−</button>
-        <span id="hud-val-author-size" class="font-mono text-emerald-300 font-bold px-1">${this.authorPhotoWidth || 170} px</span>
-        <button type="button" id="btn-hud-author-bigger" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Perbesar Foto">+</button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret foto penulis bebas ke mana saja"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
-
-        <button type="button" id="btn-hud-author-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Foto ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <button type="button" id="btn-hud-author-trim" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-blue-300 hover:text-white flex items-center gap-1 transition" title="Potong Ruang Kosong Transparan"><i data-lucide="scissors" class="w-3 h-3"></i><span>Trim</span></button>
-        <button type="button" id="btn-hud-author-trans" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-white flex items-center gap-1 transition" title="Hapus Latar Putih Jadi Transparan"><i data-lucide="wand-2" class="w-3 h-3"></i><span>Transparan</span></button>
-        <button type="button" id="btn-hud-author-clear" class="px-2 py-1 rounded bg-rose-950/70 hover:bg-rose-900 text-rose-300 hover:text-white flex items-center gap-1 transition" title="Kosongkan Foto"><i data-lucide="trash-2" class="w-3 h-3"></i><span>Hapus</span></button>
-      `;
-
-      this.hudControls.querySelector('#btn-hud-author-smaller')?.addEventListener('click', () => {
-        const curW = this.authorPhotoWidth || 170;
-        this.setAuthorPhotoWidth(Math.max(80, curW - 20), true);
-        const valSpan = document.getElementById('hud-val-author-size');
-        if (valSpan) valSpan.innerText = `${this.authorPhotoWidth} px`;
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-author-bigger')?.addEventListener('click', () => {
-        const curW = this.authorPhotoWidth || 170;
-        this.setAuthorPhotoWidth(Math.min(650, curW + 20), true);
-        const valSpan = document.getElementById('hud-val-author-size');
-        if (valSpan) valSpan.innerText = `${this.authorPhotoWidth} px`;
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-author-reset-pos')?.addEventListener('click', () => {
-        this.resetAuthorPhotoPosition();
-      });
-      this.hudControls.querySelector('#btn-hud-author-trim')?.addEventListener('click', () => {
-        this.trimAuthorPhoto(true);
-      });
-      this.hudControls.querySelector('#btn-hud-author-trans')?.addEventListener('click', () => {
-        this.makeAuthorPhotoTransparent();
-      });
-      this.hudControls.querySelector('#btn-hud-author-clear')?.addEventListener('click', () => {
-        if (confirm('Kosongkan foto penulis saat ini?')) {
-          this.setAuthorPhoto(null, true);
-          this.deselectCanvasElement();
-        }
-      });
-
-    } else if (type === 'author-badge') {
-      this.hudTitle.innerHTML = `<i data-lucide="tag" class="w-3.5 h-3.5 text-emerald-400"></i><span>Kotak Nama</span>`;
-      this.hudControls.innerHTML = `
-        <button type="button" id="btn-hud-badge-smaller" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Kecilkan Ukuran Nama">−</button>
-        <span id="hud-val-badge-size" class="font-mono text-emerald-300 font-bold px-1">${this.authorBadgeFontSize} px</span>
-        <button type="button" id="btn-hud-badge-bigger" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Besarkan Ukuran Nama">+</button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret kotak nama bebas ke mana saja"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
-
-        <button type="button" id="btn-hud-badge-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Kotak Nama ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <button type="button" id="btn-hud-badge-edit" class="px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white flex items-center gap-1 transition font-medium" title="Ketik Nama Langsung"><i data-lucide="edit-3" class="w-3 h-3"></i><span>Ketik Nama</span></button>
-      `;
-
-      this.hudControls.querySelector('#btn-hud-badge-smaller')?.addEventListener('click', () => {
-        this.setAuthorBadgeFontSize(this.authorBadgeFontSize - 1);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-badge-bigger')?.addEventListener('click', () => {
-        this.setAuthorBadgeFontSize(this.authorBadgeFontSize + 1);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-badge-reset-pos')?.addEventListener('click', () => {
-        this.resetAuthorBadgePosition();
-      });
-      this.hudControls.querySelector('#btn-hud-badge-edit')?.addEventListener('click', () => {
-        this.startInlineEditing(el.querySelector('#view-author-badge') || el);
-      });
-
-    } else if (type === 'header') {
-      this.hudTitle.innerHTML = `<i data-lucide="crown" class="w-3.5 h-3.5 text-amber-400"></i><span>Kop Master</span>`;
-      this.hudControls.innerHTML = `
-        <button type="button" id="btn-hud-header-smaller" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Perkecil Kop">−</button>
-        <span id="hud-val-header-scale" class="font-mono text-emerald-300 font-bold px-1">${Math.round(this.customHeaderScale * 100)}%</span>
-        <button type="button" id="btn-hud-header-bigger" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Perbesar Kop">+</button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <button type="button" id="btn-hud-header-bleed" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-white flex items-center gap-1 transition" title="Bikin Kop Melebar Penuh ke Tepi Kertas"><i data-lucide="maximize-2" class="w-3 h-3"></i><span>Full Bleed</span></button>
-        <button type="button" id="btn-hud-header-upload" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center gap-1 transition" title="Ganti File Kop Master"><i data-lucide="image-up" class="w-3 h-3"></i><span>Ganti File</span></button>
-      `;
-
-      this.hudControls.querySelector('#btn-hud-header-smaller')?.addEventListener('click', () => {
-        this.setCustomHeaderScale(this.customHeaderScale - 0.05);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-header-bigger')?.addEventListener('click', () => {
-        this.setCustomHeaderScale(this.customHeaderScale + 0.05);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-header-bleed')?.addEventListener('click', () => {
-        if (this.chkFullWidthHeader) {
-          this.chkFullWidthHeader.checked = !this.chkFullWidthHeader.checked;
-          this.updateHeaderFullBleed();
-          this.repositionCanvasHud();
-        }
-      });
-      this.hudControls.querySelector('#btn-hud-header-upload')?.addEventListener('click', () => {
-        this.inpCustomHeader?.click();
-      });
-
-    } else if (type === 'newspaper-content') {
-      this.hudTitle.innerHTML = `<i data-lucide="columns" class="w-3.5 h-3.5 text-emerald-400"></i><span>Naskah 3 Kolom</span>`;
-      this.hudControls.innerHTML = `
-        <button type="button" id="btn-hud-body-smaller" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Kecilkan Huruf Naskah">−</button>
-        <span id="hud-val-body-size" class="font-mono text-emerald-300 font-bold px-1">${this.bodyFontSize} px</span>
-        <button type="button" id="btn-hud-body-bigger" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Besarkan Huruf Naskah">+</button>
-
-        <span class="text-slate-600 px-0.5">|</span>
-
-        <button type="button" id="btn-hud-body-focus" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition" title="Buka Form Edit Teks Naskah"><i data-lucide="edit-3" class="w-3 h-3"></i><span>Edit Naskah di Form</span></button>
-      `;
-
-      this.hudControls.querySelector('#btn-hud-body-smaller')?.addEventListener('click', () => {
-        this.setBodyFontSize(this.bodyFontSize - 0.5);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-body-bigger')?.addEventListener('click', () => {
-        this.setBodyFontSize(this.bodyFontSize + 0.5);
-        this.repositionCanvasHud();
-      });
-      this.hudControls.querySelector('#btn-hud-body-focus')?.addEventListener('click', () => {
-        if (this.inpBodyText) {
-          this.inpBodyText.focus();
-          this.inpBodyText.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      });
-    }
-  }
-
-  attachHeadlineResizeHandle(el) {
-    const handle = document.createElement('div');
-    handle.id = 'handle-resize-headline';
-    handle.className = 'export-ignore absolute -bottom-3 -right-2 w-6 h-6 bg-emerald-500 hover:bg-emerald-400 border-2 border-white rounded-full shadow-lg cursor-nwse-resize z-40 flex items-center justify-center transition-transform hover:scale-125 touch-none select-none';
-    handle.title = 'Tarik untuk memperbesar / memperkecil ukuran huruf judul langsung di halaman';
-    handle.innerHTML = `<i data-lucide="scaling" class="w-3 h-3 text-white pointer-events-none stroke-[2.5]"></i>`;
-
-    el.appendChild(handle);
-
-    let isResizing = false;
-    let startX = 0;
-    let startY = 0;
-    let initialSize = this.headlineFontSize || 30;
-
-    const onStart = (e) => {
-      e.stopPropagation();
-      if (e.type === 'mousedown' && e.button !== 0) return;
-      isResizing = true;
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-      startX = clientX;
-      startY = clientY;
-      initialSize = this.headlineFontSize || 30;
-      handle.classList.add('scale-125', 'bg-emerald-400');
-      document.body.style.cursor = 'nwse-resize';
-      if (e.cancelable) e.preventDefault();
-    };
-
-    const onMove = (e) => {
-      if (!isResizing) return;
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-      const zoom = this.zoomScale || 1;
-      const dx = (clientX - startX) / zoom;
-      const dy = (clientY - startY) / zoom;
-      const delta = (dx + dy) / 6;
-      const newSize = Math.max(18, Math.min(56, Math.round(initialSize + delta)));
-      this.setHeadlineFontSize(newSize, false);
-      this.repositionCanvasHud();
-      if (e.cancelable) e.preventDefault();
-    };
-
-    const onEnd = () => {
-      if (!isResizing) return;
-      isResizing = false;
-      handle.classList.remove('scale-125', 'bg-emerald-400');
-      document.body.style.cursor = '';
-      this.setHeadlineFontSize(this.headlineFontSize, true);
-    };
-
-    handle.addEventListener('mousedown', onStart);
-    handle.addEventListener('touchstart', onStart, { passive: false });
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('mouseup', onEnd);
-    window.addEventListener('touchend', onEnd);
+    // Toolbar HUD melayang di halaman ditiadakan agar lembaran koran bersih tanpa gangguan
   }
 
   startInlineEditing(el) {
