@@ -461,6 +461,76 @@ switch ($action) {
         exit;
         break;
 
+    case 'upload_author_photo':
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
+        if (!is_dir($targetDir)) @mkdir($targetDir, 0777, true);
+        
+        $destName = 'active_author_photo.png';
+        $destination = $targetDir . DIRECTORY_SEPARATOR . $destName;
+        $saved = false;
+
+        if (isset($_FILES['author_file']) && $_FILES['author_file']['error'] === UPLOAD_ERR_OK) {
+            $saved = @move_uploaded_file($_FILES['author_file']['tmp_name'], $destination);
+            if (!$saved) {
+                $raw = @file_get_contents($_FILES['author_file']['tmp_name']);
+                if ($raw) $saved = (@file_put_contents($destination, $raw) !== false);
+            }
+        } else {
+            $raw = file_get_contents('php://input');
+            $json = json_decode($raw, true);
+            $base64 = $json['image_data'] ?? $_POST['image_data'] ?? '';
+            if (!empty($base64)) {
+                if (preg_match('/^data:image\/(\w+);base64,/', $base64, $m)) {
+                    $base64 = substr($base64, strpos($base64, ',') + 1);
+                }
+                $decoded = base64_decode($base64);
+                if ($decoded) {
+                    $saved = (@file_put_contents($destination, $decoded) !== false);
+                }
+            }
+        }
+
+        if ($saved) {
+            @chmod($destination, 0666);
+            $url = 'covers/' . $destName . '?t=' . time();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Foto penulis berhasil disimpan di server!',
+                'author_url' => $url
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Gagal menyimpan foto penulis di server.']);
+        }
+        exit;
+        break;
+
+    case 'get_author_photo':
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
+        $destination = $targetDir . DIRECTORY_SEPARATOR . 'active_author_photo.png';
+        if (file_exists($destination)) {
+            echo json_encode([
+                'success' => true,
+                'has_author_photo' => true,
+                'author_url' => 'covers/active_author_photo.png?t=' . filemtime($destination)
+            ]);
+        } else {
+            echo json_encode([
+                'success' => true,
+                'has_author_photo' => false,
+                'author_url' => null
+            ]);
+        }
+        exit;
+        break;
+
+    case 'clear_author_photo':
+        $targetDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
+        $destination = $targetDir . DIRECTORY_SEPARATOR . 'active_author_photo.png';
+        if (file_exists($destination)) @unlink($destination);
+        echo json_encode(['success' => true, 'message' => 'Foto penulis berhasil dibersihkan dari server.']);
+        exit;
+        break;
+
     default:
         echo json_encode(['success' => false, 'message' => 'Aksi tidak dikenal.']);
         break;

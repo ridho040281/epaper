@@ -518,6 +518,22 @@
             <label class="block text-[11px] text-slate-400 mb-1">Subjudul (Penjelasan Singkat)</label>
             <input type="text" id="inp-subheadline" value="Temukan Keseruan Matematika dalam Kehidupan Sehari-hari!" placeholder="Contoh: Temukan Keseruan Matematika..." class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl italic outline-none focus:border-emerald-500 transition">
           </div>
+
+          <!-- Pengatur Geser Judul (Beri Ruang untuk Foto) -->
+          <div class="pt-2 border-t border-slate-800/80">
+            <div class="flex items-center justify-between text-[11px] mb-1.5">
+              <span class="text-slate-300 font-medium flex items-center gap-1.5">
+                <i data-lucide="move-horizontal" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Geser Judul ke Kanan (Beri Ruang Foto)</span>
+              </span>
+              <span id="label-headline-indent" class="text-emerald-400 font-mono font-bold">0 px</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="range" id="inp-headline-indent" min="0" max="360" value="0" step="10" class="w-full accent-emerald-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+              <button type="button" id="btn-reset-headline-indent" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-1 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer flex-shrink-0" title="Reset geser judul">Reset</button>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1">Geser ke kanan jika judul tertutup atau mepet dengan foto penulis di sebelah kiri.</p>
+          </div>
         </div>
 
         <!-- Section 4: Isi Teks Artikel -->

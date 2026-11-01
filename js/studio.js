@@ -3,6 +3,73 @@
  * Created for automated instant publishing to E-Paper Flipbook
  */
 
+// IndexedDB Helper for Studio Media Storage (No 5MB quota limit)
+const STUDIO_IDB_NAME = 'epaper_studio_cache';
+const STUDIO_IDB_STORE = 'media_files';
+
+function openStudioDB() {
+  return new Promise((resolve) => {
+    if (!window.indexedDB) return resolve(null);
+    const req = indexedDB.open(STUDIO_IDB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STUDIO_IDB_STORE)) {
+        db.createObjectStore(STUDIO_IDB_STORE);
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = () => resolve(null);
+  });
+}
+
+async function idbStudioGet(key) {
+  try {
+    const db = await openStudioDB();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STUDIO_IDB_STORE, 'readonly');
+      const store = tx.objectStore(STUDIO_IDB_STORE);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+async function idbStudioSet(key, val) {
+  try {
+    const db = await openStudioDB();
+    if (!db) return false;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STUDIO_IDB_STORE, 'readwrite');
+      const store = tx.objectStore(STUDIO_IDB_STORE);
+      const req = store.put(val, key);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
+async function idbStudioDelete(key) {
+  try {
+    const db = await openStudioDB();
+    if (!db) return false;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STUDIO_IDB_STORE, 'readwrite');
+      const store = tx.objectStore(STUDIO_IDB_STORE);
+      const req = store.delete(key);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => resolve(false);
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
 class AlqalamStudio {
   constructor() {
     this.zoomScale = 0.75;
@@ -142,6 +209,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnResetAuthorBadgePos = document.getElementById('btn-reset-author-badge-pos');
     this.chkHeadlineSpacer      = document.getElementById('chk-headline-spacer');
     this.btnPosPresets          = document.querySelectorAll('.btn-pos-preset');
+    this.inpHeadlineIndent      = document.getElementById('inp-headline-indent');
+    this.labelHeadlineIndent    = document.getElementById('label-headline-indent');
+    this.btnResetHeadlineIndent = document.getElementById('btn-reset-headline-indent');
+    this.headlineIndent         = 0;
 
     // Pengaturan Gaya & Ukuran Foto Penulis Dinamis
     this.authorPhotoWidth       = 170; // Lebar foto dalam pixel (bisa di-resize dinamis dengan seret pojok kanan bawah)
@@ -275,6 +346,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnResetAuthorPhotoPos?.addEventListener('click', () => this.resetAuthorPhotoPosition());
     this.btnResetAuthorBadgePos?.addEventListener('click', () => this.resetAuthorBadgePosition());
     this.chkHeadlineSpacer?.addEventListener('change', () => this.toggleHeadlineSpacer(this.chkHeadlineSpacer.checked));
+    this.inpHeadlineIndent?.addEventListener('input', () => this.updateHeadlineIndent(this.inpHeadlineIndent.value, true));
+    this.btnResetHeadlineIndent?.addEventListener('click', () => this.updateHeadlineIndent(0, true));
     this.btnPosPresets?.forEach(btn => {
       btn.addEventListener('click', () => {
         const posKey = btn.getAttribute('data-pos');
@@ -602,12 +675,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   initDefaultContent() {
     this.formatNewspaperContent();
 
-    // Pulihkan foto penulis dari localStorage jika pernah diunggah, jika belum ada biarkan KOSONG secara default
-    const savedAuthorPhoto = localStorage.getItem('alqalam_author_photo');
-    if (savedAuthorPhoto) {
-      this.setAuthorPhoto(savedAuthorPhoto);
-    } else {
-      this.setAuthorPhoto(null); // Kosongkan secara default sesuai permintaan pengguna
+    // Pulihkan foto penulis dari IndexedDB / LocalStorage / Server
+    this.loadSavedAuthorPhoto();
+
+    // Pulihkan pengaturan geser judul
+    const savedIndent = localStorage.getItem('alqalam_headline_indent');
+    if (savedIndent !== null) {
+      this.updateHeadlineIndent(parseInt(savedIndent, 10), false);
     }
 
     // Default: Kosongkan & sembunyikan foto kegiatan, doodle, dan logo event
@@ -708,31 +782,38 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       testImg.onload = () => {
         try {
           const cvs = document.createElement('canvas');
-          cvs.width = testImg.naturalWidth || testImg.width;
-          cvs.height = testImg.naturalHeight || testImg.height;
+          let targetW = testImg.naturalWidth || testImg.width || 800;
+          let targetH = testImg.naturalHeight || testImg.height || 1000;
+          const maxDim = 1600;
+          if (targetW > maxDim || targetH > maxDim) {
+            if (targetW >= targetH) {
+              targetH = Math.round((targetH * maxDim) / targetW);
+              targetW = maxDim;
+            } else {
+              targetW = Math.round((targetW * maxDim) / targetH);
+              targetH = maxDim;
+            }
+          }
+          cvs.width = targetW;
+          cvs.height = targetH;
           const ctx = cvs.getContext('2d');
-          ctx.drawImage(testImg, 0, 0);
+          ctx.drawImage(testImg, 0, 0, targetW, targetH);
           const trimmedCvs = this.trimCanvas(cvs);
           const finalUrl = trimmedCvs.toDataURL('image/png');
-          this.setAuthorPhoto(finalUrl);
-          try {
-            localStorage.setItem('alqalam_author_photo', finalUrl);
-          } catch (err) {
-            console.warn('LocalStorage limit for author photo:', err);
-          }
+          this.setAuthorPhoto(finalUrl, true);
         } catch (e) {
-          this.setAuthorPhoto(dataUrl);
+          this.setAuthorPhoto(dataUrl, true);
         }
       };
       testImg.onerror = () => {
-        this.setAuthorPhoto(dataUrl);
+        this.setAuthorPhoto(dataUrl, true);
       };
       testImg.src = dataUrl;
     };
     reader.readAsDataURL(file);
   }
 
-  setAuthorPhoto(dataUrl) {
+  setAuthorPhoto(dataUrl, shouldSave = false) {
     if (dataUrl) {
       if (this.viewAuthorImg) {
         this.viewAuthorImg.src = dataUrl;
@@ -761,6 +842,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         this.labelAuthorPhoto.innerText = 'Ganti Foto Penulis';
       }
       this.applyAuthorCardStyles();
+      if (shouldSave) {
+        this.saveAuthorPhoto(dataUrl);
+      }
     } else {
       if (this.viewAuthorImg) {
         this.viewAuthorImg.src = '';
@@ -791,9 +875,113 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       if (this.inpAuthorPhoto) {
         this.inpAuthorPhoto.value = '';
       }
-      localStorage.removeItem('alqalam_author_photo');
+      if (shouldSave) {
+        this.saveAuthorPhoto(null);
+      }
     }
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  async saveAuthorPhoto(dataUrl) {
+    if (!dataUrl) {
+      await idbStudioDelete('alqalam_author_photo');
+      try { localStorage.removeItem('alqalam_author_photo'); } catch (e) {}
+      try { localStorage.removeItem('alqalam_author_photo_url'); } catch (e) {}
+      fetch('api.php?action=clear_author_photo').catch(() => {});
+      return;
+    }
+
+    // 1. Simpan ke IndexedDB (kapasitas besar, tidak kena limit kuota 5MB)
+    await idbStudioSet('alqalam_author_photo', dataUrl);
+
+    // 2. Coba simpan ke localStorage sebagai fallback jika muat
+    try {
+      localStorage.setItem('alqalam_author_photo', dataUrl);
+    } catch (e) {
+      console.warn('LocalStorage limit reached for raw photo, saved in IndexedDB & Server instead');
+    }
+
+    // 3. Simpan permanen ke server lokal (api.php)
+    try {
+      const res = await fetch('api.php?action=upload_author_photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_data: dataUrl })
+      });
+      const data = await res.json();
+      if (data.success && data.author_url) {
+        console.log('Foto penulis berhasil tersimpan permanen di server:', data.author_url);
+        try {
+          localStorage.setItem('alqalam_author_photo_url', data.author_url);
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.warn('Gagal menyimpan foto penulis ke server:', err);
+    }
+  }
+
+  async loadSavedAuthorPhoto() {
+    // 1. Prioritas utama: Cek IndexedDB (sangat cepat & data base64 utuh)
+    try {
+      const idbPhoto = await idbStudioGet('alqalam_author_photo');
+      if (idbPhoto) {
+        this.setAuthorPhoto(idbPhoto, false);
+        return;
+      }
+    } catch (e) {}
+
+    // 2. Cek localStorage
+    try {
+      const localPhoto = localStorage.getItem('alqalam_author_photo');
+      if (localPhoto) {
+        this.setAuthorPhoto(localPhoto, false);
+        await idbStudioSet('alqalam_author_photo', localPhoto);
+        return;
+      }
+      const localUrl = localStorage.getItem('alqalam_author_photo_url');
+      if (localUrl) {
+        this.setAuthorPhoto(localUrl, false);
+        return;
+      }
+    } catch (e) {}
+
+    // 3. Cek server lokal api.php (permanen lintas browser/setelah bersihkan cache)
+    try {
+      const res = await fetch('api.php?action=get_author_photo&t=' + Date.now());
+      const data = await res.json();
+      if (data.success && data.has_author_photo && data.author_url) {
+        this.setAuthorPhoto(data.author_url, false);
+        await idbStudioSet('alqalam_author_photo', data.author_url);
+      } else {
+        this.setAuthorPhoto(null, false);
+      }
+    } catch (e) {
+      this.setAuthorPhoto(null, false);
+    }
+  }
+
+  updateHeadlineIndent(value, save = true) {
+    const val = parseInt(value, 10) || 0;
+    this.headlineIndent = val;
+    if (this.labelHeadlineIndent) this.labelHeadlineIndent.innerText = `${val} px`;
+    if (this.inpHeadlineIndent) this.inpHeadlineIndent.value = val;
+
+    if (this.authorSlotSpacer) {
+      if (val > 0) {
+        this.authorSlotSpacer.style.display = 'block';
+        this.authorSlotSpacer.style.width = `${val}px`;
+      } else {
+        const showSpacer = this.chkHeadlineSpacer ? this.chkHeadlineSpacer.checked : false;
+        this.authorSlotSpacer.style.display = showSpacer ? 'block' : 'none';
+        this.authorSlotSpacer.style.width = `${Math.max(160, this.authorPhotoWidth || 170)}px`;
+      }
+    }
+
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_headline_indent', val.toString());
+      } catch (e) {}
+    }
   }
 
   initAuthorCardStyles() {
@@ -1003,10 +1191,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
       const trimmedCvs = this.trimCanvas(cvs);
       const trimmedDataUrl = trimmedCvs.toDataURL('image/png');
-      this.setAuthorPhoto(trimmedDataUrl);
-      try {
-        localStorage.setItem('alqalam_author_photo', trimmedDataUrl);
-      } catch (e) {}
+      this.setAuthorPhoto(trimmedDataUrl, true);
       if (showSuccessAlert) {
         alert('✨ Selesai!\n\nRuang kosong transparan di sekeliling foto telah dipotong rapi sehingga foto bisa langsung menempel mepet pas ke tepi halaman.');
       }
@@ -1050,10 +1235,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       ctx.putImageData(imgData, 0, 0);
       const trimmedCvs = this.trimCanvas(cvs);
       const transparentDataUrl = trimmedCvs.toDataURL('image/png');
-      this.setAuthorPhoto(transparentDataUrl);
-      try {
-        localStorage.setItem('alqalam_author_photo', transparentDataUrl);
-      } catch (e) {}
+      this.setAuthorPhoto(transparentDataUrl, true);
       alert('✨ Berhasil!\n\nLatar putih pada foto telah dibersihkan menjadi transparan PNG dan tepiannya dirapatkan agar mepet pas ke tepi halaman.');
     };
     img.src = this.viewAuthorImg.src;
@@ -1301,7 +1483,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const presets = {
       'mepet-kiri':   { photo: { left: -32, top: 35 },  badge: { left: 20,  top: 320 }, align: 'left', spacer: true },
       'mepet-kanan':  { photo: { left: Math.max(0, sheetW - currentW + 32), top: 35 }, badge: { left: Math.max(0, sheetW - 220), top: 320 }, align: 'right', spacer: false },
-      'on-kop':       { photo: { left: 0,   top: 35 },  badge: { left: 32,  top: 235 }, align: 'left', spacer: false },
+      'on-kop':       { photo: { left: 0,   top: 35 },  badge: { left: 32,  top: 235 }, align: 'left', spacer: true },
       'top-left':     { photo: { left: 0,   top: 235 }, badge: { left: 32,  top: 495 }, align: 'left', spacer: true },
       'top-right':    { photo: { left: Math.max(0, sheetW - currentW - 32), top: 235 }, badge: { left: Math.max(0, sheetW - 220), top: 495 }, align: 'right', spacer: false },
       'mid-col2':     { photo: { left: 332, top: 520 }, badge: { left: 332, top: 780 }, align: 'center', spacer: false },
@@ -1736,10 +1918,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.closePasteModal();
 
     // Langsung terapkan seketika agar tidak blank
-    this.setAuthorPhoto(dataUrl);
-    try {
-      localStorage.setItem('alqalam_author_photo', dataUrl);
-    } catch (e) {}
+    this.setAuthorPhoto(dataUrl, true);
 
     // Rapatkan tepi transparan di background
     const testImg = new Image();
@@ -1747,15 +1926,24 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     testImg.onload = () => {
       try {
         const cvs = document.createElement('canvas');
-        cvs.width = testImg.naturalWidth;
-        cvs.height = testImg.naturalHeight;
-        cvs.getContext('2d').drawImage(testImg, 0, 0);
+        let targetW = testImg.naturalWidth || testImg.width || 800;
+        let targetH = testImg.naturalHeight || testImg.height || 1000;
+        const maxDim = 1600;
+        if (targetW > maxDim || targetH > maxDim) {
+          if (targetW >= targetH) {
+            targetH = Math.round((targetH * maxDim) / targetW);
+            targetW = maxDim;
+          } else {
+            targetW = Math.round((targetW * maxDim) / targetH);
+            targetH = maxDim;
+          }
+        }
+        cvs.width = targetW;
+        cvs.height = targetH;
+        cvs.getContext('2d').drawImage(testImg, 0, 0, targetW, targetH);
         const trimmedCvs = this.trimCanvas(cvs);
         const finalUrl = trimmedCvs.toDataURL('image/png');
-        this.setAuthorPhoto(finalUrl);
-        try {
-          localStorage.setItem('alqalam_author_photo', finalUrl);
-        } catch (e) {}
+        this.setAuthorPhoto(finalUrl, true);
       } catch (err) {
         console.warn('Trim canvas notice:', err);
       }
@@ -1769,25 +1957,31 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const reader = new FileReader();
     reader.onload = (evt) => {
       const dataUrl = evt.target.result;
-      this.setAuthorPhoto(dataUrl);
-      try {
-        localStorage.setItem('alqalam_author_photo', dataUrl);
-      } catch (e) {}
+      this.setAuthorPhoto(dataUrl, true);
 
       const testImg = new Image();
       testImg.crossOrigin = 'anonymous';
       testImg.onload = () => {
         try {
           const cvs = document.createElement('canvas');
-          cvs.width = testImg.naturalWidth;
-          cvs.height = testImg.naturalHeight;
-          cvs.getContext('2d').drawImage(testImg, 0, 0);
+          let targetW = testImg.naturalWidth || testImg.width || 800;
+          let targetH = testImg.naturalHeight || testImg.height || 1000;
+          const maxDim = 1600;
+          if (targetW > maxDim || targetH > maxDim) {
+            if (targetW >= targetH) {
+              targetH = Math.round((targetH * maxDim) / targetW);
+              targetW = maxDim;
+            } else {
+              targetW = Math.round((targetW * maxDim) / targetH);
+              targetH = maxDim;
+            }
+          }
+          cvs.width = targetW;
+          cvs.height = targetH;
+          cvs.getContext('2d').drawImage(testImg, 0, 0, targetW, targetH);
           const trimmedCvs = this.trimCanvas(cvs);
           const finalUrl = trimmedCvs.toDataURL('image/png');
-          this.setAuthorPhoto(finalUrl);
-          try {
-            localStorage.setItem('alqalam_author_photo', finalUrl);
-          } catch (e) {}
+          this.setAuthorPhoto(finalUrl, true);
         } catch (err) {}
       };
       testImg.src = dataUrl;
