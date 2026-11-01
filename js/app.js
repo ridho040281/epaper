@@ -2056,21 +2056,6 @@ class EPaperApp {
 
       this.editionsFileList.innerHTML = '';
 
-      // Action toolbar for multi-select merge
-      const toolbar = document.createElement('div');
-      toolbar.className = 'flex items-center justify-between pb-2 mb-1 border-b border-slate-800 text-xs';
-      toolbar.innerHTML = `
-        <div class="flex items-center gap-2">
-          <button id="btn-select-all-files" class="text-xs text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800 transition">Pilih Semua</button>
-          <button id="btn-unselect-all-files" class="text-xs text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800 transition">Batal Pilih</button>
-        </div>
-        <button id="btn-merge-selected-files" class="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition shadow">
-          <i data-lucide="layers" class="w-3.5 h-3.5"></i>
-          <span>Gabung yang Dicentang</span>
-        </button>
-      `;
-      this.editionsFileList.appendChild(toolbar);
-
       data.files.forEach(file => {
         const isCurrent = this.currentPdfName === file.name;
         const item      = document.createElement('div');
@@ -2079,7 +2064,6 @@ class EPaperApp {
 
         item.innerHTML = `
           <div class="flex items-center gap-3 min-w-0">
-            <input type="checkbox" class="file-merge-checkbox w-4 h-4 rounded border-slate-600 text-emerald-500 bg-slate-900 focus:ring-emerald-500 cursor-pointer flex-shrink-0" data-filename="${file.name}" title="Centang untuk digabung">
             <div class="w-10 h-10 rounded-lg ${isCurrent ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 group-hover:bg-emerald-600/80 group-hover:text-white'} flex items-center justify-center flex-shrink-0 transition">
               <i data-lucide="file-text" class="w-5 h-5"></i>
             </div>
@@ -2110,7 +2094,7 @@ class EPaperApp {
 
         // Klik di mana saja pada baris file -> langsung membuka dokumen
         item.addEventListener('click', (e) => {
-          if (e.target.closest('.btn-delete-edition') || e.target.closest('.file-merge-checkbox')) {
+          if (e.target.closest('.btn-delete-edition')) {
             return;
           }
           this.loadFromServerFile(file.name);
@@ -2124,22 +2108,6 @@ class EPaperApp {
         });
 
         this.editionsFileList.appendChild(item);
-      });
-
-      // Events toolbar checkbox
-      toolbar.querySelector('#btn-select-all-files')?.addEventListener('click', () => {
-        this.editionsFileList.querySelectorAll('.file-merge-checkbox').forEach(cb => { cb.checked = true; });
-      });
-      toolbar.querySelector('#btn-unselect-all-files')?.addEventListener('click', () => {
-        this.editionsFileList.querySelectorAll('.file-merge-checkbox').forEach(cb => { cb.checked = false; });
-      });
-      toolbar.querySelector('#btn-merge-selected-files')?.addEventListener('click', () => {
-        const checked = Array.from(this.editionsFileList.querySelectorAll('.file-merge-checkbox:checked')).map(cb => cb.getAttribute('data-filename'));
-        if (checked.length === 0) {
-          alert('Silakan centang minimal 1 file PDF yang ingin digabungkan.');
-          return;
-        }
-        this.loadAllCombinedPDFs(checked);
       });
 
       if (window.lucide) window.lucide.createIcons();
