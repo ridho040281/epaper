@@ -123,14 +123,18 @@
 
     /* Direct On-Canvas Interactive Objects */
     .canvas-selectable {
-      cursor: pointer;
+      cursor: grab;
       position: relative;
       transition: outline 0.15s ease, box-shadow 0.15s ease;
       border-radius: 6px;
+      touch-action: none;
     }
     .canvas-selectable:hover {
       outline: 2px dashed rgba(16, 185, 129, 0.7) !important;
       outline-offset: 3px;
+    }
+    .canvas-selectable:active {
+      cursor: grabbing;
     }
     .canvas-selectable.canvas-selected {
       outline: 2px solid #059669 !important;

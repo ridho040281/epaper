@@ -218,6 +218,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.authorPhotoWidth       = 170; // Lebar foto dalam pixel (bisa di-resize dinamis dengan seret pojok kanan bawah)
     this.authorFrameMode        = 'none'; // 'none' (Tanpa Bingkai & Transparan PNG) atau 'box'
     this.viewByline             = document.getElementById('view-byline');
+    this.viewBylineContainer    = document.getElementById('view-byline-container');
     this.viewHeadline           = document.getElementById('view-headline');
     this.viewSubheadline        = document.getElementById('view-subheadline');
     this.viewNewspaperContent   = document.getElementById('view-newspaper-content');
@@ -251,6 +252,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.bodyFontSize           = 11.5;
     this.authorBadgeFontSize    = 11;
     this.customHeaderScale      = 1.0;
+    this.headlineOffsetY        = 0;
+    this.subheadlineOffsetX     = 0;
+    this.subheadlineOffsetY     = 0;
+    this.bylineOffsetX          = 0;
+    this.bylineOffsetY          = 0;
+    this.justDragged            = false;
 
     // Action Buttons
     this.btnDemoPreset      = document.getElementById('btn-demo-preset');
@@ -368,6 +375,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
     });
     this.initDraggables();
+    this.initTextElementsDirectDrag();
     this.initAuthorResizeHandle();
     this.initClipboardPaste();
     this.initCanvasInteractiveSelection();
@@ -699,6 +707,34 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.updateHeadlineIndent(parseInt(savedIndent, 10), false);
     }
 
+    // Pulihkan offset vertikal judul
+    const savedHeadlineOffsetY = localStorage.getItem('alqalam_headline_offset_y');
+    if (savedHeadlineOffsetY !== null) {
+      this.setHeadlineOffsetY(parseInt(savedHeadlineOffsetY, 10), false);
+    }
+
+    // Pulihkan offset posisi subjudul
+    const savedSubheadlineOffset = localStorage.getItem('alqalam_subheadline_offset');
+    if (savedSubheadlineOffset) {
+      try {
+        const offset = JSON.parse(savedSubheadlineOffset);
+        if (typeof offset.x === 'number' && typeof offset.y === 'number') {
+          this.setSubheadlineOffset(offset.x, offset.y, false);
+        }
+      } catch(e) {}
+    }
+
+    // Pulihkan offset posisi byline
+    const savedBylineOffset = localStorage.getItem('alqalam_byline_offset');
+    if (savedBylineOffset) {
+      try {
+        const offset = JSON.parse(savedBylineOffset);
+        if (typeof offset.x === 'number' && typeof offset.y === 'number') {
+          this.setBylineOffset(offset.x, offset.y, false);
+        }
+      } catch(e) {}
+    }
+
     // Pulihkan ukuran font langsung pada objek
     const savedHeadlineSize = localStorage.getItem('alqalam_headline_size');
     if (savedHeadlineSize) this.setHeadlineFontSize(parseInt(savedHeadlineSize, 10), false);
@@ -1008,6 +1044,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
     }
 
+    const hudVal = document.getElementById('hud-val-headline-indent');
+    if (hudVal) hudVal.innerText = `${val} px`;
+
     if (save) {
       try {
         localStorage.setItem('alqalam_headline_indent', val.toString());
@@ -1290,6 +1329,230 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     );
   }
 
+  initTextElementsDirectDrag() {
+    this.initHeadlineDirectDrag();
+    this.initSubheadlineDirectDrag();
+    this.initBylineDirectDrag();
+  }
+
+  initHeadlineDirectDrag() {
+    const el = this.viewHeadline;
+    if (!el) return;
+
+    let isDown = false;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialIndent = 0;
+    let initialOffsetY = 0;
+
+    const onStart = (e) => {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      if (el.isContentEditable || el.classList.contains('canvas-inline-editing')) return;
+      if (e.target.closest('#handle-resize-headline')) return;
+
+      isDown = true;
+      isDragging = false;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      startX = clientX;
+      startY = clientY;
+      initialIndent = this.headlineIndent || 0;
+      initialOffsetY = this.headlineOffsetY || 0;
+    };
+
+    const onMove = (e) => {
+      if (!isDown) return;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      const zoom = this.zoomScale || 1;
+      const dx = (clientX - startX) / zoom;
+      const dy = (clientY - startY) / zoom;
+
+      if (!isDragging && Math.hypot(dx, dy) > 4) {
+        isDragging = true;
+        this.selectCanvasElement(el);
+        el.classList.add('cursor-grabbing');
+        el.style.transition = 'none';
+        if (this.authorSlotSpacer) this.authorSlotSpacer.style.transition = 'none';
+      }
+
+      if (isDragging) {
+        if (e.cancelable) e.preventDefault();
+        const newIndent = Math.max(0, Math.min(480, Math.round(initialIndent + dx)));
+        const newOffsetY = Math.max(-80, Math.min(160, Math.round(initialOffsetY + dy)));
+        this.updateHeadlineIndent(newIndent, false);
+        this.setHeadlineOffsetY(newOffsetY, false);
+        this.repositionCanvasHud();
+      }
+    };
+
+    const onEnd = () => {
+      if (!isDown) return;
+      isDown = false;
+      if (isDragging) {
+        isDragging = false;
+        el.classList.remove('cursor-grabbing');
+        el.style.transition = '';
+        if (this.authorSlotSpacer) this.authorSlotSpacer.style.transition = '';
+        this.updateHeadlineIndent(this.headlineIndent, true);
+        this.setHeadlineOffsetY(this.headlineOffsetY, true);
+        this.repositionCanvasHud();
+        this.justDragged = true;
+        setTimeout(() => { this.justDragged = false; }, 100);
+      }
+    };
+
+    el.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    el.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  }
+
+  initSubheadlineDirectDrag() {
+    const el = this.viewSubheadline;
+    if (!el) return;
+
+    let isDown = false;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialOffsetX = 0;
+    let initialOffsetY = 0;
+
+    const onStart = (e) => {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      if (el.isContentEditable || el.classList.contains('canvas-inline-editing')) return;
+
+      isDown = true;
+      isDragging = false;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      startX = clientX;
+      startY = clientY;
+      initialOffsetX = this.subheadlineOffsetX || 0;
+      initialOffsetY = this.subheadlineOffsetY || 0;
+    };
+
+    const onMove = (e) => {
+      if (!isDown) return;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      const zoom = this.zoomScale || 1;
+      const dx = (clientX - startX) / zoom;
+      const dy = (clientY - startY) / zoom;
+
+      if (!isDragging && Math.hypot(dx, dy) > 4) {
+        isDragging = true;
+        this.selectCanvasElement(el);
+        el.classList.add('cursor-grabbing');
+        el.style.transition = 'none';
+      }
+
+      if (isDragging) {
+        if (e.cancelable) e.preventDefault();
+        const newX = Math.max(-200, Math.min(500, Math.round(initialOffsetX + dx)));
+        const newY = Math.max(-100, Math.min(200, Math.round(initialOffsetY + dy)));
+        this.setSubheadlineOffset(newX, newY, false);
+        this.repositionCanvasHud();
+      }
+    };
+
+    const onEnd = () => {
+      if (!isDown) return;
+      isDown = false;
+      if (isDragging) {
+        isDragging = false;
+        el.classList.remove('cursor-grabbing');
+        el.style.transition = '';
+        this.setSubheadlineOffset(this.subheadlineOffsetX, this.subheadlineOffsetY, true);
+        this.repositionCanvasHud();
+        this.justDragged = true;
+        setTimeout(() => { this.justDragged = false; }, 100);
+      }
+    };
+
+    el.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    el.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  }
+
+  initBylineDirectDrag() {
+    const el = this.viewBylineContainer;
+    if (!el) return;
+
+    let isDown = false;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialOffsetX = 0;
+    let initialOffsetY = 0;
+
+    const onStart = (e) => {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      if (el.isContentEditable || el.classList.contains('canvas-inline-editing')) return;
+
+      isDown = true;
+      isDragging = false;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      startX = clientX;
+      startY = clientY;
+      initialOffsetX = this.bylineOffsetX || 0;
+      initialOffsetY = this.bylineOffsetY || 0;
+    };
+
+    const onMove = (e) => {
+      if (!isDown) return;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      const zoom = this.zoomScale || 1;
+      const dx = (clientX - startX) / zoom;
+      const dy = (clientY - startY) / zoom;
+
+      if (!isDragging && Math.hypot(dx, dy) > 4) {
+        isDragging = true;
+        this.selectCanvasElement(el);
+        el.classList.add('cursor-grabbing');
+        el.style.transition = 'none';
+      }
+
+      if (isDragging) {
+        if (e.cancelable) e.preventDefault();
+        const newX = Math.max(-200, Math.min(500, Math.round(initialOffsetX + dx)));
+        const newY = Math.max(-100, Math.min(200, Math.round(initialOffsetY + dy)));
+        this.setBylineOffset(newX, newY, false);
+        this.repositionCanvasHud();
+      }
+    };
+
+    const onEnd = () => {
+      if (!isDown) return;
+      isDown = false;
+      if (isDragging) {
+        isDragging = false;
+        el.classList.remove('cursor-grabbing');
+        el.style.transition = '';
+        this.setBylineOffset(this.bylineOffsetX, this.bylineOffsetY, true);
+        this.repositionCanvasHud();
+        this.justDragged = true;
+        setTimeout(() => { this.justDragged = false; }, 100);
+      }
+    };
+
+    el.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
+    el.addEventListener('touchstart', onStart, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onEnd);
+  }
+
   initAuthorResizeHandle() {
     const handle = this.handleResizeAuthor;
     const container = this.containerAuthorPhoto;
@@ -1374,6 +1637,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       if (e.target.closest('#canvas-hud-toolbar') || e.target.closest('.export-ignore')) {
         return;
       }
+      if (this.justDragged) {
+        this.justDragged = false;
+        return;
+      }
 
       const target = e.target.closest('.canvas-selectable');
       if (target) {
@@ -1386,6 +1653,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     // 2. Klik di luar canvas untuk deselect
     document.addEventListener('click', (e) => {
+      if (this.justDragged) return;
       if (!e.target.closest('#a3-sheet') && !e.target.closest('#canvas-hud-toolbar')) {
         this.deselectCanvasElement();
       }
@@ -1404,7 +1672,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         const type = target.getAttribute('data-canvas-type');
         if (type === 'headline' || type === 'subheadline' || type === 'author-badge' || type === 'byline') {
           e.stopPropagation();
-          this.startInlineEditing(target);
+          const editTarget = (type === 'byline' && this.viewByline) ? this.viewByline : target;
+          this.startInlineEditing(editTarget);
         }
       }
     });
@@ -1422,14 +1691,16 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.selectedCanvasElement.classList.remove('canvas-selected');
     }
 
+    const isAlreadySelected = (this.selectedCanvasElement === el);
     this.selectedCanvasElement = el;
     el.classList.add('canvas-selected');
 
-    this.renderHudControls(el);
+    if (!isAlreadySelected || this.canvasHudToolbar.classList.contains('hidden')) {
+      this.renderHudControls(el);
+      this.canvasHudToolbar.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+    }
     this.repositionCanvasHud();
-    this.canvasHudToolbar.classList.remove('hidden');
-
-    if (window.lucide) window.lucide.createIcons();
   }
 
   deselectCanvasElement() {
@@ -1488,10 +1759,14 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         <button type="button" id="btn-hud-headline-bigger" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Besarkan Huruf Judul">+</button>
         
         <span class="text-slate-600 px-0.5">|</span>
-        
+
+        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret judul bebas di lembaran"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
+
         <button type="button" id="btn-hud-indent-left" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition" title="Geser Judul ke Kiri"><i data-lucide="chevron-left" class="w-3 h-3"></i><span>Geser</span></button>
         <span id="hud-val-headline-indent" class="font-mono text-amber-300 font-bold px-1">${this.headlineIndent} px</span>
         <button type="button" id="btn-hud-indent-right" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center gap-1 transition" title="Geser Judul ke Kanan (Beri Ruang Foto)"><span>Geser</span><i data-lucide="chevron-right" class="w-3 h-3"></i></button>
+
+        <button type="button" id="btn-hud-headline-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Judul ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
 
         <span class="text-slate-600 px-0.5">|</span>
 
@@ -1508,14 +1783,15 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
       this.hudControls.querySelector('#btn-hud-indent-left')?.addEventListener('click', () => {
         this.updateHeadlineIndent(Math.max(0, this.headlineIndent - 15));
-        const valSpan = document.getElementById('hud-val-headline-indent');
-        if (valSpan) valSpan.innerText = `${this.headlineIndent} px`;
         this.repositionCanvasHud();
       });
       this.hudControls.querySelector('#btn-hud-indent-right')?.addEventListener('click', () => {
-        this.updateHeadlineIndent(Math.min(360, this.headlineIndent + 15));
-        const valSpan = document.getElementById('hud-val-headline-indent');
-        if (valSpan) valSpan.innerText = `${this.headlineIndent} px`;
+        this.updateHeadlineIndent(Math.min(480, this.headlineIndent + 15));
+        this.repositionCanvasHud();
+      });
+      this.hudControls.querySelector('#btn-hud-headline-reset-pos')?.addEventListener('click', () => {
+        this.updateHeadlineIndent(0, true);
+        this.setHeadlineOffsetY(0, true);
         this.repositionCanvasHud();
       });
       this.hudControls.querySelector('#btn-hud-headline-edit')?.addEventListener('click', () => {
@@ -1534,6 +1810,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         
         <span class="text-slate-600 px-0.5">|</span>
 
+        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret subjudul bebas di lembaran"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
+
+        <button type="button" id="btn-hud-subheadline-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Subjudul ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
+
+        <span class="text-slate-600 px-0.5">|</span>
+
         <button type="button" id="btn-hud-subheadline-edit" class="px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white flex items-center gap-1 transition font-medium" title="Ketik Subjudul Langsung"><i data-lucide="edit-3" class="w-3 h-3"></i><span>Ketik Langsung</span></button>
       `;
 
@@ -1545,8 +1827,32 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         this.setSubheadlineFontSize(this.subheadlineFontSize + 2);
         this.repositionCanvasHud();
       });
+      this.hudControls.querySelector('#btn-hud-subheadline-reset-pos')?.addEventListener('click', () => {
+        this.setSubheadlineOffset(0, 0, true);
+        this.repositionCanvasHud();
+      });
       this.hudControls.querySelector('#btn-hud-subheadline-edit')?.addEventListener('click', () => {
         this.startInlineEditing(el);
+      });
+
+    } else if (type === 'byline') {
+      this.hudTitle.innerHTML = `<i data-lucide="user-check" class="w-3.5 h-3.5 text-rose-400"></i><span>Byline Penulis</span>`;
+      this.hudControls.innerHTML = `
+        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret byline penulis bebas di lembaran"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
+
+        <button type="button" id="btn-hud-byline-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Byline ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
+
+        <span class="text-slate-600 px-0.5">|</span>
+
+        <button type="button" id="btn-hud-byline-edit" class="px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white flex items-center gap-1 transition font-medium" title="Ketik Nama Penulis Langsung"><i data-lucide="edit-3" class="w-3 h-3"></i><span>Ketik Nama</span></button>
+      `;
+
+      this.hudControls.querySelector('#btn-hud-byline-reset-pos')?.addEventListener('click', () => {
+        this.setBylineOffset(0, 0, true);
+        this.repositionCanvasHud();
+      });
+      this.hudControls.querySelector('#btn-hud-byline-edit')?.addEventListener('click', () => {
+        this.startInlineEditing(this.viewByline || el);
       });
 
     } else if (type === 'author-photo') {
@@ -1555,6 +1861,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         <button type="button" id="btn-hud-author-smaller" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Perkecil Foto">−</button>
         <span id="hud-val-author-size" class="font-mono text-emerald-300 font-bold px-1">${this.authorPhotoWidth || 170} px</span>
         <button type="button" id="btn-hud-author-bigger" class="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center font-bold text-sm transition" title="Perbesar Foto">+</button>
+
+        <span class="text-slate-600 px-0.5">|</span>
+
+        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret foto penulis bebas ke mana saja"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
+
+        <button type="button" id="btn-hud-author-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Foto ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
 
         <span class="text-slate-600 px-0.5">|</span>
 
@@ -1576,6 +1888,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         const valSpan = document.getElementById('hud-val-author-size');
         if (valSpan) valSpan.innerText = `${this.authorPhotoWidth} px`;
         this.repositionCanvasHud();
+      });
+      this.hudControls.querySelector('#btn-hud-author-reset-pos')?.addEventListener('click', () => {
+        this.resetAuthorPhotoPosition();
       });
       this.hudControls.querySelector('#btn-hud-author-trim')?.addEventListener('click', () => {
         this.trimAuthorPhoto(true);
@@ -1599,6 +1914,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
         <span class="text-slate-600 px-0.5">|</span>
 
+        <span class="text-[10px] text-slate-300 font-sans flex items-center gap-1 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700" title="Bisa langsung klik & seret kotak nama bebas ke mana saja"><i data-lucide="move" class="w-3 h-3 text-emerald-400"></i><span>Bisa Di-Drag</span></span>
+
+        <button type="button" id="btn-hud-badge-reset-pos" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-white flex items-center gap-1 transition" title="Kembalikan Posisi Kotak Nama ke Semula"><i data-lucide="rotate-ccw" class="w-3 h-3"></i><span>Reset Posisi</span></button>
+
+        <span class="text-slate-600 px-0.5">|</span>
+
         <button type="button" id="btn-hud-badge-edit" class="px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white flex items-center gap-1 transition font-medium" title="Ketik Nama Langsung"><i data-lucide="edit-3" class="w-3 h-3"></i><span>Ketik Nama</span></button>
       `;
 
@@ -1609,6 +1930,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.hudControls.querySelector('#btn-hud-badge-bigger')?.addEventListener('click', () => {
         this.setAuthorBadgeFontSize(this.authorBadgeFontSize + 1);
         this.repositionCanvasHud();
+      });
+      this.hudControls.querySelector('#btn-hud-badge-reset-pos')?.addEventListener('click', () => {
+        this.resetAuthorBadgePosition();
       });
       this.hudControls.querySelector('#btn-hud-badge-edit')?.addEventListener('click', () => {
         this.startInlineEditing(el.querySelector('#view-author-badge') || el);
@@ -1747,7 +2071,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     const onInput = () => {
       const text = el.innerText.trim();
-      const type = el.getAttribute('data-canvas-type');
+      const type = el.getAttribute('data-canvas-type') || (el.id === 'view-byline' ? 'byline' : '');
       if (type === 'headline' && this.inpHeadline) {
         this.inpHeadline.value = text;
       } else if (type === 'subheadline' && this.inpSubheadline) {
@@ -1855,10 +2179,59 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     }
   }
 
+  setHeadlineOffsetY(val, save = true) {
+    this.headlineOffsetY = Math.round(val) || 0;
+    if (this.viewHeadline) {
+      this.viewHeadline.style.transform = this.headlineOffsetY !== 0 ? `translateY(${this.headlineOffsetY}px)` : '';
+    }
+    if (save) {
+      try { localStorage.setItem('alqalam_headline_offset_y', this.headlineOffsetY.toString()); } catch(e){}
+    }
+  }
+
+  setSubheadlineOffset(x, y, save = true) {
+    this.subheadlineOffsetX = Math.round(x) || 0;
+    this.subheadlineOffsetY = Math.round(y) || 0;
+    if (this.viewSubheadline) {
+      const transform = (this.subheadlineOffsetX !== 0 || this.subheadlineOffsetY !== 0)
+        ? `translate(${this.subheadlineOffsetX}px, ${this.subheadlineOffsetY}px)`
+        : '';
+      this.viewSubheadline.style.transform = transform;
+    }
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_subheadline_offset', JSON.stringify({
+          x: this.subheadlineOffsetX,
+          y: this.subheadlineOffsetY
+        }));
+      } catch(e) {}
+    }
+  }
+
+  setBylineOffset(x, y, save = true) {
+    this.bylineOffsetX = Math.round(x) || 0;
+    this.bylineOffsetY = Math.round(y) || 0;
+    if (this.viewBylineContainer) {
+      const transform = (this.bylineOffsetX !== 0 || this.bylineOffsetY !== 0)
+        ? `translate(${this.bylineOffsetX}px, ${this.bylineOffsetY}px)`
+        : '';
+      this.viewBylineContainer.style.transform = transform;
+    }
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_byline_offset', JSON.stringify({
+          x: this.bylineOffsetX,
+          y: this.bylineOffsetY
+        }));
+      } catch(e) {}
+    }
+  }
+
   makeElementDraggable(elem, storageKey, defaultLeft, defaultTop) {
     if (!elem || !this.a3Sheet) return;
     const sheet = this.a3Sheet;
 
+    let isDown = false;
     let isDragging = false;
     let startX = 0;
     let startY = 0;
@@ -1884,8 +2257,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     const onStart = (e) => {
       if (e.type === 'mousedown' && e.button !== 0) return;
+      if (e.target.closest('#handle-resize-author')) return;
 
-      isDragging = true;
+      isDown = true;
+      isDragging = false;
       const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
 
@@ -1896,15 +2271,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       initialLeft = (!isNaN(pLeft)) ? pLeft : defaultLeft;
       const pTop = parseFloat(elem.style.top);
       initialTop = (!isNaN(pTop)) ? pTop : defaultTop;
-
-      elem.classList.add('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
-      elem.style.cursor = 'grabbing';
-
-      if (e.cancelable) e.preventDefault();
     };
 
     const onMove = (e) => {
-      if (!isDragging) return;
+      if (!isDown) return;
 
       const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
@@ -1914,49 +2284,64 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const dx = (clientX - startX) / zoom;
       const dy = (clientY - startY) / zoom;
 
-      let newLeft = initialLeft + dx;
-      let newTop = initialTop + dy;
+      if (!isDragging && Math.hypot(dx, dy) > 4) {
+        isDragging = true;
+        this.selectCanvasElement(elem);
+        elem.classList.add('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
+        elem.style.cursor = 'grabbing';
+      }
 
-      // Batasi di dalam lembaran kertas A3
-      const sheetW = sheet.offsetWidth || 840;
-      const sheetH = sheet.offsetHeight || 1188;
-      const elemW = elem.offsetWidth || 150;
-      const elemH = elem.offsetHeight || 150;
+      if (isDragging) {
+        if (e.cancelable) e.preventDefault();
 
-      const isPhoto = (elem.id === 'container-author-photo');
-      // Bebas geser tembus tepi kiri dan kanan secara simetris
-      // Untuk foto penulis, izinkan drag menembus keluar lembaran (bleed mepet tepi)
-      // Sisakan minimal 40px di atas lembaran agar handle tetap bisa disentuh/ditarik kembali
-      const minLeft = isPhoto ? -(elemW - 40) : 0;
-      const maxLeft = isPhoto ? (sheetW - 40) : (sheetW - elemW);
-      const minTop  = isPhoto ? -(elemH - 60) : 0;
-      const maxTop  = isPhoto ? (sheetH - 60) : (sheetH - elemH);
+        let newLeft = initialLeft + dx;
+        let newTop = initialTop + dy;
 
-      newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
-      newTop = Math.max(minTop, Math.min(maxTop, newTop));
+        // Batasi di dalam lembaran kertas A3
+        const sheetW = sheet.offsetWidth || 840;
+        const sheetH = sheet.offsetHeight || 1188;
+        const elemW = elem.offsetWidth || 150;
+        const elemH = elem.offsetHeight || 150;
 
-      elem.style.left = `${newLeft}px`;
-      elem.style.top = `${newTop}px`;
+        const isPhoto = (elem.id === 'container-author-photo');
+        const minLeft = isPhoto ? -(elemW - 40) : 0;
+        const maxLeft = isPhoto ? (sheetW - 40) : (sheetW - elemW);
+        const minTop  = isPhoto ? -(elemH - 60) : 0;
+        const maxTop  = isPhoto ? (sheetH - 60) : (sheetH - elemH);
 
-      if (e.cancelable) e.preventDefault();
+        newLeft = Math.max(minLeft, Math.min(maxLeft, newLeft));
+        newTop = Math.max(minTop, Math.min(maxTop, newTop));
+
+        elem.style.left = `${newLeft}px`;
+        elem.style.top = `${newTop}px`;
+
+        this.repositionCanvasHud();
+      }
     };
 
     const onEnd = () => {
-      if (!isDragging) return;
-      isDragging = false;
+      if (!isDown) return;
+      isDown = false;
 
-      elem.classList.remove('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
-      elem.style.cursor = 'grab';
+      if (isDragging) {
+        isDragging = false;
+        elem.classList.remove('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
+        elem.style.cursor = 'grab';
 
-      const pLeft = parseFloat(elem.style.left);
-      const currentLeft = (!isNaN(pLeft)) ? pLeft : defaultLeft;
-      const pTop = parseFloat(elem.style.top);
-      const currentTop = (!isNaN(pTop)) ? pTop : defaultTop;
+        const pLeft = parseFloat(elem.style.left);
+        const currentLeft = (!isNaN(pLeft)) ? pLeft : defaultLeft;
+        const pTop = parseFloat(elem.style.top);
+        const currentTop = (!isNaN(pTop)) ? pTop : defaultTop;
 
-      try {
-        localStorage.setItem(storageKey, JSON.stringify({ left: currentLeft, top: currentTop }));
-      } catch (err) {
-        console.warn(`LocalStorage ${storageKey}:`, err);
+        try {
+          localStorage.setItem(storageKey, JSON.stringify({ left: currentLeft, top: currentTop }));
+        } catch (err) {
+          console.warn(`LocalStorage ${storageKey}:`, err);
+        }
+
+        this.repositionCanvasHud();
+        this.justDragged = true;
+        setTimeout(() => { this.justDragged = false; }, 100);
       }
     };
 
@@ -1964,7 +2349,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onEnd);
 
-    elem.addEventListener('touchstart', onStart, { passive: false });
+    elem.addEventListener('touchstart', onStart, { passive: true });
     window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('touchend', onEnd);
   }
@@ -1994,11 +2379,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   resetAuthorPhotoPosition() {
     localStorage.removeItem('alqalam_author_photo_pos');
     this.setAuthorPhotoPosition(0, 35, false);
+    this.repositionCanvasHud();
   }
 
   resetAuthorBadgePosition() {
     localStorage.removeItem('alqalam_author_badge_pos');
     this.setAuthorBadgePosition(32, 235, false);
+    this.repositionCanvasHud();
   }
 
   applyAuthorPosPreset(key) {
