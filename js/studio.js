@@ -103,6 +103,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.initDefaultContent();
     this.adjustZoomToFit();
     this.loadMasterHeader();
+    this.initCorelInterface();
   }
 
   initElements() {
@@ -277,6 +278,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnPasteToActivity     = document.getElementById('btn-paste-to-activity');
     this.btnPasteAuthorDirect   = document.getElementById('btn-paste-author-direct');
     this.btnPasteHeaderDirect   = document.getElementById('btn-paste-header-direct');
+
+    // Corel Mini Studio Elements
+    this.corelPropertyBar   = document.getElementById('corel-property-bar');
+    this.corelPropertyContent = document.getElementById('corel-property-content');
+    this.corelToolbox       = document.getElementById('corel-toolbox');
+    this.btnToggleDock      = document.getElementById('btn-toggle-dock');
+    this.btnCloseDock       = document.getElementById('btn-close-dock');
 
     // Loading overlay
     this.loadingOverlay     = document.getElementById('studio-loading');
@@ -568,6 +576,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (this.labelKopSize) {
       this.labelKopSize.innerText = current.label;
     }
+    const propVal = document.getElementById('prop-val-kop-size');
+    if (propVal) propVal.innerText = current.label;
 
     // 1. Perubahan skala untuk Kop Bawaan (AL QALAM Logo Resmi)
     if (this.viewBrandHeaderImg) {
@@ -673,6 +683,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
     if (this.textWordCount) {
       this.textWordCount.innerText = `${words} kata`;
+    }
+    const propWordCount = document.getElementById('prop-val-word-count');
+    if (propWordCount) {
+      propWordCount.innerText = `${words} kata`;
     }
 
     if (!text) {
@@ -1038,6 +1052,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.headlineIndent = val;
     if (this.labelHeadlineIndent) this.labelHeadlineIndent.innerText = `${val} px`;
     if (this.inpHeadlineIndent) this.inpHeadlineIndent.value = val;
+    const propVal = document.getElementById('prop-val-headline-indent');
+    if (propVal) propVal.innerText = `${val} px`;
 
     if (this.authorSlotSpacer) {
       if (val > 0) {
@@ -1137,6 +1153,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (this.labelAuthorSize) {
       this.labelAuthorSize.innerText = `${width} px`;
     }
+    const propValWidth = document.getElementById('prop-val-author-width');
+    if (propValWidth) propValWidth.innerText = `${width} px`;
     if (this.containerAuthorPhoto) {
       this.containerAuthorPhoto.style.width = `${width}px`;
       this.containerAuthorPhoto.classList.remove('items-start', 'items-center', 'items-end');
@@ -1517,7 +1535,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   }
 
   /* ==========================================================================
-     DIRECT ON-CANVAS INTERACTIVE SELECTION & DYNAMIC LAYOUT CONTROLS (HUD)
+     COREL-STYLE INTERACTIVE SELECTION & CONTEXTUAL PROPERTY BAR
      ========================================================================== */
 
   initCanvasInteractiveSelection() {
@@ -1525,8 +1543,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     // 1. Klik pada elemen di atas lembaran koran A3
     this.a3Sheet.addEventListener('click', (e) => {
-      // Abaikan jika klik di dalam HUD toolbar sendiri
-      if (e.target.closest('#canvas-hud-toolbar') || e.target.closest('.export-ignore')) {
+      if (e.target.closest('.export-ignore')) {
         return;
       }
       if (this.justDragged) {
@@ -1543,10 +1560,22 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
     });
 
-    // 2. Klik di luar canvas untuk deselect
+    // 2. Klik di luar canvas untuk deselect (abaikan jika klik di toolbox/property-bar/dock/modals)
     document.addEventListener('click', (e) => {
       if (this.justDragged) return;
-      if (!e.target.closest('#a3-sheet')) {
+      if (!e.target.closest('#a3-sheet') && 
+          !e.target.closest('#corel-property-bar') && 
+          !e.target.closest('#corel-toolbox') && 
+          !e.target.closest('#editor-panel') &&
+          !e.target.closest('#modal-paste-target') &&
+          !e.target.closest('header')) {
+        this.deselectCanvasElement();
+      }
+    });
+
+    // 3. Tombol Escape untuk deselect
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
         this.deselectCanvasElement();
       }
     });
@@ -1563,7 +1592,6 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         }
       }
     });
-
   }
 
   selectCanvasElement(el) {
@@ -1575,6 +1603,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     this.selectedCanvasElement = el;
     el.classList.add('canvas-selected');
+
+    const type = el.getAttribute('data-canvas-type') || this.inferElementType(el);
+    this.updateCorelPropertyBar(type, el);
+    this.updateActiveTool(type);
   }
 
   deselectCanvasElement() {
@@ -1582,14 +1614,681 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.selectedCanvasElement.classList.remove('canvas-selected');
       this.selectedCanvasElement = null;
     }
+    this.updateCorelPropertyBar('page', null);
+    this.updateActiveTool('pick');
   }
 
   repositionCanvasHud() {
-    // Toolbar HUD melayang di halaman ditiadakan agar lembaran koran bersih tanpa gangguan
+    // Toolbar HUD melayang di halaman ditiadakan digantikan Top Property Bar ala CorelDRAW
   }
 
   renderHudControls(el) {
-    // Toolbar HUD melayang di halaman ditiadakan agar lembaran koran bersih tanpa gangguan
+    // Digantikan oleh Contextual Property Bar di bagian atas
+  }
+
+  /* ==========================================================================
+     COREL MINI STUDIO ENGINE (Toolbox, Property Bar, Collapsible Dock)
+     ========================================================================== */
+
+  initCorelInterface() {
+    this.initCorelToolbox();
+    this.initCorelDock();
+    this.updateCorelPropertyBar('page', null);
+  }
+
+  inferElementType(el) {
+    if (!el) return 'page';
+    if (el === this.viewHeadline || el.id === 'view-headline') return 'headline';
+    if (el === this.viewSubheadline || el.id === 'view-subheadline') return 'subheadline';
+    if (el === this.viewBylineContainer || el === this.viewByline || el.id === 'view-byline-container') return 'byline';
+    if (el.closest('#container-author-photo')) return 'author-photo';
+    if (el.closest('#container-author-badge')) return 'author-badge';
+    if (el.closest('#view-custom-header-wrapper') || el.closest('#container-sheet-header')) return 'header';
+    if (el === this.viewNewspaperContent || el.id === 'view-newspaper-content') return 'newspaper-content';
+    if (el.closest('#container-bottom-inserts')) return 'bottom-inserts';
+    return 'page';
+  }
+
+  updateActiveTool(type) {
+    const toolMap = {
+      'pick': 'tool-pick',
+      'page': 'tool-pick',
+      'headline': 'tool-headline',
+      'subheadline': 'tool-subheadline',
+      'author-photo': 'tool-photo',
+      'author-badge': 'tool-badge',
+      'header': 'tool-header',
+      'newspaper-content': 'tool-body',
+      'bottom-inserts': 'tool-activity'
+    };
+    const activeToolId = toolMap[type] || 'tool-pick';
+    document.querySelectorAll('#corel-toolbox .corel-tool-btn').forEach(btn => {
+      if (btn.id === activeToolId) {
+        btn.classList.add('active');
+      } else if (btn.id.startsWith('tool-') && btn.id !== 'tool-dock-toggle' && btn.id !== 'tool-paste-direct') {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  initCorelToolbox() {
+    const bindTool = (toolId, onSelect) => {
+      const btn = document.getElementById(toolId);
+      if (!btn) return;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onSelect();
+      });
+    };
+
+    bindTool('tool-pick', () => {
+      this.deselectCanvasElement();
+    });
+
+    bindTool('tool-headline', () => {
+      if (this.viewHeadline) this.selectCanvasElement(this.viewHeadline);
+    });
+
+    bindTool('tool-subheadline', () => {
+      if (this.viewSubheadline) this.selectCanvasElement(this.viewSubheadline);
+    });
+
+    bindTool('tool-photo', () => {
+      if (this.containerAuthorPhoto) this.selectCanvasElement(this.containerAuthorPhoto);
+    });
+
+    bindTool('tool-badge', () => {
+      if (this.containerAuthorBadge) this.selectCanvasElement(this.containerAuthorBadge);
+    });
+
+    bindTool('tool-header', () => {
+      if (this.viewCustomHeaderWrapper) this.selectCanvasElement(this.viewCustomHeaderWrapper);
+    });
+
+    bindTool('tool-body', () => {
+      if (this.viewNewspaperContent) this.selectCanvasElement(this.viewNewspaperContent);
+      this.toggleDock(true);
+      this.switchDockTab('tab-pane-naskah');
+    });
+
+    bindTool('tool-activity', () => {
+      if (this.containerBottomInserts) {
+        this.containerBottomInserts.style.display = 'grid';
+        this.selectCanvasElement(this.containerBottomInserts);
+      }
+      this.toggleDock(true);
+      this.switchDockTab('tab-pane-sisipan');
+    });
+
+    bindTool('tool-paste-direct', () => {
+      if (this.btnPasteAuthorDirect) {
+        this.btnPasteAuthorDirect.click();
+      }
+    });
+
+    bindTool('tool-dock-toggle', () => {
+      this.toggleDock();
+    });
+  }
+
+  initCorelDock() {
+    this.btnToggleDock = document.getElementById('btn-toggle-dock');
+    this.btnCloseDock = document.getElementById('btn-close-dock');
+
+    this.btnToggleDock?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleDock();
+    });
+
+    this.btnCloseDock?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleDock(false);
+    });
+
+    // Tab buttons
+    document.querySelectorAll('.btn-dock-tab').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-target');
+        this.switchDockTab(targetId);
+      });
+    });
+
+    // Quick Paste button in Naskah tab
+    const btnPasteDock = document.getElementById('btn-paste-clipboard-dock');
+    btnPasteDock?.addEventListener('click', async () => {
+      try {
+        if (!navigator.clipboard?.readText) {
+          alert('Silakan tekan Ctrl+V pada kotak teks untuk menempel naskah.');
+          this.inpBodyText?.focus();
+          return;
+        }
+        const text = await navigator.clipboard.readText();
+        if (text && this.inpBodyText) {
+          this.inpBodyText.value = text;
+          this.inpBodyText.dispatchEvent(new Event('input', { bubbles: true }));
+          this.formatNewspaperContent();
+        }
+      } catch (err) {
+        this.inpBodyText?.focus();
+      }
+    });
+
+    // Demo button in Naskah tab
+    const btnDemoDock = document.getElementById('btn-demo-preset-dock');
+    btnDemoDock?.addEventListener('click', () => {
+      if (this.btnDemoPreset) this.btnDemoPreset.click();
+    });
+
+    // Template selection buttons in detail tab
+    document.querySelectorAll('.btn-template-select').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.getAttribute('data-template-type');
+        if (type) this.setTemplateStyle(type);
+      });
+    });
+  }
+
+  toggleDock(open = null) {
+    const panel = this.editorPanel;
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    const shouldOpen = (open !== null) ? open : isHidden;
+
+    if (shouldOpen) {
+      panel.classList.remove('hidden');
+      if (this.btnToggleDock) {
+        this.btnToggleDock.classList.add('bg-slate-800', 'text-emerald-400', 'border-emerald-500/40');
+      }
+    } else {
+      panel.classList.add('hidden');
+      if (this.btnToggleDock) {
+        this.btnToggleDock.classList.remove('bg-slate-800', 'text-emerald-400', 'border-emerald-500/40');
+      }
+    }
+    setTimeout(() => this.adjustZoomToFit(), 100);
+  }
+
+  switchDockTab(targetPaneId) {
+    document.querySelectorAll('.btn-dock-tab').forEach(btn => {
+      if (btn.getAttribute('data-target') === targetPaneId) {
+        btn.className = 'btn-dock-tab px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-white shadow-sm transition';
+      } else {
+        btn.className = 'btn-dock-tab px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
+      }
+    });
+
+    document.querySelectorAll('.dock-tab-pane').forEach(pane => {
+      if (pane.id === targetPaneId) {
+        pane.classList.remove('hidden');
+      } else {
+        pane.classList.add('hidden');
+      }
+    });
+  }
+
+  setTemplateStyle(templateType) {
+    this.currentTemplate = templateType;
+    try {
+      localStorage.setItem('alqalam_template_type', templateType);
+    } catch(e) {}
+
+    document.querySelectorAll('.btn-template-select').forEach(btn => {
+      const t = btn.getAttribute('data-template-type');
+      if (t === templateType) {
+        btn.className = 'btn-template-select p-2 rounded-xl border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-xs font-bold flex items-center gap-2 text-left transition shadow-sm';
+      } else {
+        btn.className = 'btn-template-select p-2 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-xs font-semibold flex items-center gap-2 text-left transition';
+      }
+    });
+
+    if (templateType === 'news_report') {
+      if (this.containerAuthorPhoto) this.containerAuthorPhoto.style.display = 'none';
+      if (this.containerAuthorBadge) this.containerAuthorBadge.style.display = 'none';
+      if (this.authorSlotSpacer) this.authorSlotSpacer.classList.add('hidden');
+      if (this.chkShowActivityImg) {
+        this.chkShowActivityImg.checked = true;
+        this.chkShowActivityImg.dispatchEvent(new Event('change'));
+      }
+    } else {
+      if (this.containerAuthorPhoto) this.containerAuthorPhoto.style.display = '';
+      if (this.containerAuthorBadge && (this.chkShowAuthorBadge ? this.chkShowAuthorBadge.checked : true)) {
+        this.containerAuthorBadge.style.display = '';
+      }
+      if (this.chkHeadlineSpacer?.checked && this.authorSlotSpacer) {
+        this.authorSlotSpacer.classList.remove('hidden');
+      }
+    }
+
+    this.updateCorelPropertyBar(this.selectedCanvasElement ? (this.selectedCanvasElement.getAttribute('data-canvas-type') || this.inferElementType(this.selectedCanvasElement)) : 'page');
+  }
+
+  updateCorelPropertyBar(type = 'page', el = null) {
+    const container = document.getElementById('corel-property-content');
+    if (!container) return;
+
+    if (!type) type = 'page';
+
+    let html = '';
+
+    if (type === 'page') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700/80 font-semibold text-xs">
+            <i data-lucide="file-text" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>A3 Koran (297 × 420 mm)</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800 hidden sm:block"></div>
+          <div class="flex items-center gap-1">
+            <button type="button" id="prop-tmpl-opinion" class="px-2.5 py-1 rounded-lg text-xs font-semibold ${this.currentTemplate === 'teacher_opinion' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:text-white'} transition">
+              Opini Guru
+            </button>
+            <button type="button" id="prop-tmpl-news" class="px-2.5 py-1 rounded-lg text-xs font-semibold ${this.currentTemplate === 'news_report' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:text-white'} transition">
+              Liputan Berita
+            </button>
+          </div>
+          <div class="h-4 w-px bg-slate-800 hidden lg:block"></div>
+          <label class="hidden lg:flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer select-none">
+            <input type="checkbox" id="prop-chk-fullbleed" ${this.chkFullWidthHeader?.checked ? 'checked' : ''} class="w-3.5 h-3.5 rounded accent-emerald-500">
+            <span>Full-Bleed Kop</span>
+          </label>
+          <div class="h-4 w-px bg-slate-800 hidden sm:block"></div>
+          <button type="button" id="prop-btn-open-drawer" class="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-semibold flex items-center gap-1.5 text-xs transition active:scale-95">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            <span>Buka Panel Naskah</span>
+          </button>
+        </div>
+      `;
+    } else if (type === 'headline') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="heading-1" class="w-3.5 h-3.5"></i>
+            <span>Judul Utama</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-headline-size-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Huruf">A-</button>
+            <span id="prop-val-headline-size" class="w-12 text-center font-mono font-bold text-white text-xs">${this.headlineFontSize} px</span>
+            <button type="button" id="prop-btn-headline-size-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Besarkan Huruf">A+</button>
+          </div>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-400 text-[11px] hidden sm:inline">Geser:</span>
+            <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+              <button type="button" id="prop-btn-headline-indent-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kurangi Geser">◀</button>
+              <span id="prop-val-headline-indent" class="w-12 text-center font-mono font-bold text-emerald-400 text-xs">${this.headlineIndent} px</span>
+              <button type="button" id="prop-btn-headline-indent-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Tambah Geser">▶</button>
+            </div>
+            <button type="button" id="prop-btn-headline-indent-reset" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] rounded border border-slate-700 transition" title="Reset Geser Kanan">Reset</button>
+          </div>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-headline-reset-offset" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs rounded-lg border border-slate-700 transition flex items-center gap-1" title="Kembalikan Judul ke Posisi Standar">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Reset Posisi</span>
+          </button>
+          <span class="text-slate-400 text-[11px] hidden xl:inline ml-auto">💡 Geser bebas di kertas atau klik ganda untuk ketik teks</span>
+        </div>
+      `;
+    } else if (type === 'subheadline') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="heading-2" class="w-3.5 h-3.5"></i>
+            <span>Subjudul</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-subheadline-size-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Huruf">A-</button>
+            <span id="prop-val-subheadline-size" class="w-12 text-center font-mono font-bold text-white text-xs">${this.subheadlineFontSize} px</span>
+            <button type="button" id="prop-btn-subheadline-size-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Besarkan Huruf">A+</button>
+          </div>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-subheadline-reset-offset" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs rounded-lg border border-slate-700 transition flex items-center gap-1" title="Kembalikan Subjudul ke Posisi Standar">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Reset Posisi</span>
+          </button>
+          <span class="text-slate-400 text-[11px] hidden xl:inline ml-auto">💡 Geser bebas di kertas atau klik ganda untuk ketik teks</span>
+        </div>
+      `;
+    } else if (type === 'byline') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="user" class="w-3.5 h-3.5"></i>
+            <span>Byline Penulis</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-byline-reset-offset" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs rounded-lg border border-slate-700 transition flex items-center gap-1">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Reset Posisi</span>
+          </button>
+          <button type="button" id="prop-btn-byline-edit-name" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            <span>Ganti Nama Penulis</span>
+          </button>
+          <span class="text-slate-400 text-[11px] hidden xl:inline ml-auto">💡 Geser bebas di lembaran kertas</span>
+        </div>
+      `;
+    } else if (type === 'author-photo') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+            <span>Foto Penulis</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-author-width-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Foto">➖</button>
+            <span id="prop-val-author-width" class="w-14 text-center font-mono font-bold text-emerald-400 text-xs">${this.authorPhotoWidth || 170} px</span>
+            <button type="button" id="prop-btn-author-width-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Besarkan Foto">➕</button>
+          </div>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-frame-none" class="px-2 py-0.5 rounded text-[11px] font-semibold ${this.authorFrameMode === 'none' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'} transition">
+              ✨ Transparan
+            </button>
+            <button type="button" id="prop-btn-frame-box" class="px-2 py-0.5 rounded text-[11px] font-semibold ${this.authorFrameMode === 'box' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'} transition">
+              🖼️ Kotak
+            </button>
+          </div>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-author-upload" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Upload</span>
+          </button>
+          <button type="button" id="prop-btn-author-paste" class="px-2.5 py-1 bg-indigo-950/70 hover:bg-indigo-900 text-indigo-300 text-xs rounded-lg border border-indigo-700 transition flex items-center gap-1 font-semibold" title="Tempel dari Canva">
+            <i data-lucide="clipboard-paste" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span>📋 Canva</span>
+          </button>
+          <button type="button" id="prop-btn-author-trans" class="px-2.5 py-1 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 text-xs rounded-lg border border-emerald-700 transition flex items-center gap-1 font-semibold" title="Hapus Background Putih">
+            <i data-lucide="wand-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>🪄 Transparan</span>
+          </button>
+          <button type="button" id="prop-btn-author-trim" class="px-2.5 py-1 bg-blue-950/70 hover:bg-blue-900 text-blue-300 text-xs rounded-lg border border-blue-700 transition flex items-center gap-1 font-semibold" title="Rapatkan Tepi Foto">
+            <i data-lucide="scissors" class="w-3.5 h-3.5 text-blue-400"></i>
+            <span>✂️ Rapatkan</span>
+          </button>
+          <button type="button" id="prop-btn-author-reset-pos" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs rounded-lg border border-slate-700 transition flex items-center gap-1" title="Kembalikan Foto ke Posisi Mepet Kiri Semula">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Reset Posisi</span>
+          </button>
+          <button type="button" id="prop-btn-author-clear" class="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 rounded border border-rose-800 transition" title="Hapus Foto Penulis">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `;
+    } else if (type === 'author-badge') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="tag" class="w-3.5 h-3.5"></i>
+            <span>Kotak Nama Penulis</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer text-xs select-none">
+            <input type="checkbox" id="prop-chk-author-badge" ${this.chkShowAuthorBadge?.checked ? 'checked' : ''} class="w-3.5 h-3.5 rounded accent-emerald-500">
+            <span>Tampilkan Badge</span>
+          </label>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-badge-size-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Huruf">A-</button>
+            <span id="prop-val-badge-size" class="w-12 text-center font-mono font-bold text-white text-xs">${this.authorBadgeFontSize || 11} px</span>
+            <button type="button" id="prop-btn-badge-size-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Besarkan Huruf">A+</button>
+          </div>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-badge-reset-pos" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs rounded-lg border border-slate-700 transition flex items-center gap-1" title="Kembalikan Posisi Badge Nama">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Reset Posisi</span>
+          </button>
+          <span class="text-slate-400 text-[11px] hidden xl:inline ml-auto">💡 Geser bebas di kertas atau klik ganda untuk ganti nama</span>
+        </div>
+      `;
+    } else if (type === 'header') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="layout-template" class="w-3.5 h-3.5"></i>
+            <span>Kop Koran Master</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-kop-size-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Kop">➖</button>
+            <span id="prop-val-kop-size" class="w-20 text-center font-mono font-bold text-emerald-400 text-xs">${this.kopSizes[this.kopSizeIndex]?.label || 'Lebar'}</span>
+            <button type="button" id="prop-btn-kop-size-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Perlebar Kop">➕</button>
+          </div>
+          <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer text-xs select-none">
+            <input type="checkbox" id="prop-chk-kop-fullbleed" ${this.chkFullWidthHeader?.checked ? 'checked' : ''} class="w-3.5 h-3.5 rounded accent-emerald-500">
+            <span>Full-Bleed 100%</span>
+          </label>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-kop-pos-overlay" class="px-2 py-0.5 rounded text-[11px] font-semibold ${this.headerDatePosition === 'overlay' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'} transition" title="Pojok Kanan Atas">Pojok Atas</button>
+            <button type="button" id="prop-btn-kop-pos-below" class="px-2 py-0.5 rounded text-[11px] font-semibold ${this.headerDatePosition === 'below' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'} transition" title="Di Bawah Kop">Di Bawah</button>
+            <button type="button" id="prop-btn-kop-pos-hide" class="px-2 py-0.5 rounded text-[11px] font-semibold ${this.headerDatePosition === 'hide' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'} transition" title="Sembunyikan">Sembunyi</button>
+          </div>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-kop-upload" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Upload File</span>
+          </button>
+          <button type="button" id="prop-btn-kop-paste" class="px-2.5 py-1 bg-indigo-950/70 hover:bg-indigo-900 text-indigo-300 text-xs rounded-lg border border-indigo-700 transition flex items-center gap-1 font-semibold" title="Tempel dari Canva">
+            <i data-lucide="clipboard-paste" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span>📋 Canva</span>
+          </button>
+          <button type="button" id="prop-btn-kop-reset" class="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 rounded border border-rose-800 transition" title="Hapus Kop Master">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `;
+    } else if (type === 'newspaper-content') {
+      const words = this.inpBodyText ? this.inpBodyText.value.trim().split(/\s+/).filter(Boolean).length : 0;
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="columns-3" class="w-3.5 h-3.5"></i>
+            <span>Naskah 3 Kolom</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-body-size-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Huruf Naskah">A-</button>
+            <span id="prop-val-body-size" class="w-14 text-center font-mono font-bold text-white text-xs">${this.bodyFontSize} pt</span>
+            <button type="button" id="prop-btn-body-size-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Besarkan Huruf Naskah">A+</button>
+          </div>
+          <span id="prop-val-word-count" class="px-2 py-0.5 bg-slate-800 text-emerald-400 rounded font-mono text-[11px] border border-slate-700">
+            ${words} kata
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-open-body-editor" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center gap-1.5 shadow transition active:scale-95 text-xs">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            <span>Buka Editor Teks Naskah</span>
+          </button>
+        </div>
+      `;
+    } else if (type === 'bottom-inserts') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="image" class="w-3.5 h-3.5"></i>
+            <span>Sisipan Visual</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-upload-activity" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Upload Foto Kegiatan</span>
+          </button>
+          <button type="button" id="prop-btn-open-sisipan" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold">
+            <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+            <span>Panel Sisipan Lengkap</span>
+          </button>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+    if (window.lucide) window.lucide.createIcons();
+    this.wirePropertyBarEvents(type);
+  }
+
+  wirePropertyBarEvents(type) {
+    if (type === 'page') {
+      document.getElementById('prop-tmpl-opinion')?.addEventListener('click', () => {
+        this.setTemplateStyle('teacher_opinion');
+      });
+      document.getElementById('prop-tmpl-news')?.addEventListener('click', () => {
+        this.setTemplateStyle('news_report');
+      });
+      document.getElementById('prop-chk-fullbleed')?.addEventListener('change', (e) => {
+        if (this.chkFullWidthHeader) {
+          this.chkFullWidthHeader.checked = e.target.checked;
+          this.updateHeaderFullBleed();
+        }
+      });
+      document.getElementById('prop-btn-open-drawer')?.addEventListener('click', () => {
+        this.toggleDock(true);
+        this.switchDockTab('tab-pane-naskah');
+      });
+    } else if (type === 'headline') {
+      document.getElementById('prop-btn-headline-size-down')?.addEventListener('click', () => {
+        this.setHeadlineFontSize(this.headlineFontSize - 2);
+      });
+      document.getElementById('prop-btn-headline-size-up')?.addEventListener('click', () => {
+        this.setHeadlineFontSize(this.headlineFontSize + 2);
+      });
+      document.getElementById('prop-btn-headline-indent-down')?.addEventListener('click', () => {
+        this.updateHeadlineIndent(Math.max(0, this.headlineIndent - 10), true);
+      });
+      document.getElementById('prop-btn-headline-indent-up')?.addEventListener('click', () => {
+        this.updateHeadlineIndent(Math.min(360, this.headlineIndent + 10), true);
+      });
+      document.getElementById('prop-btn-headline-indent-reset')?.addEventListener('click', () => {
+        this.updateHeadlineIndent(0, true);
+      });
+      document.getElementById('prop-btn-headline-reset-offset')?.addEventListener('click', () => {
+        this.setHeadlineOffset(0, 0, true);
+      });
+    } else if (type === 'subheadline') {
+      document.getElementById('prop-btn-subheadline-size-down')?.addEventListener('click', () => {
+        this.setSubheadlineFontSize(this.subheadlineFontSize - 2);
+      });
+      document.getElementById('prop-btn-subheadline-size-up')?.addEventListener('click', () => {
+        this.setSubheadlineFontSize(this.subheadlineFontSize + 2);
+      });
+      document.getElementById('prop-btn-subheadline-reset-offset')?.addEventListener('click', () => {
+        this.setSubheadlineOffset(0, 0, true);
+      });
+    } else if (type === 'byline') {
+      document.getElementById('prop-btn-byline-reset-offset')?.addEventListener('click', () => {
+        this.setBylineOffset(0, 0, true);
+      });
+      document.getElementById('prop-btn-byline-edit-name')?.addEventListener('click', () => {
+        this.toggleDock(true);
+        this.switchDockTab('tab-pane-detail');
+        this.inpAuthorName?.focus();
+      });
+    } else if (type === 'author-photo') {
+      document.getElementById('prop-btn-author-width-down')?.addEventListener('click', () => {
+        this.setAuthorPhotoWidth(this.authorPhotoWidth - 10, true);
+      });
+      document.getElementById('prop-btn-author-width-up')?.addEventListener('click', () => {
+        this.setAuthorPhotoWidth(this.authorPhotoWidth + 10, true);
+      });
+      document.getElementById('prop-btn-frame-none')?.addEventListener('click', () => {
+        this.setAuthorFrameMode('none');
+        this.updateCorelPropertyBar('author-photo');
+      });
+      document.getElementById('prop-btn-frame-box')?.addEventListener('click', () => {
+        this.setAuthorFrameMode('box');
+        this.updateCorelPropertyBar('author-photo');
+      });
+      document.getElementById('prop-btn-author-upload')?.addEventListener('click', () => {
+        this.inpAuthorPhoto?.click();
+      });
+      document.getElementById('prop-btn-author-paste')?.addEventListener('click', () => {
+        this.btnPasteAuthorDirect?.click();
+      });
+      document.getElementById('prop-btn-author-trans')?.addEventListener('click', () => {
+        this.makeAuthorPhotoTransparent();
+      });
+      document.getElementById('prop-btn-author-trim')?.addEventListener('click', () => {
+        this.trimAuthorPhoto(true);
+      });
+      document.getElementById('prop-btn-author-reset-pos')?.addEventListener('click', () => {
+        this.resetAuthorPhotoPosition();
+      });
+      document.getElementById('prop-btn-author-clear')?.addEventListener('click', () => {
+        this.setAuthorPhoto(null);
+      });
+    } else if (type === 'author-badge') {
+      document.getElementById('prop-chk-author-badge')?.addEventListener('change', (e) => {
+        if (this.chkShowAuthorBadge) {
+          this.chkShowAuthorBadge.checked = e.target.checked;
+          this.toggleAuthorBadge(e.target.checked);
+        }
+      });
+      document.getElementById('prop-btn-badge-size-down')?.addEventListener('click', () => {
+        this.setAuthorBadgeFontSize(this.authorBadgeFontSize - 1);
+      });
+      document.getElementById('prop-btn-badge-size-up')?.addEventListener('click', () => {
+        this.setAuthorBadgeFontSize(this.authorBadgeFontSize + 1);
+      });
+      document.getElementById('prop-btn-badge-reset-pos')?.addEventListener('click', () => {
+        this.resetAuthorBadgePosition();
+      });
+    } else if (type === 'header') {
+      document.getElementById('prop-btn-kop-size-down')?.addEventListener('click', () => {
+        this.changeKopSize(-1);
+      });
+      document.getElementById('prop-btn-kop-size-up')?.addEventListener('click', () => {
+        this.changeKopSize(1);
+      });
+      document.getElementById('prop-chk-kop-fullbleed')?.addEventListener('change', (e) => {
+        if (this.chkFullWidthHeader) {
+          this.chkFullWidthHeader.checked = e.target.checked;
+          this.updateHeaderFullBleed();
+        }
+      });
+      document.getElementById('prop-btn-kop-pos-overlay')?.addEventListener('click', () => {
+        this.setHeaderDatePosition('overlay');
+        this.updateCorelPropertyBar('header');
+      });
+      document.getElementById('prop-btn-kop-pos-below')?.addEventListener('click', () => {
+        this.setHeaderDatePosition('below');
+        this.updateCorelPropertyBar('header');
+      });
+      document.getElementById('prop-btn-kop-pos-hide')?.addEventListener('click', () => {
+        this.setHeaderDatePosition('hide');
+        this.updateCorelPropertyBar('header');
+      });
+      document.getElementById('prop-btn-kop-upload')?.addEventListener('click', () => {
+        this.inpCustomHeader?.click();
+      });
+      document.getElementById('prop-btn-kop-paste')?.addEventListener('click', () => {
+        this.btnPasteHeaderDirect?.click();
+      });
+      document.getElementById('prop-btn-kop-reset')?.addEventListener('click', () => {
+        this.resetMasterHeader();
+      });
+    } else if (type === 'newspaper-content') {
+      document.getElementById('prop-btn-body-size-down')?.addEventListener('click', () => {
+        this.setBodyFontSize(this.bodyFontSize - 0.5);
+      });
+      document.getElementById('prop-btn-body-size-up')?.addEventListener('click', () => {
+        this.setBodyFontSize(this.bodyFontSize + 0.5);
+      });
+      document.getElementById('prop-btn-open-body-editor')?.addEventListener('click', () => {
+        this.toggleDock(true);
+        this.switchDockTab('tab-pane-naskah');
+        this.inpBodyText?.focus();
+      });
+    } else if (type === 'bottom-inserts') {
+      document.getElementById('prop-btn-upload-activity')?.addEventListener('click', () => {
+        this.inpActivityPhoto?.click();
+      });
+      document.getElementById('prop-btn-open-sisipan')?.addEventListener('click', () => {
+        this.toggleDock(true);
+        this.switchDockTab('tab-pane-sisipan');
+      });
+    }
   }
 
   startInlineEditing(el) {
@@ -1651,8 +2350,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.viewHeadline.style.fontSize = `${val}px`;
       this.viewHeadline.style.lineHeight = `${Math.round(val * 1.15)}px`;
     }
-    const hudVal = document.getElementById('hud-val-headline-size');
-    if (hudVal) hudVal.innerText = `${val} px`;
+    const propVal = document.getElementById('prop-val-headline-size');
+    if (propVal) propVal.innerText = `${val} px`;
     if (save) {
       try { localStorage.setItem('alqalam_headline_size', val.toString()); } catch(e){}
     }
@@ -1665,8 +2364,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.viewSubheadline.style.fontSize = `${val}px`;
       this.viewSubheadline.style.lineHeight = `${Math.round(val * 1.25)}px`;
     }
-    const hudVal = document.getElementById('hud-val-subheadline-size');
-    if (hudVal) hudVal.innerText = `${val} px`;
+    const propVal = document.getElementById('prop-val-subheadline-size');
+    if (propVal) propVal.innerText = `${val} px`;
     if (save) {
       try { localStorage.setItem('alqalam_subheadline_size', val.toString()); } catch(e){}
     }
@@ -1679,8 +2378,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.viewNewspaperContent.style.fontSize = `${val}px`;
       this.viewNewspaperContent.style.lineHeight = `${(val * 1.5).toFixed(1)}px`;
     }
-    const hudVal = document.getElementById('hud-val-body-size');
-    if (hudVal) hudVal.innerText = `${val} px`;
+    const propVal = document.getElementById('prop-val-body-size');
+    if (propVal) propVal.innerText = `${val} pt`;
     if (save) {
       try { localStorage.setItem('alqalam_body_font_size', val.toString()); } catch(e){}
     }
@@ -1693,8 +2392,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.viewAuthorBadge.style.fontSize = `${val}px`;
       this.viewAuthorBadge.style.padding = `${Math.round(val * 0.35)}px ${Math.round(val * 0.9)}px`;
     }
-    const hudVal = document.getElementById('hud-val-badge-size');
-    if (hudVal) hudVal.innerText = `${val} px`;
+    const propVal = document.getElementById('prop-val-badge-size');
+    if (propVal) propVal.innerText = `${val} px`;
     if (save) {
       try { localStorage.setItem('alqalam_author_badge_size', val.toString()); } catch(e){}
     }

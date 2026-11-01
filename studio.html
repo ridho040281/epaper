@@ -6,8 +6,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>AL QALAM Studio - Generator Template E-Paper A3 MTsN 1 Blitar</title>
-  <meta name="description" content="Aplikasi pembuat naskah dan layout koran A3 AL QALAM MTsN 1 Blitar secara instan dan otomatis siap terbit.">
+  <title>AL QALAM Studio - Mini Corel Layout Koran A3 MTsN 1 Blitar</title>
+  <meta name="description" content="Aplikasi desain layout koran A3 AL QALAM MTsN 1 Blitar ala CorelDRAW yang praktis, cepat, dan siap terbit.">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="logo-mtsn.png">
@@ -68,6 +68,52 @@
     }
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(16, 185, 129, 0.6);
+    }
+
+    /* Corel Toolbox Buttons & Tooltips */
+    .corel-tool-btn {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      color: #94a3b8;
+      transition: all 0.15s ease-in-out;
+      position: relative;
+      cursor: pointer;
+    }
+    .corel-tool-btn:hover {
+      background-color: #1e293b;
+      color: #f8fafc;
+    }
+    .corel-tool-btn.active {
+      background-color: #059669;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+    .corel-tool-btn .tooltip {
+      position: absolute;
+      left: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-left: 10px;
+      padding: 4px 8px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      border-radius: 6px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 50;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .corel-tool-btn:hover .tooltip {
+      opacity: 1;
     }
 
     /* A3 Sheet Paper Styling */
@@ -135,15 +181,16 @@
       pointer-events: none;
     }
     .canvas-selectable:hover {
-      outline: 1.5px dashed rgba(16, 185, 129, 0.4) !important;
+      outline: 1.5px dashed rgba(16, 185, 129, 0.45) !important;
       outline-offset: 2px;
     }
     .canvas-selectable:active {
       cursor: grabbing;
     }
     .canvas-selectable.canvas-selected {
-      outline: 1.5px dashed rgba(16, 185, 129, 0.5) !important;
-      outline-offset: 2px;
+      outline: 2px dashed #10b981 !important;
+      outline-offset: 3px;
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25);
     }
     .canvas-inline-editing {
       outline: 2px solid #3b82f6 !important;
@@ -157,529 +204,171 @@
 </head>
 <body class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
 
-  <!-- ==================== TOP NAVIGATION HEADER ==================== -->
-  <header class="h-16 flex-shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 flex items-center justify-between z-30 shadow-md">
+  <!-- ==================== 1. TOP APPLICATION MENUBAR ==================== -->
+  <header class="h-12 flex-shrink-0 bg-slate-900 border-b border-slate-800 px-3 flex items-center justify-between z-30 shadow-md">
     
-    <!-- Left: Brand & Title -->
+    <!-- Left: Return Link & Brand Title -->
     <div class="flex items-center gap-3">
-      <a href="index.html" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 hover:border-emerald-500/50 shadow transition active:scale-95 group text-xs font-semibold" title="Kembali ke Flipbook">
-        <i data-lucide="arrow-left" class="w-4 h-4 text-emerald-400 group-hover:-translate-x-0.5 transition-transform"></i>
-        <span class="hidden sm:inline">Kembali ke E-Paper</span>
+      <a href="index.html" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 hover:border-emerald-500/50 shadow-sm transition active:scale-95 text-xs font-semibold" title="Kembali ke Flipbook">
+        <i data-lucide="arrow-left" class="w-4 h-4 text-emerald-400"></i>
+        <span class="hidden sm:inline">E-Paper</span>
       </a>
 
-      <div class="h-6 w-px bg-slate-800 hidden sm:block"></div>
+      <div class="h-5 w-px bg-slate-800 hidden sm:block"></div>
 
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 p-0.5 flex items-center justify-center shadow-md flex-shrink-0">
-          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-            <i data-lucide="layout-template" class="w-4 h-4 text-emerald-400"></i>
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 p-0.5 flex items-center justify-center shadow-sm flex-shrink-0">
+          <div class="w-full h-full bg-slate-950 rounded-[6px] flex items-center justify-center">
+            <i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emerald-400"></i>
           </div>
         </div>
-        <div>
-          <h1 class="text-sm font-bold text-white flex items-center gap-2 leading-tight">
-            <span>AL QALAM Studio</span>
-            <span class="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">Template A3</span>
-          </h1>
-          <p class="text-[11px] text-slate-400 leading-tight">Pembuat Halaman Koran Otomatis MTsN 1 Blitar</p>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-extrabold text-white tracking-wide">AL QALAM Studio</span>
+          <span class="hidden md:inline text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">Mini Corel Layout</span>
         </div>
       </div>
     </div>
 
-    <!-- Center: Mobile View Toggle (Editor vs Preview) -->
-    <div class="flex lg:hidden items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700">
-      <button id="btn-toggle-editor" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition">
-        ✏️ Edit Form
+    <!-- Center: Zoom Toolbar -->
+    <div class="flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800">
+      <button type="button" id="btn-zoom-out" class="p-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer" title="Perkecil Zoom (-)">
+        <i data-lucide="minus" class="w-3.5 h-3.5"></i>
       </button>
-      <button id="btn-toggle-preview" class="px-3 py-1 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">
-        👁️ Lihat Koran A3
+      <span id="label-zoom" class="w-11 text-center font-mono font-bold text-emerald-400 text-xs select-none">75%</span>
+      <button type="button" id="btn-zoom-in" class="p-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer" title="Perbesar Zoom (+)">
+        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+      </button>
+      <button type="button" id="btn-zoom-fit" class="px-2 py-0.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white text-[10px] font-semibold transition cursor-pointer" title="Sesuaikan dengan Layar">
+        Fit
       </button>
     </div>
 
-    <!-- Right: Action Buttons -->
-    <div class="flex items-center gap-2">
-      <button id="btn-demo-preset" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-emerald-300 border border-slate-700 hover:border-emerald-500/40 text-xs font-semibold shadow transition active:scale-95" title="Isi otomatis dengan artikel contoh (Pak Mohamad Jamil, S.Pd.)">
-        <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i>
-        <span class="hidden md:inline">Isi Contoh Naskah</span>
+    <!-- Right: Core Actions & Panel Toggle -->
+    <div class="flex items-center gap-1.5">
+      <button type="button" id="btn-demo-preset" class="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-300 border border-slate-700 text-xs font-semibold shadow-sm transition active:scale-95 cursor-pointer" title="Isi contoh naskah otomatis">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>Contoh Naskah</span>
       </button>
 
-      <button id="btn-export-pdf" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition active:scale-95" title="Unduh File PDF A3 Siap Cetak">
-        <i data-lucide="download" class="w-4 h-4"></i>
+      <button type="button" id="btn-export-pdf" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition active:scale-95 cursor-pointer" title="Unduh File PDF A3 Siap Cetak (300 DPI)">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
         <span class="hidden sm:inline">Unduh PDF A3</span>
       </button>
 
-      <button id="btn-publish-epaper" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-950/40 transition active:scale-95" title="Terbitkan Halaman Ini Langsung ke Flipbook Online">
-        <i data-lucide="send" class="w-4 h-4"></i>
-        <span>Terbitkan ke E-Paper</span>
+      <button type="button" id="btn-publish-epaper" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-950/40 transition active:scale-95 cursor-pointer" title="Terbitkan Halaman Ini Langsung ke Flipbook Online">
+        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+        <span>Terbitkan</span>
       </button>
+
+      <div class="h-5 w-px bg-slate-800 mx-0.5"></div>
+
+      <!-- Toggle Right Inspector Drawer -->
+      <button type="button" id="btn-toggle-dock" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-emerald-300 hover:text-white border border-slate-700 hover:border-emerald-500/40 text-xs font-semibold shadow-sm transition active:scale-95 cursor-pointer" title="Buka / Tutup Panel Naskah & Edisi">
+        <i data-lucide="panel-right" class="w-4 h-4 text-emerald-400"></i>
+        <span class="hidden lg:inline">Panel Naskah</span>
+      </button>
+
+      <!-- Mobile Fallback Toggle View -->
+      <div class="flex lg:hidden items-center bg-slate-800/80 p-0.5 rounded-lg border border-slate-700">
+        <button type="button" id="btn-toggle-editor" class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-600 text-white">
+          ✏️
+        </button>
+        <button type="button" id="btn-toggle-preview" class="px-2 py-0.5 rounded text-[11px] font-bold text-slate-300">
+          👁️
+        </button>
+      </div>
     </div>
   </header>
 
-  <!-- ==================== MAIN WORKSPACE ==================== -->
-  <div class="flex-1 flex overflow-hidden">
-    
-    <!-- ==================== LEFT: FORM CONTROLS PANEL ==================== -->
-    <aside id="editor-panel" class="w-full lg:w-[460px] xl:w-[500px] flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col h-full overflow-hidden z-20">
+  <!-- ==================== 2. TOP CONTEXTUAL PROPERTY BAR (Corel Style) ==================== -->
+  <div id="corel-property-bar" class="h-11 flex-shrink-0 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3 flex items-center justify-between text-xs z-20 overflow-x-auto shadow-inner">
+    <!-- Dynamic Context Content will be injected here -->
+    <div id="corel-property-content" class="flex items-center gap-2 flex-wrap min-w-max">
+      <!-- Default Page Properties (Rendered by JS) -->
+    </div>
+
+    <!-- Right Hint -->
+    <div class="hidden xl:flex items-center gap-2 flex-shrink-0 text-slate-400 text-[11px] pl-3">
+      <span>Tekan <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Esc</kbd> untuk lepas pilihan</span>
+    </div>
+  </div>
+
+  <!-- ==================== 3. MAIN WORKSPACE ROW ==================== -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- ==================== A. LEFT SLIM ICON TOOLBOX (Corel Style) ==================== -->
+    <aside id="corel-toolbox" class="w-14 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-2.5 gap-1.5 z-20 shadow-sm select-none">
       
-      <!-- Panel Header Tabs -->
-      <div class="px-5 py-3 border-b border-slate-800/80 bg-slate-950/40 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-            <i data-lucide="sliders" class="w-4 h-4 text-emerald-400"></i>
-            <span>Pengaturan Naskah</span>
-          </span>
-        </div>
-        <span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
-          Ukuran: A3 (297x420 mm)
-        </span>
-      </div>
+      <!-- 1. Pick Tool -->
+      <button type="button" id="tool-pick" class="corel-tool-btn active" title="Pick Tool (Pilih & Geser Objek Bebas)">
+        <i data-lucide="mouse-pointer-2" class="w-5 h-5"></i>
+        <span class="tooltip">Pick Tool (Pilih & Geser)</span>
+      </button>
 
-      <!-- Form Inputs Container -->
-      <div class="flex-1 overflow-y-auto p-5 space-y-6 select-text">
+      <!-- 2. Headline Tool -->
+      <button type="button" id="tool-headline" class="corel-tool-btn" title="Judul Utama (Headline)">
+        <i data-lucide="heading-1" class="w-5 h-5"></i>
+        <span class="tooltip">Judul Utama (Headline)</span>
+      </button>
 
-        <!-- Template Style Selector -->
-        <div class="space-y-2">
-          <label class="block text-xs font-bold text-slate-300">Pilih Model Tata Letak:</label>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" data-template-type="teacher_opinion" class="btn-template-select p-2.5 rounded-xl border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-xs font-bold flex items-center gap-2 text-left transition shadow-sm">
-              <i data-lucide="newspaper" class="w-4 h-4 flex-shrink-0 text-emerald-400"></i>
-              <div>
-                <div>Opini Guru / Penulis</div>
-                <div class="text-[10px] font-normal text-slate-400">3 Kolom + Foto Guru</div>
-              </div>
-            </button>
-            <button type="button" data-template-type="news_report" class="btn-template-select p-2.5 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-xs font-semibold flex items-center gap-2 text-left transition">
-              <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i>
-              <div>
-                <div>Liputan Berita</div>
-                <div class="text-[10px] font-normal text-slate-500">Headline Lebar + 2 Foto</div>
-              </div>
-            </button>
-          </div>
-        </div>
+      <!-- 3. Subheadline Tool -->
+      <button type="button" id="tool-subheadline" class="corel-tool-btn" title="Subjudul Artikel">
+        <i data-lucide="heading-2" class="w-5 h-5"></i>
+        <span class="tooltip">Subjudul Artikel</span>
+      </button>
 
-        <!-- Section 0: Kolom Header / Kop Koran Master -->
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
-              <i data-lucide="layout" class="w-3.5 h-3.5"></i>
-              <span>Header / Kop Koran Master</span>
-            </h3>
-          </div>
+      <!-- 4. Author Photo Tool -->
+      <button type="button" id="tool-photo" class="corel-tool-btn" title="Foto Guru / Penulis">
+        <i data-lucide="user-check" class="w-5 h-5"></i>
+        <span class="tooltip">Foto Penulis</span>
+      </button>
 
-          <!-- Upload Container -->
-          <div id="container-header-upload-controls" class="space-y-2 pt-1">
-            <!-- Thumbnail preview of custom header if any -->
-            <div id="container-preview-header" class="hidden w-full bg-slate-900 border border-emerald-500/50 rounded-xl overflow-hidden p-2 relative flex flex-col gap-1.5">
-              <div class="flex items-center justify-between text-[11px] text-emerald-400 font-semibold px-1">
-                <span class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Kop Master Terpasang</span>
-                <button type="button" id="btn-reset-master-header" class="text-rose-400 hover:text-rose-300 text-[10px] flex items-center gap-1 bg-rose-950/60 hover:bg-rose-900 px-2 py-0.5 rounded border border-rose-800 transition cursor-pointer" title="Hapus Kop Master">
-                  <i data-lucide="trash-2" class="w-3 h-3"></i> Hapus
-                </button>
-              </div>
-              <div class="w-full h-16 bg-slate-950 rounded-lg flex items-center justify-center p-1 border border-slate-800">
-                <img id="preview-custom-header-img" src="" alt="Thumbnail Kop Master" class="w-full h-full object-contain">
-              </div>
-            </div>
+      <!-- 5. Author Name Badge Tool -->
+      <button type="button" id="tool-badge" class="corel-tool-btn" title="Kotak Nama Penulis (Badge)">
+        <i data-lucide="tag" class="w-5 h-5"></i>
+        <span class="tooltip">Badge Nama Penulis</span>
+      </button>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              <input type="file" id="inp-custom-header" accept="image/png,image/jpeg,image/webp,image/jpg" class="hidden">
-              <button type="button" id="btn-trigger-upload-header" class="flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/40 hover:to-teal-600/40 border border-emerald-500/40 text-emerald-200 rounded-xl text-xs font-semibold transition active:scale-95 shadow-sm text-center cursor-pointer">
-                <i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span id="label-upload-header">Upload File Kop</span>
-              </button>
-              <button type="button" id="btn-paste-header-direct" class="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-950/70 hover:bg-indigo-900 border border-indigo-700 text-indigo-300 rounded-xl text-xs font-semibold transition active:scale-95 shadow-sm text-center cursor-pointer" title="Tempel langsung kop yang sudah disalin (Ctrl+C) dari Canva Desktop">
-                <i data-lucide="clipboard-paste" class="w-3.5 h-3.5 text-indigo-400"></i>
-                <span>📋 Tempel dari Canva</span>
-              </button>
-            </div>
-            <p class="text-[10px] text-slate-500">Mendukung file PNG, JPG, atau tekan <b>Ctrl + V</b> langsung dari Canva Desktop.</p>
-          </div>
+      <!-- 6. Master Kop Tool -->
+      <button type="button" id="tool-header" class="corel-tool-btn" title="Header / Kop Master">
+        <i data-lucide="layout-template" class="w-5 h-5"></i>
+        <span class="tooltip">Kop Koran Master</span>
+      </button>
 
-          <!-- Opsi Posisi Tanggal & Hari pada Kop Master -->
-          <div id="container-custom-edition-toggle" class="pt-2 border-t border-slate-800/80 space-y-2">
-            <label class="block text-[11px] font-bold text-slate-300">Posisi Hari & Tanggal (Kop Master):</label>
-            <div class="grid grid-cols-3 gap-1.5">
-              <button type="button" id="btn-pos-overlay" class="px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-center transition cursor-pointer">
-                Pojok Kanan Atas (Sesuai Gambar)
-              </button>
-              <button type="button" id="btn-pos-below" class="px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer">
-                Di Bawah Kop (Rata Kanan)
-              </button>
-              <button type="button" id="btn-pos-hide" class="px-2 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer">
-                Sembunyikan
-              </button>
-            </div>
-            <p class="text-[10px] text-slate-500">Pilih <b>Pojok Kanan Atas</b> untuk menempatkan hari & tanggal di sudut kanan kop persis seperti koran resmi.</p>
-          </div>
+      <!-- 7. Body Text Tool (Columns) -->
+      <button type="button" id="tool-body" class="corel-tool-btn" title="Naskah Tulisan 3 Kolom">
+        <i data-lucide="columns-3" class="w-5 h-5"></i>
+        <span class="tooltip">Naskah 3 Kolom & Editor</span>
+      </button>
 
-          <!-- Pengatur Lebar & Skala Kop Utama -->
-          <div class="pt-2 border-t border-slate-800/80 space-y-2">
-            <div class="flex items-center justify-between text-xs">
-              <span class="text-slate-300 font-bold flex items-center gap-1.5 text-[11px]">
-                <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Ukuran / Lebar Kop Utama:</span>
-              </span>
-              <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-1">
-                <button type="button" id="btn-kop-size-down" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Perkecil Kop">➖</button>
-                <span id="label-kop-size" class="font-mono text-emerald-400 text-[11px] font-semibold w-20 text-center select-none">Lebar</span>
-                <button type="button" id="btn-kop-size-up" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Perlebar Kop">➕</button>
-              </div>
-            </div>
+      <!-- 8. Activity Photo Tool -->
+      <button type="button" id="tool-activity" class="corel-tool-btn" title="Dokumentasi / Foto Kegiatan">
+        <i data-lucide="image" class="w-5 h-5"></i>
+        <span class="tooltip">Foto Kegiatan</span>
+      </button>
 
-            <!-- Toggle Full Bleed Edge-to-Edge -->
-            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none pt-1">
-              <input type="checkbox" id="chk-full-width-header" class="w-3.5 h-3.5 rounded accent-emerald-500">
-              <span>Bentangkan Kop Penuh ke Tepi Kertas (Full-Bleed 100%)</span>
-            </label>
-            <p class="text-[10px] text-slate-500 pl-5.5">Membuat kop koran melebar penuh ke tepi kiri dan kanan kertas A3 tanpa batas margin putih.</p>
-          </div>
-        </div>
+      <div class="w-8 h-px bg-slate-800 my-1"></div>
 
-        <!-- Section 1: Edisi & Tanggal -->
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
-            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-            <span>Informasi Edisi & Penomoran</span>
-          </h3>
-          <div class="grid grid-cols-2 gap-2.5">
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Hari & Pasaran</label>
-              <input type="text" id="inp-day" value="Selasa Pahing" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
-            </div>
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Tanggal Masehi</label>
-              <input type="text" id="inp-date-masehi" value="27 Oktober 2026" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
-            </div>
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Tanggal Hijriah</label>
-              <input type="text" id="inp-date-hijri" value="16 Jumadil Awal 1448 H" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
-            </div>
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Nomor Edisi & Tahun</label>
-              <input type="text" id="inp-edition-num" value="Tahun 2026 | Nomor : 0006" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
-            </div>
-          </div>
+      <!-- 9. Quick Smart Paste from Canva -->
+      <button type="button" id="tool-paste-direct" class="corel-tool-btn hover:text-indigo-400" title="Tempel Gambar dari Canva (Ctrl+V)">
+        <i data-lucide="clipboard-paste" class="w-5 h-5 text-indigo-400"></i>
+        <span class="tooltip">Tempel dari Canva (Ctrl+V)</span>
+      </button>
 
-          <!-- Pengatur Posisi Vertikal Hari & Tanggal (Sejajar Huruf M) -->
-          <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
-            <span class="text-slate-400 font-medium text-[11px] flex items-center gap-1.5">
-              <i data-lucide="move-vertical" class="w-3.5 h-3.5 text-emerald-400"></i>
-              <span>Posisi Naik/Turun Hari:</span>
-            </span>
-            <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-1">
-              <button type="button" id="btn-date-up" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Geser Hari ke Atas">▲</button>
-              <span id="label-date-offset" class="font-mono text-emerald-400 text-[11px] font-semibold w-12 text-center select-none">48 px</span>
-              <button type="button" id="btn-date-down" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Geser Hari ke Bawah">▼</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section 2: Penulis & Profil -->
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
-            <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
-            <span>Profil Guru / Penulis</span>
-          </h3>
-          
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Nama Lengkap & Gelar</label>
-            <input type="text" id="inp-author-name" value="MOHAMAD JAMIL, S.Pd." placeholder="Contoh: MOHAMAD JAMIL, S.Pd." class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
-          </div>
-
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Foto Penulis (Pasfoto / Pose Resmi)</label>
-            <div class="flex items-center gap-3">
-              <div class="w-16 h-20 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex items-center justify-center relative flex-shrink-0">
-                <img id="preview-author-img" src="" alt="Foto Penulis" class="hidden w-full h-full object-contain">
-                <div id="placeholder-preview-author" class="flex flex-col items-center justify-center text-slate-500">
-                  <i data-lucide="user" class="w-6 h-6"></i>
-                  <span class="text-[9px] mt-1">Kosong</span>
-                </div>
-              </div>
-              <div class="flex-1 space-y-1.5">
-                <div class="flex items-center gap-2 flex-wrap">
-                  <label for="inp-author-photo" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
-                    <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
-                    <span id="label-author-photo">Upload Foto</span>
-                  </label>
-                  <button type="button" id="btn-paste-author-direct" class="px-2.5 py-1.5 bg-indigo-950/70 hover:bg-indigo-900 text-indigo-300 rounded-lg text-xs font-semibold border border-indigo-700 transition cursor-pointer flex items-center gap-1" title="Tempel langsung foto yang disalin (Ctrl+C) dari Canva Desktop">
-                    <i data-lucide="clipboard-paste" class="w-3.5 h-3.5 text-indigo-400"></i>
-                    <span>📋 Tempel dari Canva</span>
-                  </button>
-                  <button type="button" id="btn-make-author-transparent" class="hidden px-2.5 py-1.5 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-700 transition cursor-pointer flex items-center gap-1" title="Hapus latar belakang putih menjadi transparan PNG">
-                    <i data-lucide="wand-2" class="w-3.5 h-3.5 text-emerald-400"></i>
-                    <span>🪄 Jadikan Transparan</span>
-                  </button>
-                  <button type="button" id="btn-trim-author-photo" class="hidden px-2.5 py-1.5 bg-blue-950/70 hover:bg-blue-900 text-blue-300 rounded-lg text-xs font-semibold border border-blue-700 transition cursor-pointer flex items-center gap-1" title="Potong ruang kosong transparan di sekeliling foto agar bisa mepet pas ke tepi">
-                    <i data-lucide="scissors" class="w-3.5 h-3.5 text-blue-400"></i>
-                    <span>✂️ Rapatkan Tepi</span>
-                  </button>
-                  <button type="button" id="btn-clear-author-photo" class="hidden px-2 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-lg text-xs font-medium border border-rose-800/80 transition cursor-pointer" title="Kosongkan Foto">
-                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                  </button>
-                  <input type="file" id="inp-author-photo" accept="image/*" class="hidden">
-                </div>
-                <p class="text-[10px] text-slate-500">Mendukung format PNG Transparan, JPG, atau langsung tekan <b>Ctrl + V</b> dari Canva.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Pilihan Gaya Bingkai Foto Penulis -->
-          <div class="space-y-1.5 pt-1">
-            <label class="block text-[11px] text-slate-400">Gaya Tampilan Foto Penulis:</label>
-            <div class="grid grid-cols-2 gap-2">
-              <button type="button" id="btn-author-frame-none" class="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm">
-                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>✨ Tanpa Frame (PNG Transparan)</span>
-              </button>
-              <button type="button" id="btn-author-frame-box" class="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white flex items-center justify-center gap-1.5 transition cursor-pointer">
-                <i data-lucide="square" class="w-3.5 h-3.5"></i>
-                <span>🖼️ Bingkai Kotak Pasfoto</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Kontrol Ukuran Foto Penulis (Dinamis Corner Handle) -->
-          <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
-                <i data-lucide="scaling" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Ukuran Foto Penulis:</span>
-              </span>
-              <span id="label-author-size" class="text-[11px] text-emerald-400 font-mono font-bold">170 px</span>
-            </div>
-            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-              <p class="text-[10px] text-slate-400 leading-snug">
-                ✨ Klik & seret <b>titik bulat di pojok kanan bawah foto</b> untuk memperbesar/memperkecil secara bebas.
-              </p>
-              <button type="button" id="btn-reset-author-size" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-1 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer flex-shrink-0" title="Kembalikan ukuran foto ke standar (170 px)">
-                <i data-lucide="rotate-ccw" class="w-3 h-3 text-emerald-400"></i>
-                <span>Reset</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Pengatur Kotak Teks Nama Penulis (Badge Terpisah) -->
-          <div class="pt-3 border-t border-slate-800/80 space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none">
-                <input type="checkbox" id="chk-show-author-badge" checked class="w-3.5 h-3.5 rounded accent-emerald-500">
-                <span class="font-bold text-slate-200">Tampilkan Kotak Teks Nama (Badge)</span>
-              </label>
-              <button type="button" id="btn-reset-author-badge-pos" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer" title="Kembalikan posisi kotak nama">
-                <i data-lucide="rotate-ccw" class="w-3 h-3 text-emerald-400"></i>
-                <span>Reset Nama</span>
-              </button>
-            </div>
-            <p class="text-[10px] text-slate-400 leading-snug">
-              ✨ <b>Mandiri & Terpisah:</b> Kotak nama penulis kini berdiri sendiri dan bisa di-drag bebas ke posisi mana saja (misal di bawah judul, di samping naskah, atau di bawah foto)!
-            </p>
-          </div>
-
-          <!-- Perataan Tempel Foto Penulis -->
-          <div class="space-y-1.5 pt-1">
-            <label class="block text-[11px] text-slate-400">Garis Tempel Foto (Alignment):</label>
-            <div class="grid grid-cols-2 gap-2">
-              <button type="button" id="btn-author-align-left" class="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm">
-                <i data-lucide="align-left" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>◀️ Mepet Tepi Kiri</span>
-              </button>
-              <button type="button" id="btn-author-align-center" class="px-2.5 py-1.5 rounded-lg text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white flex items-center justify-center gap-1.5 transition cursor-pointer">
-                <i data-lucide="align-center" class="w-3.5 h-3.5"></i>
-                <span>⏺️ Rata Tengah</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Pengatur Posisi Foto Penulis (Drag & Drop) -->
-          <div class="pt-3 border-t border-slate-800/80 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-slate-300 font-bold flex items-center gap-1.5 text-[11px]">
-                <i data-lucide="move" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Posisi Foto Penulis (Drag & Drop):</span>
-              </span>
-              <button type="button" id="btn-reset-author-photo-pos" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer" title="Kembalikan foto ke posisi semula">
-                <i data-lucide="rotate-ccw" class="w-3 h-3 text-emerald-400"></i>
-                <span>Reset Foto</span>
-              </button>
-            </div>
-            
-            <p class="text-[10px] text-slate-400 leading-snug">
-              ✨ Foto bebas di-drag <b>sampai mepet menembus tepi kertas</b> tanpa terhalang margin! Atau klik posisi instan:
-            </p>
-
-            <div class="grid grid-cols-2 gap-1.5 pt-0.5">
-              <button type="button" class="btn-pos-preset px-2.5 py-2 bg-gradient-to-r from-emerald-900/60 to-slate-900 border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm" data-pos="mepet-kiri">
-                <i data-lucide="panel-left" class="w-4 h-4 text-emerald-400"></i>
-                <span>📌 Mepet Tepi Kiri</span>
-              </button>
-              <button type="button" class="btn-pos-preset px-2.5 py-2 bg-gradient-to-r from-slate-900 to-emerald-900/60 border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm" data-pos="mepet-kanan">
-                <i data-lucide="panel-right" class="w-4 h-4 text-emerald-400"></i>
-                <span>📌 Mepet Tepi Kanan</span>
-              </button>
-            </div>
-
-            <div class="grid grid-cols-3 gap-1.5 pt-0.5">
-              <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="on-kop">Di Atas Kop</button>
-              <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="top-left">Kiri Judul</button>
-              <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="top-right">Kanan Judul</button>
-              <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="mid-col2">Tengah Kolom</button>
-              <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="bottom-left">Kiri Bawah</button>
-              <button type="button" class="btn-pos-preset px-2 py-1.5 bg-slate-800/90 hover:bg-slate-700 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 rounded-lg text-[10px] font-semibold text-center transition cursor-pointer" data-pos="bottom-right">Kanan Bawah</button>
-            </div>
-
-            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none pt-1">
-              <input type="checkbox" id="chk-headline-spacer" class="w-3.5 h-3.5 rounded accent-emerald-500">
-              <span>Sisihkan ruang kosong di samping judul</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Section 3: Judul & Subjudul -->
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
-            <i data-lucide="type" class="w-3.5 h-3.5"></i>
-            <span>Judul & Subjudul Artikel</span>
-          </h3>
-
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Judul Utama (Headline)</label>
-            <input type="text" id="inp-headline" value="SIAPA BILANG MEMBOSANKAN !!!" placeholder="Contoh: SIAPA BILANG MEMBOSANKAN !!!" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl font-bold outline-none focus:border-emerald-500 transition">
-          </div>
-
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Subjudul (Penjelasan Singkat)</label>
-            <input type="text" id="inp-subheadline" value="Temukan Keseruan Matematika dalam Kehidupan Sehari-hari!" placeholder="Contoh: Temukan Keseruan Matematika..." class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl italic outline-none focus:border-emerald-500 transition">
-          </div>
-
-          <!-- Pengatur Geser Judul (Beri Ruang untuk Foto) -->
-          <div class="pt-2 border-t border-slate-800/80">
-            <div class="flex items-center justify-between text-[11px] mb-1.5">
-              <span class="text-slate-300 font-medium flex items-center gap-1.5">
-                <i data-lucide="move-horizontal" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Geser Judul ke Kanan (Beri Ruang Foto)</span>
-              </span>
-              <span id="label-headline-indent" class="text-emerald-400 font-mono font-bold">0 px</span>
-            </div>
-            <div class="flex items-center gap-3">
-              <input type="range" id="inp-headline-indent" min="0" max="360" value="0" step="10" class="w-full accent-emerald-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
-              <button type="button" id="btn-reset-headline-indent" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-1 rounded border border-slate-700 flex items-center gap-1 transition cursor-pointer flex-shrink-0" title="Reset geser judul">Reset</button>
-            </div>
-            <p class="text-[10px] text-slate-500 mt-1">Geser ke kanan jika judul tertutup atau mepet dengan foto penulis di sebelah kiri.</p>
-          </div>
-        </div>
-
-        <!-- Section 4: Isi Teks Artikel -->
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
-              <i data-lucide="align-left" class="w-3.5 h-3.5"></i>
-              <span>Naskah Tulisan (3 Kolom Otomatis)</span>
-            </h3>
-            <span class="text-[10px] text-slate-400" id="text-word-count">0 kata</span>
-          </div>
-
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Tempelkan Naskah dari Word / WhatsApp:</label>
-            <textarea id="inp-body-text" rows="10" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs p-3 rounded-xl outline-none focus:border-emerald-500 transition font-sans leading-relaxed resize-y" placeholder="Tempel naskah artikel Anda di sini..."></textarea>
-            <p class="text-[10px] text-slate-500 mt-1">💡 Pisahkan paragraf dengan menekan Enter 2 kali. Huruf pertama paragraf 1 otomatis menjadi Drop Cap.</p>
-          </div>
-        </div>
-
-        <!-- Section 5: Foto Dokumentasi Kegiatan -->
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
-            <i data-lucide="image" class="w-3.5 h-3.5"></i>
-            <span>Dokumentasi Pembelajaran / Kegiatan</span>
-          </h3>
-
-          <div class="space-y-3">
-            <div class="w-full h-36 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden relative flex items-center justify-center">
-              <img id="preview-activity-img" src="" alt="Foto Kegiatan" class="hidden w-full h-full object-cover">
-              <div id="placeholder-preview-activity" class="flex flex-col items-center justify-center text-slate-500 p-2 text-center">
-                <i data-lucide="image" class="w-8 h-8 text-slate-600"></i>
-                <span class="text-[10px] mt-1 text-slate-500 font-sans">Belum ada foto kegiatan (opsional)</span>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between gap-3">
-              <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
-                <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span id="label-activity-photo">Upload Foto Kegiatan</span>
-                <input type="file" id="inp-activity-photo" accept="image/*" class="hidden">
-              </label>
-
-              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" id="chk-show-activity-img" class="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500">
-                <span>Tampilkan Foto</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Section 6: Kutipan & Logo Peringatan -->
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-          <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
-            <i data-lucide="award" class="w-3.5 h-3.5"></i>
-            <span>Kutipan Kunci & Logo Acara</span>
-          </h3>
-
-          <div>
-            <label class="block text-[11px] text-slate-400 mb-1">Kutipan Kunci (Callout Box)</label>
-            <textarea id="inp-callout-quote" rows="3" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs p-2.5 rounded-xl outline-none focus:border-emerald-500 transition italic" placeholder="Ketik kutipan penting jika ada (opsional)..."></textarea>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 pt-2">
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Logo Peringatan / Event</label>
-              <select id="sel-event-logo" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-2.5 py-2 rounded-xl outline-none focus:border-emerald-500">
-                <option value="none" selected>Tanpa Logo Event</option>
-                <option value="sumpah_pemuda">98 Th Sumpah Pemuda</option>
-                <option value="hari_santri">Hari Santri 2026</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-[11px] text-slate-400 mb-1">Nomor Halaman</label>
-              <input type="text" id="inp-page-num" value="Halaman 6" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-2.5 py-2 rounded-xl outline-none focus:border-emerald-500">
-            </div>
-          </div>
-        </div>
-
-      </div>
+      <!-- 10. Toggle Dock Drawer Tool -->
+      <button type="button" id="tool-dock-toggle" class="corel-tool-btn hover:text-emerald-400 mt-auto" title="Buka / Tutup Panel Naskah">
+        <i data-lucide="panel-right-open" class="w-5 h-5 text-emerald-400"></i>
+        <span class="tooltip">Panel Naskah & Edisi</span>
+      </button>
     </aside>
 
-    <!-- ==================== RIGHT: REALTIME A3 PREVIEW CANVAS ==================== -->
+    <!-- ==================== B. CENTER: REALTIME A3 PREVIEW CANVAS ==================== -->
     <main id="preview-panel" class="flex-1 bg-slate-950 relative flex flex-col h-full overflow-hidden">
       
-      <!-- Preview Viewport Toolbar -->
-      <div class="h-11 bg-slate-900/70 border-b border-slate-800/80 px-4 flex items-center justify-between text-xs text-slate-400 flex-shrink-0 z-10">
-        <div class="flex items-center gap-3">
-          <span class="flex items-center gap-1.5 font-semibold text-slate-200">
-            <i data-lucide="eye" class="w-4 h-4 text-emerald-400"></i>
-            <span>Pratinjau Lembaran Koran A3</span>
-          </span>
-          <span class="hidden sm:inline text-slate-600">|</span>
-          <span class="hidden sm:inline text-[11px] text-slate-400">Resolusi Cetak Standar 300 DPI</span>
-        </div>
-
-        <div class="flex items-center gap-1.5">
-          <button id="btn-zoom-out" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white" title="Perkecil Preview">
-            <i data-lucide="minus" class="w-3.5 h-3.5"></i>
-          </button>
-          <span id="label-zoom" class="w-12 text-center font-mono font-bold text-emerald-400 text-xs">75%</span>
-          <button id="btn-zoom-in" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white" title="Perbesar Preview">
-            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-          </button>
-          <button id="btn-zoom-fit" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold" title="Sesuaikan dengan Layar">
-            Fit
-          </button>
-        </div>
-      </div>
-
       <!-- Preview Sheet Stage (Scrollable) -->
       <div id="preview-stage" class="flex-1 overflow-auto p-4 sm:p-8 flex items-start justify-center">
         
-        <!-- THE A3 NEWSPAPER SHEET (Will be captured to 300 DPI Canvas/PDF) -->
+        <!-- THE A3 NEWSPAPER SHEET (Captured to 300 DPI Canvas/PDF) -->
         <div id="a3-sheet" class="a3-sheet relative p-8 flex flex-col justify-between overflow-hidden">
 
           <!-- SHEET HEADER CONTAINER -->
@@ -691,10 +380,10 @@
               
               <!-- Floating Overlay Edition Box (Pojok Kanan Atas, Sejajar Bawah Huruf M) -->
               <div id="view-custom-header-overlay-box" style="top: 52px; right: 24px;" class="absolute text-right font-serif leading-snug text-slate-900 pointer-events-none select-none z-10">
-                <div id="view-day-custom-overlay" class="text-[11px] text-slate-900 font-normal">Senin Wage</div>
-                <div id="view-date-masehi-custom-overlay" class="text-[11px] text-slate-900 font-normal">25 Agustus 2025</div>
-                <div id="view-date-hijri-custom-overlay" class="text-[11px] text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
-                <div id="view-edition-num-custom-overlay" class="text-[11px] font-bold text-slate-950 mt-0.5">Tahun 2025 | Nomor : 0002</div>
+                <div id="view-day-custom-overlay" class="text-[11px] text-slate-900 font-normal">Selasa Pahing</div>
+                <div id="view-date-masehi-custom-overlay" class="text-[11px] text-slate-900 font-normal">27 Oktober 2026</div>
+                <div id="view-date-hijri-custom-overlay" class="text-[11px] text-slate-700 font-normal">16 Jumadil Awal 1448 H</div>
+                <div id="view-edition-num-custom-overlay" class="text-[11px] font-bold text-slate-950 mt-0.5">Tahun 2026 | Nomor : 0006</div>
               </div>
             </div>
 
@@ -703,22 +392,20 @@
               <!-- Row 1: AL QALAM Kop & Partner Logos & Edition Box -->
               <div class="flex items-start justify-between gap-4">
                 
-                <!-- Left/Center: AL QALAM Brand Logo with Madrasah Info (Lebar & Proporsional) -->
+                <!-- Left/Center: AL QALAM Brand Logo with Madrasah Info -->
                 <div class="flex-1 flex items-center pr-2 overflow-hidden">
                   <img id="view-brand-header-img" src="assets/template/alqalam_brand_header.png" alt="Logo AL QALAM" style="height: 160px;" class="w-auto max-w-full object-contain transition-all duration-200">
                 </div>
 
                 <!-- Right: Partner Logos & Edition Box -->
                 <div class="flex flex-col items-end text-right flex-shrink-0">
-                  <!-- Logos row (Kemenag, Pusaka, BerAKHLAK, Hari Santri) -->
                   <img src="assets/template/top_partner_logos.png" alt="Logos Resmi" class="h-6 sm:h-7 object-contain">
                   
-                  <!-- Edition info box (Rata Kanan - Sejajar Bawah Huruf M) -->
                   <div id="view-default-date-box" style="margin-top: 48px;" class="text-[11px] font-serif leading-snug text-slate-900 text-right">
-                    <div id="view-day" class="text-slate-900 font-normal">Senin Wage</div>
-                    <div id="view-date-masehi" class="text-slate-900 font-normal">25 Agustus 2025</div>
-                    <div id="view-date-hijri" class="text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
-                    <div id="view-edition-num" class="font-bold text-slate-900 mt-0.5">Tahun 2025 | Nomor : 0002</div>
+                    <div id="view-day" class="text-slate-900 font-normal">Selasa Pahing</div>
+                    <div id="view-date-masehi" class="text-slate-900 font-normal">27 Oktober 2026</div>
+                    <div id="view-date-hijri" class="text-slate-700 font-normal">16 Jumadil Awal 1448 H</div>
+                    <div id="view-edition-num" class="font-bold text-slate-900 mt-0.5">Tahun 2026 | Nomor : 0006</div>
                   </div>
                 </div>
 
@@ -750,13 +437,13 @@
               </div>
             </div>
 
-            <!-- OPTION C: Optional Edition & Date Sub-Bar under Custom Header (Stacked Rata Kanan) -->
+            <!-- OPTION C: Optional Edition & Date Sub-Bar under Custom Header -->
             <div id="view-custom-header-edition-bar" class="hidden mt-2 pt-1.5 border-t border-slate-300 w-full flex justify-end text-right">
               <div class="text-[11px] font-serif leading-snug text-slate-900 text-right">
-                <div id="view-day-custom-bar" class="text-slate-900 font-normal">Senin Wage</div>
-                <div id="view-date-masehi-custom-bar" class="text-slate-900 font-normal">25 Agustus 2025</div>
-                <div id="view-date-hijri-custom-bar" class="text-slate-700 font-normal">1 Robi'ul Awal 1447 H</div>
-                <div id="view-edition-num-custom-bar" class="font-bold text-slate-900 mt-0.5">Tahun 2025 | Nomor : 0002</div>
+                <div id="view-day-custom-bar" class="text-slate-900 font-normal">Selasa Pahing</div>
+                <div id="view-date-masehi-custom-bar" class="text-slate-900 font-normal">27 Oktober 2026</div>
+                <div id="view-date-hijri-custom-bar" class="text-slate-700 font-normal">16 Jumadil Awal 1448 H</div>
+                <div id="view-edition-num-custom-bar" class="font-bold text-slate-900 mt-0.5">Tahun 2026 | Nomor : 0006</div>
               </div>
             </div>
 
@@ -768,7 +455,7 @@
             <!-- Top Hero: Author Profile Spacer & Headline -->
             <div class="flex items-start gap-5 mb-4 relative min-h-[175px]">
               
-              <!-- Author Slot Spacer (Sisihkan ruang kosong di samping judul saat foto di posisi kiri) -->
+              <!-- Author Slot Spacer -->
               <div id="author-slot-spacer" class="hidden w-44 flex-shrink-0 transition-all duration-300"></div>
 
               <!-- Headline & Subheadline & Byline -->
@@ -787,18 +474,18 @@
 
             </div>
 
-            <!-- 1. FLOATING DRAGGABLE AUTHOR PHOTO (Foto Penulis Mandiri - Bebas Di-drag ke Mana Saja) -->
+            <!-- 1. FLOATING DRAGGABLE AUTHOR PHOTO -->
             <div id="container-author-photo" style="left: 0px; top: 35px;" class="absolute w-44 flex flex-col items-start cursor-grab select-none group touch-none z-30 transition-shadow canvas-selectable" data-canvas-type="author-photo" title="Klik untuk atur / perbesar foto penulis">
-              <!-- Photo Frame (Tanpa Frame & Transparan PNG) -->
               <div id="author-photo-frame" class="w-full min-h-[160px] bg-transparent border-0 shadow-none rounded-none overflow-visible relative flex flex-col items-start justify-end transition-all">
                 <img id="view-author-img" src="" alt="Foto Penulis" class="hidden w-auto max-w-full max-h-[260px] object-contain object-left-bottom pointer-events-none select-none">
+                
                 <!-- Neutral Placeholder when empty -->
                 <div id="placeholder-view-author" class="w-40 h-52 flex flex-col items-center justify-center text-slate-400 p-4 text-center pointer-events-none border border-dashed border-slate-300 rounded-xl bg-slate-50/40">
                   <i data-lucide="user" class="w-14 h-14 text-slate-300 stroke-[1.5]"></i>
                   <span class="text-[10px] font-sans text-slate-400 mt-2 font-medium">Foto Penulis (Kosong)</span>
                 </div>
 
-                <!-- Dynamic Corner Resize Handle (Titik Pojok Kanan Bawah untuk Memperbesar/Memperkecil) -->
+                <!-- Dynamic Corner Resize Handle -->
                 <div id="handle-resize-author" 
                      title="Klik tahan dan seret untuk memperbesar / memperkecil foto" 
                      class="export-ignore absolute -bottom-2.5 -right-2.5 w-6 h-6 bg-emerald-500 hover:bg-emerald-400 active:scale-125 border-2 border-white rounded-full shadow-lg cursor-nwse-resize z-40 flex items-center justify-center transition-transform hover:scale-125 touch-none select-none">
@@ -807,7 +494,7 @@
               </div>
             </div>
 
-            <!-- 2. FLOATING DRAGGABLE AUTHOR NAME BADGE (Teksbok Nama Penulis Mandiri & Terpisah) -->
+            <!-- 2. FLOATING DRAGGABLE AUTHOR NAME BADGE -->
             <div id="container-author-badge" style="left: 32px; top: 235px;" class="absolute flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow canvas-selectable" data-canvas-type="author-badge" title="Klik untuk atur kotak nama">
               <div id="view-author-badge" class="bg-gradient-to-r from-amber-600 to-rose-600 text-white font-bold text-[11px] py-1 px-3 text-center rounded-md shadow-md tracking-wider truncate max-w-xs pointer-events-none select-none">
                 MOHAMAD JAMIL, S.Pd.
@@ -833,12 +520,10 @@
 
               <!-- Doodle & Event Logo (Right 5 cols) -->
               <div class="col-span-5 flex flex-col items-center justify-between h-full py-1">
-                <!-- Math doodle / Illustration -->
                 <div id="container-view-illustration" style="display: none;" class="mb-2">
                   <img id="view-illustration-img" src="" alt="Ilustrasi" class="max-h-20 object-contain">
                 </div>
 
-                <!-- Event logo -->
                 <div id="container-view-event-logo" style="display: none;" class="flex flex-col items-center">
                   <img id="view-event-logo-img" src="" alt="Logo Peringatan" class="max-h-24 object-contain">
                 </div>
@@ -867,6 +552,388 @@
       </div>
 
     </main>
+
+    <!-- ==================== C. RIGHT COLLAPSIBLE INSPECTOR DRAWER ==================== -->
+    <aside id="editor-panel" class="w-full lg:w-[420px] xl:w-[460px] flex-shrink-0 bg-slate-900 border-l border-slate-800 flex flex-col h-full overflow-hidden z-20 transition-all duration-200">
+      
+      <!-- Drawer Navigation Header Tabs -->
+      <div class="px-3 py-2.5 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-1 bg-slate-900 p-0.5 rounded-xl border border-slate-800">
+          <button type="button" class="btn-dock-tab px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-white shadow-sm transition" data-target="tab-pane-naskah">
+            📝 Naskah
+          </button>
+          <button type="button" class="btn-dock-tab px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition" data-target="tab-pane-edisi">
+            📅 Edisi
+          </button>
+          <button type="button" class="btn-dock-tab px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition" data-target="tab-pane-sisipan">
+            🖼️ Sisipan
+          </button>
+          <button type="button" class="btn-dock-tab px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition" data-target="tab-pane-detail" title="Pengaturan Lengkap">
+            ⚙️ Lengkap
+          </button>
+        </div>
+
+        <button type="button" id="btn-close-dock" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer" title="Tutup Panel Naskah">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Drawer Content Panes (Scrollable) -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-4 select-text">
+
+        <!-- ==================== TAB 1: NASKAH ARTIKEL ==================== -->
+        <div id="tab-pane-naskah" class="dock-tab-pane space-y-4">
+          
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+              <i data-lucide="align-left" class="w-4 h-4"></i>
+              <span>Naskah Tulisan Koran (3 Kolom)</span>
+            </h3>
+            <span class="text-xs font-mono font-bold bg-slate-800 text-emerald-300 px-2 py-0.5 rounded-md border border-slate-700" id="text-word-count">0 kata</span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-paste-clipboard-dock" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/40 hover:to-teal-600/40 border border-emerald-500/40 text-emerald-200 rounded-xl text-xs font-semibold transition active:scale-95 shadow-sm cursor-pointer">
+              <i data-lucide="clipboard" class="w-4 h-4 text-emerald-400"></i>
+              <span>📋 Tempel Teks (Paste)</span>
+            </button>
+            <button type="button" id="btn-demo-preset-dock" class="flex items-center justify-center gap-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-emerald-300 rounded-xl text-xs font-semibold transition active:scale-95 cursor-pointer" title="Isi Naskah Contoh">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>Contoh</span>
+            </button>
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">Editor Naskah:</label>
+            <textarea id="inp-body-text" rows="18" class="w-full bg-slate-950 border border-slate-700/80 text-white text-xs p-3.5 rounded-xl outline-none focus:border-emerald-500 transition font-sans leading-relaxed resize-y shadow-inner" placeholder="Tempel naskah artikel Anda di sini dari Word atau WhatsApp..."></textarea>
+            <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
+              💡 <b>Tips:</b> Pisahkan antar-paragraf dengan menekan <b>Enter 2 kali</b>. Huruf pertama otomatis berubah menjadi Drop Cap editorial.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- ==================== TAB 2: EDISI & PENOMORAN ==================== -->
+        <div id="tab-pane-edisi" class="dock-tab-pane hidden space-y-4">
+          
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4"></i>
+              <span>Informasi Edisi & Penomoran Koran</span>
+            </h3>
+
+            <div class="grid grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Hari & Pasaran</label>
+                <input type="text" id="inp-day" value="Selasa Pahing" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Tanggal Masehi</label>
+                <input type="text" id="inp-date-masehi" value="27 Oktober 2026" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Tanggal Hijriah</label>
+                <input type="text" id="inp-date-hijri" value="16 Jumadil Awal 1448 H" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+              </div>
+              <div>
+                <label class="block text-[11px] text-slate-400 mb-1">Nomor Edisi & Tahun</label>
+                <input type="text" id="inp-edition-num" value="Tahun 2026 | Nomor : 0006" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+              </div>
+            </div>
+
+            <!-- Posisi Naik / Turun Hari -->
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-medium text-[11px] flex items-center gap-1.5">
+                <i data-lucide="move-vertical" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Posisi Naik/Turun Hari:</span>
+              </span>
+              <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-1">
+                <button type="button" id="btn-date-up" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Geser Hari ke Atas">▲</button>
+                <span id="label-date-offset" class="font-mono text-emerald-400 text-[11px] font-semibold w-12 text-center select-none">48 px</span>
+                <button type="button" id="btn-date-down" class="w-6 h-6 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer" title="Geser Hari ke Bawah">▼</button>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800/80">
+              <label class="block text-[11px] text-slate-400 mb-1">Nomor Halaman:</label>
+              <input type="text" id="inp-page-num" value="Halaman 6" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500">
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ==================== TAB 3: SISIPAN VISUAL ==================== -->
+        <div id="tab-pane-sisipan" class="dock-tab-pane hidden space-y-4">
+          
+          <!-- Foto Kegiatan -->
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+              <i data-lucide="image" class="w-4 h-4"></i>
+              <span>Foto Dokumentasi / Kegiatan</span>
+            </h3>
+
+            <div class="w-full h-36 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden relative flex items-center justify-center">
+              <img id="preview-activity-img" src="" alt="Foto Kegiatan" class="hidden w-full h-full object-cover">
+              <div id="placeholder-preview-activity" class="flex flex-col items-center justify-center text-slate-500 p-2 text-center">
+                <i data-lucide="image" class="w-8 h-8 text-slate-600"></i>
+                <span class="text-[10px] mt-1 text-slate-500 font-sans">Belum ada foto kegiatan (opsional)</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-3">
+              <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
+                <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span id="label-activity-photo">Upload Foto Kegiatan</span>
+                <input type="file" id="inp-activity-photo" accept="image/*" class="hidden">
+              </label>
+
+              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                <input type="checkbox" id="chk-show-activity-img" class="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500">
+                <span>Tampilkan Foto</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Kutipan Kunci & Logo Acara -->
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+              <i data-lucide="award" class="w-4 h-4"></i>
+              <span>Kutipan Kunci & Logo Acara</span>
+            </h3>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Kutipan Kunci (Callout Box)</label>
+              <textarea id="inp-callout-quote" rows="3" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs p-2.5 rounded-xl outline-none focus:border-emerald-500 transition italic" placeholder="Ketik kutipan penting jika ada (opsional)..."></textarea>
+            </div>
+
+            <div class="pt-2">
+              <label class="block text-[11px] text-slate-400 mb-1">Logo Peringatan / Event</label>
+              <select id="sel-event-logo" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-2.5 py-2 rounded-xl outline-none focus:border-emerald-500">
+                <option value="none" selected>Tanpa Logo Event</option>
+                <option value="sumpah_pemuda">98 Th Sumpah Pemuda</option>
+                <option value="hari_santri">Hari Santri 2026</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ==================== TAB 4: PENGATURAN LENGKAP ==================== -->
+        <div id="tab-pane-detail" class="dock-tab-pane hidden space-y-4">
+          
+          <!-- Template Selector -->
+          <div class="space-y-2">
+            <label class="block text-xs font-bold text-slate-300">Model Tata Letak:</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" data-template-type="teacher_opinion" class="btn-template-select p-2 rounded-xl border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-xs font-bold flex items-center gap-2 text-left transition shadow-sm">
+                <i data-lucide="newspaper" class="w-4 h-4 flex-shrink-0 text-emerald-400"></i>
+                <div>
+                  <div>Opini Guru</div>
+                  <div class="text-[10px] font-normal text-slate-400">3 Kolom + Foto</div>
+                </div>
+              </button>
+              <button type="button" data-template-type="news_report" class="btn-template-select p-2 rounded-xl border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-xs font-semibold flex items-center gap-2 text-left transition">
+                <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i>
+                <div>
+                  <div>Liputan Berita</div>
+                  <div class="text-[10px] font-normal text-slate-500">Headline Lebar</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Section Kop Master Full Controls -->
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3.5 space-y-3">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+              <i data-lucide="layout" class="w-3.5 h-3.5"></i>
+              <span>Kop Koran Master</span>
+            </h3>
+
+            <div id="container-header-upload-controls" class="space-y-2">
+              <div id="container-preview-header" class="hidden w-full bg-slate-900 border border-emerald-500/50 rounded-xl overflow-hidden p-2 relative flex flex-col gap-1.5">
+                <div class="flex items-center justify-between text-[11px] text-emerald-400 font-semibold px-1">
+                  <span class="flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Kop Terpasang</span>
+                  <button type="button" id="btn-reset-master-header" class="text-rose-400 hover:text-rose-300 text-[10px] flex items-center gap-1 bg-rose-950/60 hover:bg-rose-900 px-2 py-0.5 rounded border border-rose-800 transition cursor-pointer">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i> Hapus
+                  </button>
+                </div>
+                <div class="w-full h-14 bg-slate-950 rounded-lg flex items-center justify-center p-1 border border-slate-800">
+                  <img id="preview-custom-header-img" src="" alt="Thumbnail Kop" class="w-full h-full object-contain">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-1.5">
+                <input type="file" id="inp-custom-header" accept="image/png,image/jpeg,image/webp,image/jpg" class="hidden">
+                <button type="button" id="btn-trigger-upload-header" class="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-300 rounded-lg text-xs font-semibold transition active:scale-95 text-center cursor-pointer">
+                  <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+                  <span id="label-upload-header">Upload Kop</span>
+                </button>
+                <button type="button" id="btn-paste-header-direct" class="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-indigo-950/70 hover:bg-indigo-900 border border-indigo-700 text-indigo-300 rounded-lg text-xs font-semibold transition active:scale-95 text-center cursor-pointer">
+                  <i data-lucide="clipboard-paste" class="w-3.5 h-3.5"></i>
+                  <span>Tempel Canva</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Posisi Hari & Tanggal -->
+            <div id="container-custom-edition-toggle" class="pt-2 border-t border-slate-800/80 space-y-1.5">
+              <label class="block text-[11px] font-bold text-slate-300">Posisi Hari & Tanggal:</label>
+              <div class="grid grid-cols-3 gap-1">
+                <button type="button" id="btn-pos-overlay" class="px-1.5 py-1 rounded text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 text-center transition cursor-pointer">
+                  Pojok Kanan
+                </button>
+                <button type="button" id="btn-pos-below" class="px-1.5 py-1 rounded text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer">
+                  Di Bawah
+                </button>
+                <button type="button" id="btn-pos-hide" class="px-1.5 py-1 rounded text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white text-center transition cursor-pointer">
+                  Sembunyi
+                </button>
+              </div>
+            </div>
+
+            <!-- Ukuran Kop & Full Bleed -->
+            <div class="pt-2 border-t border-slate-800/80 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-300 font-bold text-[11px]">Lebar Kop:</span>
+                <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+                  <button type="button" id="btn-kop-size-down" class="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer">➖</button>
+                  <span id="label-kop-size" class="font-mono text-emerald-400 text-[11px] font-semibold w-16 text-center select-none">Lebar</span>
+                  <button type="button" id="btn-kop-size-up" class="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-bold transition active:scale-95 cursor-pointer">➕</button>
+                </div>
+              </div>
+
+              <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none">
+                <input type="checkbox" id="chk-full-width-header" class="w-3.5 h-3.5 rounded accent-emerald-500">
+                <span>Bentangkan Full-Bleed 100%</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Section Penulis & Profil Full Controls -->
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3.5 space-y-3">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+              <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+              <span>Profil Guru / Penulis</span>
+            </h3>
+            
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Nama Lengkap & Gelar</label>
+              <input type="text" id="inp-author-name" value="MOHAMAD JAMIL, S.Pd." class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <!-- Upload / Paste Foto -->
+            <div class="flex items-center gap-3">
+              <div class="w-14 h-16 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex items-center justify-center relative flex-shrink-0">
+                <img id="preview-author-img" src="" alt="Foto Penulis" class="hidden w-full h-full object-contain">
+                <div id="placeholder-preview-author" class="flex flex-col items-center justify-center text-slate-500">
+                  <i data-lucide="user" class="w-5 h-5"></i>
+                  <span class="text-[8px] mt-0.5">Kosong</span>
+                </div>
+              </div>
+              <div class="flex-1 space-y-1.5">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <label for="inp-author-photo" class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[11px] font-semibold border border-slate-700 transition">
+                    <i data-lucide="upload" class="w-3 h-3 text-emerald-400"></i>
+                    <span id="label-author-photo">Upload Foto</span>
+                  </label>
+                  <button type="button" id="btn-paste-author-direct" class="px-2 py-1 bg-indigo-950/70 hover:bg-indigo-900 text-indigo-300 rounded-lg text-[11px] font-semibold border border-indigo-700 transition cursor-pointer flex items-center gap-1" title="Tempel dari Canva">
+                    <i data-lucide="clipboard-paste" class="w-3 h-3 text-indigo-400"></i>
+                    <span>Canva</span>
+                  </button>
+                  <button type="button" id="btn-make-author-transparent" class="hidden px-2 py-1 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 rounded-lg text-[11px] font-semibold border border-emerald-700 transition cursor-pointer flex items-center gap-1" title="Hapus Latar Belakang">
+                    <i data-lucide="wand-2" class="w-3 h-3 text-emerald-400"></i>
+                    <span>Transparan</span>
+                  </button>
+                  <button type="button" id="btn-trim-author-photo" class="hidden px-2 py-1 bg-blue-950/70 hover:bg-blue-900 text-blue-300 rounded-lg text-[11px] font-semibold border border-blue-700 transition cursor-pointer flex items-center gap-1" title="Rapatkan Tepi Foto">
+                    <i data-lucide="scissors" class="w-3 h-3 text-blue-400"></i>
+                    <span>Rapatkan</span>
+                  </button>
+                  <button type="button" id="btn-clear-author-photo" class="hidden p-1 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-lg text-[11px] border border-rose-800 transition cursor-pointer" title="Hapus Foto">
+                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                  </button>
+                  <input type="file" id="inp-author-photo" accept="image/*" class="hidden">
+                </div>
+              </div>
+            </div>
+
+            <!-- Bingkai & Ukuran & Reset -->
+            <div class="grid grid-cols-2 gap-1.5 pt-1">
+              <button type="button" id="btn-author-frame-none" class="px-2 py-1 rounded text-[10px] font-semibold border border-emerald-500 bg-emerald-500/10 text-emerald-300 flex items-center justify-center gap-1">
+                <span>✨ Transparan</span>
+              </button>
+              <button type="button" id="btn-author-frame-box" class="px-2 py-1 rounded text-[10px] font-semibold border border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white flex items-center justify-center gap-1">
+                <span>🖼️ Bingkai Kotak</span>
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between text-xs pt-1">
+              <span class="text-slate-400 text-[11px]">Ukuran Foto:</span>
+              <div class="flex items-center gap-2">
+                <span id="label-author-size" class="text-[11px] text-emerald-400 font-mono font-bold">170 px</span>
+                <button type="button" id="btn-reset-author-size" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-700 transition">Reset Ukuran</button>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+              <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none">
+                <input type="checkbox" id="chk-show-author-badge" checked class="w-3.5 h-3.5 rounded accent-emerald-500">
+                <span>Badge Nama</span>
+              </label>
+              <button type="button" id="btn-reset-author-badge-pos" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-700 transition">Reset Badge</button>
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <button type="button" id="btn-author-align-left" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 transition">◀ Mepet Kiri</button>
+              <button type="button" id="btn-author-align-center" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded border border-slate-700 transition">⏺ Rata Tengah</button>
+              <button type="button" id="btn-reset-author-photo-pos" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-emerald-400 px-2 py-1 rounded border border-slate-700 transition">↺ Reset Posisi</button>
+            </div>
+
+            <!-- Posisi Presets -->
+            <div class="grid grid-cols-2 gap-1 pt-1">
+              <button type="button" class="btn-pos-preset px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px]" data-pos="mepet-kiri">📌 Mepet Kiri</button>
+              <button type="button" class="btn-pos-preset px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px]" data-pos="mepet-kanan">📌 Mepet Kanan</button>
+            </div>
+
+            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer select-none pt-1">
+              <input type="checkbox" id="chk-headline-spacer" class="w-3.5 h-3.5 rounded accent-emerald-500">
+              <span>Sisihkan ruang kosong di samping judul</span>
+            </label>
+          </div>
+
+          <!-- Section Judul & Subjudul Full Controls -->
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3.5 space-y-3">
+            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+              <i data-lucide="type" class="w-3.5 h-3.5"></i>
+              <span>Judul & Subjudul</span>
+            </h3>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Judul Utama (Headline)</label>
+              <input type="text" id="inp-headline" value="SIAPA BILANG MEMBOSANKAN !!!" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl font-bold outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-1">Subjudul</label>
+              <input type="text" id="inp-subheadline" value="Temukan Keseruan Matematika dalam Kehidupan Sehari-hari!" class="w-full bg-slate-900 border border-slate-700/80 text-white text-xs px-3 py-2 rounded-xl italic outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <div class="pt-2 border-t border-slate-800/80">
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="text-slate-300">Geser Judul ke Kanan:</span>
+                <span id="label-headline-indent" class="text-emerald-400 font-mono font-bold">0 px</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="range" id="inp-headline-indent" min="0" max="360" value="0" step="10" class="w-full accent-emerald-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                <button type="button" id="btn-reset-headline-indent" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded border border-slate-700">Reset</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </aside>
 
   </div>
 
@@ -958,7 +1025,7 @@
     <p id="studio-loading-desc" class="text-xs text-slate-400 text-center max-w-sm">Sedang merender lembaran A3 ke dalam PDF resolusi tinggi (300 DPI)...</p>
   </div>
 
-  <!-- Main Studio JavaScript -->
-  <script src="js/studio.js?v=20261102_nohud01"></script>
+  <!-- Main Studio JavaScript with Corel Interface -->
+  <script src="js/studio.js?v=20261102_corel01"></script>
 </body>
 </html>
