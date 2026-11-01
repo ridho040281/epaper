@@ -120,6 +120,29 @@
         padding: 0;
       }
     }
+
+    /* Direct On-Canvas Interactive Objects */
+    .canvas-selectable {
+      cursor: pointer;
+      position: relative;
+      transition: outline 0.15s ease, box-shadow 0.15s ease;
+      border-radius: 6px;
+    }
+    .canvas-selectable:hover {
+      outline: 2px dashed rgba(16, 185, 129, 0.7) !important;
+      outline-offset: 3px;
+    }
+    .canvas-selectable.canvas-selected {
+      outline: 2px solid #059669 !important;
+      outline-offset: 3px;
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.25);
+    }
+    .canvas-inline-editing {
+      outline: 2px solid #3b82f6 !important;
+      outline-offset: 3px;
+      background-color: rgba(239, 246, 255, 0.8) !important;
+      cursor: text !important;
+    }
   </style>
 </head>
 <body class="h-full flex flex-col bg-slate-950 text-slate-100 overflow-hidden select-none">
@@ -649,11 +672,20 @@
         <!-- THE A3 NEWSPAPER SHEET (Will be captured to 300 DPI Canvas/PDF) -->
         <div id="a3-sheet" class="a3-sheet relative p-8 flex flex-col justify-between overflow-hidden">
           
+          <!-- DIRECT ON-CANVAS HUD TOOLBAR (Canva-style Interactive Selection & Controls) -->
+          <div id="canvas-hud-toolbar" class="export-ignore hidden absolute z-50 bg-slate-900/95 backdrop-blur-md border border-emerald-500/80 text-white rounded-xl shadow-2xl px-2.5 py-1.5 flex items-center gap-2 text-xs transition-all duration-150 select-none">
+            <span id="hud-title" class="font-bold text-emerald-400 flex items-center gap-1.5 pr-2 border-r border-slate-700/80 text-[11px] whitespace-nowrap"></span>
+            <div id="hud-controls" class="flex items-center gap-1.5 whitespace-nowrap"></div>
+            <button type="button" id="btn-hud-close" class="ml-1 text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded transition cursor-pointer" title="Tutup Pengatur">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
           <!-- SHEET HEADER CONTAINER -->
           <div id="container-sheet-header" class="w-full flex-shrink-0 mb-4 pb-1">
             
             <!-- OPTION A: Custom Uploaded Master Header View -->
-            <div id="view-custom-header-wrapper" class="w-full relative">
+            <div id="view-custom-header-wrapper" class="w-full relative canvas-selectable group" data-canvas-type="header">
               <img id="view-custom-header-img" src="" alt="Header Master Koran" class="w-full h-auto object-contain block mx-auto transition-transform duration-200">
               
               <!-- Floating Overlay Edition Box (Pojok Kanan Atas, Sejajar Bawah Huruf M) -->
@@ -740,13 +772,13 @@
 
               <!-- Headline & Subheadline & Byline -->
               <div class="flex-1 pt-1" id="container-hero-text">
-                <h2 id="view-headline" class="font-title text-3xl font-black text-slate-950 leading-tight tracking-tight mb-2">
+                <h2 id="view-headline" class="font-title text-3xl font-black text-slate-950 leading-tight tracking-tight mb-2 canvas-selectable transition-all" data-canvas-type="headline" title="Klik untuk atur ukuran & geser judul langsung (atau klik ganda untuk edit teks)">
                   SIAPA BILANG MEMBOSANKAN !!!
                 </h2>
-                <h3 id="view-subheadline" class="font-serif italic text-lg font-bold text-slate-800 leading-snug mb-3">
+                <h3 id="view-subheadline" class="font-serif italic text-lg font-bold text-slate-800 leading-snug mb-3 canvas-selectable transition-all" data-canvas-type="subheadline" title="Klik untuk atur ukuran subjudul (atau klik ganda untuk edit teks)">
                   Temukan Keseruan Matematika dalam Kehidupan Sehari-hari!
                 </h3>
-                <div class="flex items-center gap-2 border-t border-b border-slate-300 py-1 text-xs font-serif font-bold text-slate-900">
+                <div class="flex items-center gap-2 border-t border-b border-slate-300 py-1 text-xs font-serif font-bold text-slate-900 canvas-selectable transition-all" id="view-byline-container" data-canvas-type="byline" title="Klik untuk atur byline penulis">
                   <span>Oleh :</span>
                   <span id="view-byline" class="text-rose-800">MOHAMAD JAMIL, S.Pd.</span>
                 </div>
@@ -755,7 +787,7 @@
             </div>
 
             <!-- 1. FLOATING DRAGGABLE AUTHOR PHOTO (Foto Penulis Mandiri - Bebas Di-drag ke Mana Saja) -->
-            <div id="container-author-photo" style="left: 0px; top: 35px;" class="absolute w-44 flex flex-col items-start cursor-grab select-none group touch-none z-30 transition-shadow">
+            <div id="container-author-photo" style="left: 0px; top: 35px;" class="absolute w-44 flex flex-col items-start cursor-grab select-none group touch-none z-30 transition-shadow canvas-selectable" data-canvas-type="author-photo" title="Klik untuk atur / perbesar foto penulis">
               
               <!-- Drag Handle Indicator Pill on Hover -->
               <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap export-ignore">
@@ -782,7 +814,7 @@
             </div>
 
             <!-- 2. FLOATING DRAGGABLE AUTHOR NAME BADGE (Teksbok Nama Penulis Mandiri & Terpisah) -->
-            <div id="container-author-badge" style="left: 32px; top: 235px;" class="absolute flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow">
+            <div id="container-author-badge" style="left: 32px; top: 235px;" class="absolute flex flex-col items-center cursor-grab select-none group touch-none z-30 transition-shadow canvas-selectable" data-canvas-type="author-badge" title="Klik untuk atur kotak nama">
               <!-- Drag Handle Indicator Pill on Hover -->
               <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/90 text-white text-[9px] font-sans px-2.5 py-0.5 rounded-full mb-1 flex items-center gap-1 shadow-md border border-slate-700 pointer-events-none whitespace-nowrap export-ignore">
                 <i data-lucide="move" class="w-2.5 h-2.5 text-emerald-400"></i>
@@ -795,7 +827,9 @@
             </div>
 
             <!-- Newspaper 3-Columns Text -->
-            <div class="flex-1 newspaper-columns text-slate-900 font-serif text-[11.5px] leading-relaxed select-text" id="view-newspaper-content">
+            <div class="flex-1 newspaper-columns text-slate-900 font-serif text-[11.5px] leading-relaxed select-text canvas-selectable transition-all" id="view-newspaper-content" data-canvas-type="newspaper-content" title="Klik untuk atur ukuran huruf naskah koran">
+              <!-- Rendered dynamically -->
+            </div>
               <!-- Rendered dynamically -->
             </div>
 
