@@ -252,6 +252,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.bodyFontSize           = 11.5;
     this.authorBadgeFontSize    = 11;
     this.customHeaderScale      = 1.0;
+    this.headlineOffsetX        = 0;
     this.headlineOffsetY        = 0;
     this.subheadlineOffsetX     = 0;
     this.subheadlineOffsetY     = 0;
@@ -707,10 +708,15 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.updateHeadlineIndent(parseInt(savedIndent, 10), false);
     }
 
-    // Pulihkan offset vertikal judul
-    const savedHeadlineOffsetY = localStorage.getItem('alqalam_headline_offset_y');
-    if (savedHeadlineOffsetY !== null) {
-      this.setHeadlineOffsetY(parseInt(savedHeadlineOffsetY, 10), false);
+    // Pulihkan offset posisi judul
+    const savedHeadlineOffset = localStorage.getItem('alqalam_headline_offset');
+    if (savedHeadlineOffset) {
+      try {
+        const offset = JSON.parse(savedHeadlineOffset);
+        if (typeof offset.x === 'number' && typeof offset.y === 'number') {
+          this.setHeadlineOffset(offset.x, offset.y, false);
+        }
+      } catch(e) {}
     }
 
     // Pulihkan offset posisi subjudul
@@ -1330,26 +1336,42 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   }
 
   initTextElementsDirectDrag() {
-    this.initHeadlineDirectDrag();
-    this.initSubheadlineDirectDrag();
-    this.initBylineDirectDrag();
+    this.makeTextElementDraggable(
+      this.viewHeadline,
+      () => ({ x: this.headlineOffsetX, y: this.headlineOffsetY }),
+      (x, y, save) => this.setHeadlineOffset(x, y, save)
+    );
+
+    this.makeTextElementDraggable(
+      this.viewSubheadline,
+      () => ({ x: this.subheadlineOffsetX, y: this.subheadlineOffsetY }),
+      (x, y, save) => this.setSubheadlineOffset(x, y, save)
+    );
+
+    this.makeTextElementDraggable(
+      this.viewBylineContainer,
+      () => ({ x: this.bylineOffsetX, y: this.bylineOffsetY }),
+      (x, y, save) => this.setBylineOffset(x, y, save)
+    );
   }
 
-  initHeadlineDirectDrag() {
-    const el = this.viewHeadline;
-    if (!el) return;
+  makeTextElementDraggable(elem, getOffsetFn, setOffsetFn) {
+    if (!elem) return;
+
+    elem.setAttribute('draggable', 'false');
+    elem.addEventListener('dragstart', (e) => e.preventDefault());
 
     let isDown = false;
     let isDragging = false;
     let startX = 0;
     let startY = 0;
-    let initialIndent = 0;
-    let initialOffsetY = 0;
+    let initialX = 0;
+    let initialY = 0;
 
     const onStart = (e) => {
       if (e.type === 'mousedown' && e.button !== 0) return;
-      if (el.isContentEditable || el.classList.contains('canvas-inline-editing')) return;
-      if (e.target.closest('#handle-resize-headline')) return;
+      if (elem.isContentEditable || elem.classList.contains('canvas-inline-editing')) return;
+      if (e.target.closest('.export-ignore')) return;
 
       isDown = true;
       isDragging = false;
@@ -1357,32 +1379,41 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
       startX = clientX;
       startY = clientY;
-      initialIndent = this.headlineIndent || 0;
-      initialOffsetY = this.headlineOffsetY || 0;
+
+      const current = getOffsetFn();
+      initialX = current.x || 0;
+      initialY = current.y || 0;
+
+      // Segera tandai seleksi canvas
+      this.selectCanvasElement(elem);
+
+      // PENTING: Cegah text selection agar browser tidak meng-highlight teks saat di-drag
+      if (e.cancelable) e.preventDefault();
     };
 
     const onMove = (e) => {
       if (!isDown) return;
+
       const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
       const zoom = this.zoomScale || 1;
       const dx = (clientX - startX) / zoom;
       const dy = (clientY - startY) / zoom;
 
-      if (!isDragging && Math.hypot(dx, dy) > 4) {
+      if (!isDragging && Math.hypot(dx, dy) > 3) {
         isDragging = true;
-        this.selectCanvasElement(el);
-        el.classList.add('cursor-grabbing');
-        el.style.transition = 'none';
-        if (this.authorSlotSpacer) this.authorSlotSpacer.style.transition = 'none';
+        elem.classList.add('cursor-grabbing');
+        elem.style.transition = 'none';
       }
 
       if (isDragging) {
         if (e.cancelable) e.preventDefault();
-        const newIndent = Math.max(0, Math.min(480, Math.round(initialIndent + dx)));
-        const newOffsetY = Math.max(-80, Math.min(160, Math.round(initialOffsetY + dy)));
-        this.updateHeadlineIndent(newIndent, false);
-        this.setHeadlineOffsetY(newOffsetY, false);
+
+        const newX = Math.round(initialX + dx);
+        const newY = Math.round(initialY + dy);
+
+        setOffsetFn(newX, newY, false);
         this.repositionCanvasHud();
       }
     };
@@ -1390,165 +1421,26 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const onEnd = () => {
       if (!isDown) return;
       isDown = false;
+
       if (isDragging) {
         isDragging = false;
-        el.classList.remove('cursor-grabbing');
-        el.style.transition = '';
-        if (this.authorSlotSpacer) this.authorSlotSpacer.style.transition = '';
-        this.updateHeadlineIndent(this.headlineIndent, true);
-        this.setHeadlineOffsetY(this.headlineOffsetY, true);
+        elem.classList.remove('cursor-grabbing');
+        elem.style.transition = '';
+
+        const cur = getOffsetFn();
+        setOffsetFn(cur.x, cur.y, true);
         this.repositionCanvasHud();
+
         this.justDragged = true;
-        setTimeout(() => { this.justDragged = false; }, 100);
+        setTimeout(() => { this.justDragged = false; }, 120);
       }
     };
 
-    el.addEventListener('mousedown', onStart);
+    elem.addEventListener('mousedown', onStart);
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onEnd);
-    el.addEventListener('touchstart', onStart, { passive: true });
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onEnd);
-  }
 
-  initSubheadlineDirectDrag() {
-    const el = this.viewSubheadline;
-    if (!el) return;
-
-    let isDown = false;
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let initialOffsetX = 0;
-    let initialOffsetY = 0;
-
-    const onStart = (e) => {
-      if (e.type === 'mousedown' && e.button !== 0) return;
-      if (el.isContentEditable || el.classList.contains('canvas-inline-editing')) return;
-
-      isDown = true;
-      isDragging = false;
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-      startX = clientX;
-      startY = clientY;
-      initialOffsetX = this.subheadlineOffsetX || 0;
-      initialOffsetY = this.subheadlineOffsetY || 0;
-    };
-
-    const onMove = (e) => {
-      if (!isDown) return;
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-      const zoom = this.zoomScale || 1;
-      const dx = (clientX - startX) / zoom;
-      const dy = (clientY - startY) / zoom;
-
-      if (!isDragging && Math.hypot(dx, dy) > 4) {
-        isDragging = true;
-        this.selectCanvasElement(el);
-        el.classList.add('cursor-grabbing');
-        el.style.transition = 'none';
-      }
-
-      if (isDragging) {
-        if (e.cancelable) e.preventDefault();
-        const newX = Math.max(-200, Math.min(500, Math.round(initialOffsetX + dx)));
-        const newY = Math.max(-100, Math.min(200, Math.round(initialOffsetY + dy)));
-        this.setSubheadlineOffset(newX, newY, false);
-        this.repositionCanvasHud();
-      }
-    };
-
-    const onEnd = () => {
-      if (!isDown) return;
-      isDown = false;
-      if (isDragging) {
-        isDragging = false;
-        el.classList.remove('cursor-grabbing');
-        el.style.transition = '';
-        this.setSubheadlineOffset(this.subheadlineOffsetX, this.subheadlineOffsetY, true);
-        this.repositionCanvasHud();
-        this.justDragged = true;
-        setTimeout(() => { this.justDragged = false; }, 100);
-      }
-    };
-
-    el.addEventListener('mousedown', onStart);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onEnd);
-    el.addEventListener('touchstart', onStart, { passive: true });
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onEnd);
-  }
-
-  initBylineDirectDrag() {
-    const el = this.viewBylineContainer;
-    if (!el) return;
-
-    let isDown = false;
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let initialOffsetX = 0;
-    let initialOffsetY = 0;
-
-    const onStart = (e) => {
-      if (e.type === 'mousedown' && e.button !== 0) return;
-      if (el.isContentEditable || el.classList.contains('canvas-inline-editing')) return;
-
-      isDown = true;
-      isDragging = false;
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-      startX = clientX;
-      startY = clientY;
-      initialOffsetX = this.bylineOffsetX || 0;
-      initialOffsetY = this.bylineOffsetY || 0;
-    };
-
-    const onMove = (e) => {
-      if (!isDown) return;
-      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
-      const zoom = this.zoomScale || 1;
-      const dx = (clientX - startX) / zoom;
-      const dy = (clientY - startY) / zoom;
-
-      if (!isDragging && Math.hypot(dx, dy) > 4) {
-        isDragging = true;
-        this.selectCanvasElement(el);
-        el.classList.add('cursor-grabbing');
-        el.style.transition = 'none';
-      }
-
-      if (isDragging) {
-        if (e.cancelable) e.preventDefault();
-        const newX = Math.max(-200, Math.min(500, Math.round(initialOffsetX + dx)));
-        const newY = Math.max(-100, Math.min(200, Math.round(initialOffsetY + dy)));
-        this.setBylineOffset(newX, newY, false);
-        this.repositionCanvasHud();
-      }
-    };
-
-    const onEnd = () => {
-      if (!isDown) return;
-      isDown = false;
-      if (isDragging) {
-        isDragging = false;
-        el.classList.remove('cursor-grabbing');
-        el.style.transition = '';
-        this.setBylineOffset(this.bylineOffsetX, this.bylineOffsetY, true);
-        this.repositionCanvasHud();
-        this.justDragged = true;
-        setTimeout(() => { this.justDragged = false; }, 100);
-      }
-    };
-
-    el.addEventListener('mousedown', onStart);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onEnd);
-    el.addEventListener('touchstart', onStart, { passive: true });
+    elem.addEventListener('touchstart', onStart, { passive: false });
     window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('touchend', onEnd);
   }
@@ -1791,7 +1683,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
       this.hudControls.querySelector('#btn-hud-headline-reset-pos')?.addEventListener('click', () => {
         this.updateHeadlineIndent(0, true);
-        this.setHeadlineOffsetY(0, true);
+        this.setHeadlineOffset(0, 0, true);
         this.repositionCanvasHud();
       });
       this.hudControls.querySelector('#btn-hud-headline-edit')?.addEventListener('click', () => {
@@ -2179,13 +2071,22 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     }
   }
 
-  setHeadlineOffsetY(val, save = true) {
-    this.headlineOffsetY = Math.round(val) || 0;
+  setHeadlineOffset(x, y, save = true) {
+    this.headlineOffsetX = Math.round(x) || 0;
+    this.headlineOffsetY = Math.round(y) || 0;
     if (this.viewHeadline) {
-      this.viewHeadline.style.transform = this.headlineOffsetY !== 0 ? `translateY(${this.headlineOffsetY}px)` : '';
+      const transform = (this.headlineOffsetX !== 0 || this.headlineOffsetY !== 0)
+        ? `translate(${this.headlineOffsetX}px, ${this.headlineOffsetY}px)`
+        : '';
+      this.viewHeadline.style.transform = transform;
     }
     if (save) {
-      try { localStorage.setItem('alqalam_headline_offset_y', this.headlineOffsetY.toString()); } catch(e){}
+      try {
+        localStorage.setItem('alqalam_headline_offset', JSON.stringify({
+          x: this.headlineOffsetX,
+          y: this.headlineOffsetY
+        }));
+      } catch(e) {}
     }
   }
 
@@ -2231,6 +2132,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (!elem || !this.a3Sheet) return;
     const sheet = this.a3Sheet;
 
+    elem.setAttribute('draggable', 'false');
+    elem.querySelectorAll('img').forEach(img => {
+      img.setAttribute('draggable', 'false');
+      img.addEventListener('dragstart', (e) => e.preventDefault());
+    });
+    elem.addEventListener('dragstart', (e) => e.preventDefault());
+
     let isDown = false;
     let isDragging = false;
     let startX = 0;
@@ -2257,7 +2165,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     const onStart = (e) => {
       if (e.type === 'mousedown' && e.button !== 0) return;
-      if (e.target.closest('#handle-resize-author')) return;
+      if (e.target.closest('#handle-resize-author') || e.target.closest('.export-ignore')) return;
 
       isDown = true;
       isDragging = false;
@@ -2271,6 +2179,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       initialLeft = (!isNaN(pLeft)) ? pLeft : defaultLeft;
       const pTop = parseFloat(elem.style.top);
       initialTop = (!isNaN(pTop)) ? pTop : defaultTop;
+
+      this.selectCanvasElement(elem);
+
+      if (e.cancelable) e.preventDefault();
     };
 
     const onMove = (e) => {
@@ -2284,9 +2196,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const dx = (clientX - startX) / zoom;
       const dy = (clientY - startY) / zoom;
 
-      if (!isDragging && Math.hypot(dx, dy) > 4) {
+      if (!isDragging && Math.hypot(dx, dy) > 3) {
         isDragging = true;
-        this.selectCanvasElement(elem);
         elem.classList.add('ring-2', 'ring-emerald-400', 'shadow-2xl', 'opacity-95', 'z-40');
         elem.style.cursor = 'grabbing';
       }
@@ -2341,7 +2252,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
         this.repositionCanvasHud();
         this.justDragged = true;
-        setTimeout(() => { this.justDragged = false; }, 100);
+        setTimeout(() => { this.justDragged = false; }, 120);
       }
     };
 
@@ -2349,7 +2260,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onEnd);
 
-    elem.addEventListener('touchstart', onStart, { passive: true });
+    elem.addEventListener('touchstart', onStart, { passive: false });
     window.addEventListener('touchmove', onMove, { passive: false });
     window.addEventListener('touchend', onEnd);
   }
