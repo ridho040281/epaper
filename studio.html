@@ -228,18 +228,34 @@
       </div>
     </div>
 
-    <!-- Center: Zoom Toolbar -->
-    <div class="flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800">
-      <button type="button" id="btn-zoom-out" class="p-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer" title="Perkecil Zoom (-)">
-        <i data-lucide="minus" class="w-3.5 h-3.5"></i>
-      </button>
-      <span id="label-zoom" class="w-11 text-center font-mono font-bold text-emerald-400 text-xs select-none">75%</span>
-      <button type="button" id="btn-zoom-in" class="p-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer" title="Perbesar Zoom (+)">
-        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-      </button>
-      <button type="button" id="btn-zoom-fit" class="px-2 py-0.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white text-[10px] font-semibold transition cursor-pointer" title="Sesuaikan dengan Layar">
-        Fit
-      </button>
+    <!-- Center: Undo / Redo & Zoom Toolbar -->
+    <div class="flex items-center gap-2">
+      <!-- Undo & Redo Toolbar -->
+      <div class="flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800">
+        <button type="button" id="btn-undo" disabled class="flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white opacity-30 pointer-events-none transition cursor-pointer text-xs font-semibold" title="Urungkan / Undo (Ctrl + Z)">
+          <i data-lucide="undo-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span class="hidden sm:inline text-[11px]">Undo</span>
+        </button>
+        <div class="h-3.5 w-px bg-slate-800"></div>
+        <button type="button" id="btn-redo" disabled class="flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white opacity-30 pointer-events-none transition cursor-pointer text-xs font-semibold" title="Ulangi / Redo (Ctrl + Y)">
+          <i data-lucide="redo-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span class="hidden sm:inline text-[11px]">Redo</span>
+        </button>
+      </div>
+
+      <!-- Zoom Toolbar -->
+      <div class="flex items-center gap-1 bg-slate-950/70 p-1 rounded-xl border border-slate-800">
+        <button type="button" id="btn-zoom-out" class="p-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer" title="Perkecil Zoom (-)">
+          <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+        </button>
+        <span id="label-zoom" class="w-11 text-center font-mono font-bold text-emerald-400 text-xs select-none">75%</span>
+        <button type="button" id="btn-zoom-in" class="p-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition cursor-pointer" title="Perbesar Zoom (+)">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+        </button>
+        <button type="button" id="btn-zoom-fit" class="px-2 py-0.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white text-[10px] font-semibold transition cursor-pointer" title="Sesuaikan dengan Layar">
+          Fit
+        </button>
+      </div>
     </div>
 
     <!-- Right: Core Actions & Panel Toggle -->
@@ -288,7 +304,7 @@
 
     <!-- Right Hint -->
     <div class="hidden xl:flex items-center gap-2 flex-shrink-0 text-slate-400 text-[11px] pl-3">
-      <span>Tekan <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Esc</kbd> untuk lepas pilihan</span>
+      <span><kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Ctrl+Z</kbd> Undo • <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Ctrl+Y</kbd> Redo • <kbd class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Esc</kbd> Lepas</span>
     </div>
   </div>
 
@@ -348,7 +364,21 @@
 
       <div class="w-8 h-px bg-slate-800 my-1"></div>
 
-      <!-- 9. Quick Smart Paste from Canva -->
+      <!-- Undo Tool -->
+      <button type="button" id="tool-undo" disabled class="corel-tool-btn opacity-30 pointer-events-none" title="Undo / Urungkan (Ctrl + Z)">
+        <i data-lucide="undo-2" class="w-5 h-5"></i>
+        <span class="tooltip">Undo (Ctrl + Z)</span>
+      </button>
+
+      <!-- Redo Tool -->
+      <button type="button" id="tool-redo" disabled class="corel-tool-btn opacity-30 pointer-events-none" title="Redo / Ulangi (Ctrl + Y)">
+        <i data-lucide="redo-2" class="w-5 h-5"></i>
+        <span class="tooltip">Redo (Ctrl + Y)</span>
+      </button>
+
+      <div class="w-8 h-px bg-slate-800 my-1"></div>
+
+      <!-- Quick Smart Paste from Canva -->
       <button type="button" id="tool-paste-direct" class="corel-tool-btn hover:text-indigo-400" title="Tempel Gambar dari Canva (Ctrl+V)">
         <i data-lucide="clipboard-paste" class="w-5 h-5 text-indigo-400"></i>
         <span class="tooltip">Tempel dari Canva (Ctrl+V)</span>
@@ -1025,6 +1055,6 @@
   </div>
 
   <!-- Main Studio JavaScript with Corel Interface -->
-  <script src="js/studio.js?v=20261102_corel02"></script>
+  <script src="js/studio.js?v=20261102_undoredo02"></script>
 </body>
 </html>

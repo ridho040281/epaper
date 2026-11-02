@@ -104,6 +104,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.adjustZoomToFit();
     this.loadMasterHeader();
     this.initCorelInterface();
+    this.initUndoRedo();
   }
 
   initElements() {
@@ -570,8 +571,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     }
   }
 
-  changeKopSize(delta) {
-    this.kopSizeIndex = Math.max(0, Math.min(this.kopSizes.length - 1, this.kopSizeIndex + delta));
+  applyKopSize(index) {
+    this.kopSizeIndex = Math.max(0, Math.min(this.kopSizes.length - 1, index));
     const current = this.kopSizes[this.kopSizeIndex];
     if (this.labelKopSize) {
       this.labelKopSize.innerText = current.label;
@@ -593,7 +594,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.setDateOffset(current.dateMt);
   }
 
-  updateHeaderFullBleed() {
+  changeKopSize(delta) {
+    this.applyKopSize(this.kopSizeIndex + delta);
+    this.pushState('Ukuran Kop Master');
+  }
+
+  updateHeaderFullBleed(save = true) {
     const isFull = this.chkFullWidthHeader?.checked ?? false;
     if (this.containerSheetHeader) {
       if (isFull) {
@@ -609,11 +615,15 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         }
       }
     }
+    const propChk = document.getElementById('prop-chk-fullbleed') || document.getElementById('prop-chk-kop-fullbleed');
+    if (propChk) propChk.checked = isFull;
+    if (save) this.pushState('Kop Penuh (Full-Bleed)');
   }
 
-  setHeaderDatePosition(pos) {
+  setHeaderDatePosition(pos, save = true) {
     this.headerDatePosition = pos;
     this.updateHeaderDisplay();
+    if (save) this.pushState('Posisi Tanggal Kop');
   }
 
   updateHeaderDisplay() {
@@ -661,6 +671,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     } catch (e) {
       console.warn('Gagal reset master header di server:', e);
     }
+    this.pushState('Reset Kop Master');
   }
 
   handleImageUpload(event, targetImg, previewImg) {
@@ -931,6 +942,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.applyAuthorCardStyles();
       if (shouldSave) {
         this.saveAuthorPhoto(dataUrl);
+        this.pushState('Ganti Foto Penulis');
       }
     } else {
       if (this.viewAuthorImg) {
@@ -1073,6 +1085,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       try {
         localStorage.setItem('alqalam_headline_indent', val.toString());
       } catch (e) {}
+      this.pushState('Indent Judul');
     }
   }
 
@@ -1115,6 +1128,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       try {
         localStorage.setItem('alqalam_author_photo_width', this.authorPhotoWidth);
       } catch (e) {}
+      this.pushState('Lebar Foto Penulis');
     }
     this.applyAuthorCardStyles();
   }
@@ -1130,6 +1144,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       try {
         localStorage.setItem('alqalam_author_align', this.authorAlign);
       } catch (e) {}
+      this.pushState('Perataan Foto Penulis');
     }
     this.applyAuthorCardStyles();
   }
@@ -1140,6 +1155,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       localStorage.setItem('alqalam_author_frame_mode', mode);
     } catch (e) {}
     this.applyAuthorCardStyles();
+    this.pushState('Bingkai Foto Penulis');
   }
 
   applyAuthorCardStyles() {
@@ -1207,6 +1223,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       try {
         localStorage.setItem('alqalam_author_show_badge', show ? 'true' : 'false');
       } catch (e) {}
+      this.pushState('Tampilkan/Sembunyikan Badge Penulis');
     }
     if (this.containerAuthorBadge) {
       this.containerAuthorBadge.style.display = show ? 'flex' : 'none';
@@ -1218,6 +1235,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       try {
         localStorage.setItem('alqalam_author_headline_spacer', show ? 'true' : 'false');
       } catch (e) {}
+      this.pushState('Ruang Judul');
     }
     if (this.authorSlotSpacer) {
       this.authorSlotSpacer.style.display = show ? 'block' : 'none';
@@ -1451,6 +1469,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
         this.justDragged = true;
         setTimeout(() => { this.justDragged = false; }, 120);
+        this.pushState('Geser Teks');
       }
     };
 
@@ -1523,6 +1542,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
       const finalWidth = container.offsetWidth || parseFloat(container.style.width) || this.authorPhotoWidth || 170;
       this.setAuthorPhotoWidth(finalWidth, true);
+      this.pushState('Ukuran Foto');
     };
 
     handle.addEventListener('mousedown', onResizeStart);
@@ -1665,7 +1685,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     document.querySelectorAll('#corel-toolbox .corel-tool-btn').forEach(btn => {
       if (btn.id === activeToolId) {
         btn.classList.add('active');
-      } else if (btn.id.startsWith('tool-') && btn.id !== 'tool-dock-toggle' && btn.id !== 'tool-paste-direct') {
+      } else if (btn.id.startsWith('tool-') && btn.id !== 'tool-dock-toggle' && btn.id !== 'tool-paste-direct' && btn.id !== 'tool-undo' && btn.id !== 'tool-redo') {
         btn.classList.remove('active');
       }
     });
@@ -1827,8 +1847,400 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     });
   }
 
-  setTemplateStyle(templateType) {
+  /* ==========================================================================
+     UNDO & REDO HISTORY MANAGER (Ctrl+Z / Ctrl+Y)
+     ========================================================================== */
+
+  initUndoRedo() {
+    this.historyList = [];
+    this.historyIndex = -1;
+    this.maxHistory = 40;
+    this.isApplyingHistory = false;
+
+    // Tunggu sedikit sampai load master header & foto awal selesai termuat
+    setTimeout(() => {
+      this.pushState('Kondisi Awal');
+    }, 300);
+
+    // Hubungkan tombol Undo & Redo di Header Bar dan Toolbox Samping
+    const undoButtons = [document.getElementById('btn-undo'), document.getElementById('tool-undo')];
+    const redoButtons = [document.getElementById('btn-redo'), document.getElementById('tool-redo')];
+
+    undoButtons.forEach(btn => {
+      btn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.undo();
+      });
+    });
+
+    redoButtons.forEach(btn => {
+      btn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.redo();
+      });
+    });
+
+    // Keyboard Shortcuts: Ctrl+Z (Undo) dan Ctrl+Y / Ctrl+Shift+Z (Redo)
+    window.addEventListener('keydown', (e) => {
+      const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      if (!isCtrlOrCmd) return;
+
+      const activeEl = document.activeElement;
+      const isTextInput = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.isContentEditable ||
+        activeEl.classList?.contains('canvas-inline-editing')
+      );
+
+      const key = e.key.toLowerCase();
+
+      // Ctrl + Z (Undo)
+      if (key === 'z' && !e.shiftKey) {
+        if (isTextInput) return; // Biarkan native undo browser bekerja pada kotak teks aktif
+        e.preventDefault();
+        this.undo();
+      }
+      // Ctrl + Y atau Ctrl + Shift + Z (Redo)
+      else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+        if (isTextInput) return;
+        e.preventDefault();
+        this.redo();
+      }
+    });
+
+    // Pasang listener 'change' pada form input agar perubahan teks tercatat saat selesai mengetik/blur
+    const trackedInputs = [
+      this.inpHeadline, this.inpSubheadline, this.inpAuthorName,
+      this.inpBodyText, this.inpCalloutQuote, this.inpDay,
+      this.inpDateMasehi, this.inpDateHijri, this.inpEditionNum, this.inpPageNum
+    ];
+    trackedInputs.forEach(input => {
+      input?.addEventListener('change', () => {
+        this.pushState('Ubah Teks');
+      });
+    });
+  }
+
+  captureState() {
+    return {
+      template: this.currentTemplate || 'teacher_opinion',
+
+      headlineText: this.inpHeadline ? this.inpHeadline.value : (this.viewHeadline ? this.viewHeadline.innerText : ''),
+      headlineFontSize: this.headlineFontSize || 30,
+      headlineIndent: this.headlineIndent || 0,
+      headlineOffsetX: this.headlineOffsetX || 0,
+      headlineOffsetY: this.headlineOffsetY || 0,
+
+      subheadlineText: this.inpSubheadline ? this.inpSubheadline.value : (this.viewSubheadline ? this.viewSubheadline.innerText : ''),
+      subheadlineFontSize: this.subheadlineFontSize || 18,
+      subheadlineOffsetX: this.subheadlineOffsetX || 0,
+      subheadlineOffsetY: this.subheadlineOffsetY || 0,
+
+      bylineOffsetX: this.bylineOffsetX || 0,
+      bylineOffsetY: this.bylineOffsetY || 0,
+
+      authorName: this.inpAuthorName ? this.inpAuthorName.value : '',
+      authorPhotoSrc: (this.viewAuthorImg && !this.viewAuthorImg.classList.contains('hidden')) ? (this.viewAuthorImg.src || '') : '',
+      authorPhotoHasImg: !!(this.viewAuthorImg && !this.viewAuthorImg.classList.contains('hidden') && this.viewAuthorImg.getAttribute('src')),
+      authorPhotoWidth: this.authorPhotoWidth || 170,
+      authorFrameMode: this.authorFrameMode || 'none',
+      authorAlign: this.authorAlign || 'left',
+      authorPhotoLeft: this.containerAuthorPhoto ? (parseFloat(this.containerAuthorPhoto.style.left) || -32) : -32,
+      authorPhotoTop: this.containerAuthorPhoto ? (parseFloat(this.containerAuthorPhoto.style.top) || 35) : 35,
+      showAuthorBadge: this.chkShowAuthorBadge ? this.chkShowAuthorBadge.checked : true,
+      authorBadgeFontSize: this.authorBadgeFontSize || 11,
+      authorBadgeLeft: this.containerAuthorBadge ? (parseFloat(this.containerAuthorBadge.style.left) || 0) : 0,
+      authorBadgeTop: this.containerAuthorBadge ? (parseFloat(this.containerAuthorBadge.style.top) || 260) : 260,
+      headlineSpacer: this.chkHeadlineSpacer ? this.chkHeadlineSpacer.checked : false,
+
+      customHeaderSrc: (this.viewCustomHeaderImg && !this.viewCustomHeaderImg.classList.contains('hidden')) ? (this.viewCustomHeaderImg.src || '') : '',
+      customHeaderHasImg: !!(this.viewCustomHeaderImg && !this.viewCustomHeaderImg.classList.contains('hidden') && this.viewCustomHeaderImg.getAttribute('src')),
+      kopSizeIndex: (typeof this.kopSizeIndex === 'number') ? this.kopSizeIndex : 1,
+      headerDatePosition: this.headerDatePosition || 'overlay',
+      fullWidthHeader: this.chkFullWidthHeader ? this.chkFullWidthHeader.checked : false,
+      dateOffset: this.dateOffset || 48,
+
+      day: this.inpDay ? this.inpDay.value : '',
+      dateMasehi: this.inpDateMasehi ? this.inpDateMasehi.value : '',
+      dateHijri: this.inpDateHijri ? this.inpDateHijri.value : '',
+      editionNum: this.inpEditionNum ? this.inpEditionNum.value : '',
+      pageNum: this.inpPageNum ? this.inpPageNum.value : '8',
+
+      bodyText: this.inpBodyText ? this.inpBodyText.value : '',
+      bodyFontSize: this.bodyFontSize || 11.5,
+
+      activityPhotoSrc: (this.viewActivityImg && !this.viewActivityImg.classList.contains('hidden')) ? (this.viewActivityImg.src || '') : '',
+      showActivityImg: this.chkShowActivityImg ? this.chkShowActivityImg.checked : false,
+      calloutQuote: this.inpCalloutQuote ? this.inpCalloutQuote.value : '',
+      eventLogo: this.selEventLogo ? this.selEventLogo.value : 'none'
+    };
+  }
+
+  areStatesEqual(a, b) {
+    if (!a || !b) return false;
+    for (const k in a) {
+      if (k === '_action') continue;
+      if (a[k] !== b[k]) return false;
+    }
+    for (const k in b) {
+      if (k === '_action') continue;
+      if (a[k] !== b[k]) return false;
+    }
+    return true;
+  }
+
+  pushState(action = '') {
+    if (this.isApplyingHistory) return;
+
+    const snapshot = this.captureState();
+    snapshot._action = action;
+
+    // Jangan rekam jika state sama persis dengan yang ada di index saat ini
+    if (this.historyIndex >= 0 && this.historyList[this.historyIndex]) {
+      if (this.areStatesEqual(this.historyList[this.historyIndex], snapshot)) {
+        return;
+      }
+    }
+
+    // Jika sedang berada di tengah-tengah riwayat lalu ada aksi baru, buang cabang redo
+    if (this.historyIndex < this.historyList.length - 1) {
+      this.historyList = this.historyList.slice(0, this.historyIndex + 1);
+    }
+
+    this.historyList.push(snapshot);
+    if (this.historyList.length > this.maxHistory) {
+      this.historyList.shift();
+    }
+    this.historyIndex = this.historyList.length - 1;
+
+    this.updateUndoRedoButtons();
+  }
+
+  undo() {
+    if (this.historyIndex > 0) {
+      this.historyIndex--;
+      const targetState = this.historyList[this.historyIndex];
+      this.applyState(targetState);
+      this.showUndoToast(`Urungkan: ${targetState._action || 'Perubahan'}`);
+    }
+  }
+
+  redo() {
+    if (this.historyIndex < this.historyList.length - 1) {
+      this.historyIndex++;
+      const targetState = this.historyList[this.historyIndex];
+      this.applyState(targetState);
+      this.showUndoToast(`Ulangi: ${targetState._action || 'Perubahan'}`);
+    }
+  }
+
+  applyState(state) {
+    if (!state) return;
+    this.isApplyingHistory = true;
+
+    try {
+      // 1. Template
+      if (state.template && state.template !== this.currentTemplate) {
+        this.setTemplateStyle(state.template, false);
+      }
+
+      // 2. Headline & Subheadline & Byline
+      if (state.headlineText !== undefined) {
+        if (this.inpHeadline) this.inpHeadline.value = state.headlineText;
+        if (this.viewHeadline) this.viewHeadline.innerText = state.headlineText;
+      }
+      if (state.headlineFontSize !== undefined) {
+        this.setHeadlineFontSize(state.headlineFontSize, false);
+      }
+      if (state.headlineIndent !== undefined) {
+        this.updateHeadlineIndent(state.headlineIndent, false);
+      }
+      if (state.headlineOffsetX !== undefined && state.headlineOffsetY !== undefined) {
+        this.setHeadlineOffset(state.headlineOffsetX, state.headlineOffsetY, false);
+      }
+
+      if (state.subheadlineText !== undefined) {
+        if (this.inpSubheadline) this.inpSubheadline.value = state.subheadlineText;
+        if (this.viewSubheadline) this.viewSubheadline.innerText = state.subheadlineText;
+      }
+      if (state.subheadlineFontSize !== undefined) {
+        this.setSubheadlineFontSize(state.subheadlineFontSize, false);
+      }
+      if (state.subheadlineOffsetX !== undefined && state.subheadlineOffsetY !== undefined) {
+        this.setSubheadlineOffset(state.subheadlineOffsetX, state.subheadlineOffsetY, false);
+      }
+
+      if (state.bylineOffsetX !== undefined && state.bylineOffsetY !== undefined) {
+        this.setBylineOffset(state.bylineOffsetX, state.bylineOffsetY, false);
+      }
+
+      // 3. Author Name & Photo & Badge
+      if (state.authorName !== undefined) {
+        if (this.inpAuthorName) this.inpAuthorName.value = state.authorName;
+        if (this.viewAuthorBadge) this.viewAuthorBadge.innerText = state.authorName;
+        if (this.viewByline) this.viewByline.innerText = state.authorName;
+      }
+      if (state.authorPhotoSrc !== undefined) {
+        if (state.authorPhotoHasImg && state.authorPhotoSrc) {
+          this.setAuthorPhoto(state.authorPhotoSrc, false);
+        } else {
+          if (this.viewAuthorImg) {
+            this.viewAuthorImg.src = '';
+            this.viewAuthorImg.classList.add('hidden');
+          }
+          if (this.placeholderViewAuthor) {
+            this.placeholderViewAuthor.classList.remove('hidden');
+          }
+        }
+      }
+      if (state.authorPhotoWidth !== undefined) {
+        this.setAuthorPhotoWidth(state.authorPhotoWidth, false);
+      }
+      if (state.authorFrameMode !== undefined) {
+        this.setAuthorFrameMode(state.authorFrameMode);
+      }
+      if (state.authorAlign !== undefined) {
+        this.setAuthorAlign(state.authorAlign, false);
+      }
+      if (state.authorPhotoLeft !== undefined && state.authorPhotoTop !== undefined && this.containerAuthorPhoto) {
+        this.setAuthorPhotoPosition(state.authorPhotoLeft, state.authorPhotoTop, false);
+      }
+      if (state.showAuthorBadge !== undefined && this.chkShowAuthorBadge) {
+        this.chkShowAuthorBadge.checked = state.showAuthorBadge;
+        this.toggleAuthorBadge(state.showAuthorBadge, false);
+      }
+      if (state.authorBadgeFontSize !== undefined) {
+        this.setAuthorBadgeFontSize(state.authorBadgeFontSize, false);
+      }
+      if (state.authorBadgeLeft !== undefined && state.authorBadgeTop !== undefined && this.containerAuthorBadge) {
+        this.containerAuthorBadge.style.left = `${state.authorBadgeLeft}px`;
+        this.containerAuthorBadge.style.top = `${state.authorBadgeTop}px`;
+      }
+      if (state.headlineSpacer !== undefined && this.chkHeadlineSpacer) {
+        this.chkHeadlineSpacer.checked = state.headlineSpacer;
+        this.toggleHeadlineSpacer(state.headlineSpacer, false);
+      }
+
+      // 4. Header & Kop
+      if (state.kopSizeIndex !== undefined) {
+        this.applyKopSize(state.kopSizeIndex);
+      }
+      if (state.headerDatePosition !== undefined) {
+        this.setHeaderDatePosition(state.headerDatePosition, false);
+      }
+      if (state.fullWidthHeader !== undefined && this.chkFullWidthHeader) {
+        this.chkFullWidthHeader.checked = state.fullWidthHeader;
+        this.updateHeaderFullBleed(false);
+      }
+      if (state.dateOffset !== undefined) {
+        this.setDateOffset(state.dateOffset);
+      }
+
+      // 5. Editions & Dates
+      if (state.day !== undefined && this.inpDay) {
+        this.inpDay.value = state.day;
+        [this.viewDay, this.viewDayCustomOverlay, this.viewDayCustomBar].forEach(v => { if (v) v.innerText = state.day; });
+      }
+      if (state.dateMasehi !== undefined && this.inpDateMasehi) {
+        this.inpDateMasehi.value = state.dateMasehi;
+        [this.viewDateMasehi, this.viewDateMasehiCustomOverlay, this.viewDateMasehiCustomBar].forEach(v => { if (v) v.innerText = state.dateMasehi; });
+      }
+      if (state.dateHijri !== undefined && this.inpDateHijri) {
+        this.inpDateHijri.value = state.dateHijri;
+        [this.viewDateHijri, this.viewDateHijriCustomOverlay, this.viewDateHijriCustomBar].forEach(v => { if (v) v.innerText = state.dateHijri; });
+      }
+      if (state.editionNum !== undefined && this.inpEditionNum) {
+        this.inpEditionNum.value = state.editionNum;
+        [this.viewEditionNum, this.viewEditionNumCustomOverlay, this.viewEditionNumCustomBar].forEach(v => { if (v) v.innerText = state.editionNum; });
+      }
+      if (state.pageNum !== undefined && this.inpPageNum) {
+        this.inpPageNum.value = state.pageNum;
+        if (this.viewFooterPage) this.viewFooterPage.innerText = state.pageNum;
+      }
+
+      // 6. Body Content
+      if (state.bodyText !== undefined && this.inpBodyText && this.inpBodyText.value !== state.bodyText) {
+        this.inpBodyText.value = state.bodyText;
+        this.formatNewspaperContent();
+      }
+      if (state.bodyFontSize !== undefined) {
+        this.setBodyFontSize(state.bodyFontSize, false);
+      }
+
+      // 7. Bottom Inserts
+      if (state.showActivityImg !== undefined && this.chkShowActivityImg) {
+        this.chkShowActivityImg.checked = state.showActivityImg;
+      }
+      if (state.calloutQuote !== undefined && this.inpCalloutQuote) {
+        this.inpCalloutQuote.value = state.calloutQuote;
+        if (this.viewCalloutQuote) this.viewCalloutQuote.innerText = state.calloutQuote;
+      }
+      if (state.eventLogo !== undefined && this.selEventLogo) {
+        this.selEventLogo.value = state.eventLogo;
+      }
+      this.updateBottomInsertsVisibility();
+
+      // Refresh HUD and Property Bar
+      this.repositionCanvasHud();
+      const curType = this.selectedCanvasElement ? (this.selectedCanvasElement.getAttribute('data-canvas-type') || this.inferElementType(this.selectedCanvasElement)) : 'page';
+      this.updateCorelPropertyBar(curType, this.selectedCanvasElement);
+    } finally {
+      this.isApplyingHistory = false;
+      this.updateUndoRedoButtons();
+    }
+  }
+
+  updateUndoRedoButtons() {
+    const canUndo = this.historyIndex > 0;
+    const canRedo = this.historyIndex < this.historyList.length - 1;
+
+    const setBtnState = (btn, enabled) => {
+      if (!btn) return;
+      btn.disabled = !enabled;
+      if (enabled) {
+        btn.classList.remove('opacity-30', 'pointer-events-none');
+        btn.classList.add('opacity-100', 'cursor-pointer');
+      } else {
+        btn.classList.add('opacity-30', 'pointer-events-none');
+        btn.classList.remove('opacity-100', 'cursor-pointer');
+      }
+    };
+
+    setBtnState(document.getElementById('btn-undo'), canUndo);
+    setBtnState(document.getElementById('btn-redo'), canRedo);
+    setBtnState(document.getElementById('tool-undo'), canUndo);
+    setBtnState(document.getElementById('tool-redo'), canRedo);
+  }
+
+  showUndoToast(message) {
+    let toast = document.getElementById('studio-history-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'studio-history-toast';
+      toast.className = 'fixed bottom-5 right-5 z-[9999] px-3.5 py-2 rounded-xl bg-slate-900/95 border border-slate-700/80 text-white text-xs font-medium shadow-2xl flex items-center gap-2 pointer-events-none transition-all duration-300 opacity-0 transform translate-y-2';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<i data-lucide="history" class="w-4 h-4 text-emerald-400"></i><span>${message}</span>`;
+    if (window.lucide) window.lucide.createIcons();
+
+    toast.classList.remove('opacity-0', 'translate-y-2');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    clearTimeout(this._historyToastTimer);
+    this._historyToastTimer = setTimeout(() => {
+      toast.classList.remove('opacity-100', 'translate-y-0');
+      toast.classList.add('opacity-0', 'translate-y-2');
+    }, 1500);
+  }
+
+  setTemplateStyle(templateType, save = true) {
     this.currentTemplate = templateType;
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_template_type', templateType);
+      } catch(e) {}
+    }
     try {
       localStorage.setItem('alqalam_template_type', templateType);
     } catch(e) {}
@@ -1861,6 +2273,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     }
 
     this.updateCorelPropertyBar(this.selectedCanvasElement ? (this.selectedCanvasElement.getAttribute('data-canvas-type') || this.inferElementType(this.selectedCanvasElement)) : 'page');
+    if (save) {
+      this.pushState('Ganti Template');
+    }
   }
 
   updateCorelPropertyBar(type = 'page', el = null) {
@@ -2326,6 +2741,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       el.removeEventListener('blur', onBlur);
       el.removeEventListener('keydown', onKeyDown);
       this.repositionCanvasHud();
+      this.pushState('Edit Teks');
     };
 
     const onKeyDown = (e) => {
@@ -2354,6 +2770,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (propVal) propVal.innerText = `${val} px`;
     if (save) {
       try { localStorage.setItem('alqalam_headline_size', val.toString()); } catch(e){}
+      this.pushState('Ukuran Judul');
     }
   }
 
@@ -2368,6 +2785,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (propVal) propVal.innerText = `${val} px`;
     if (save) {
       try { localStorage.setItem('alqalam_subheadline_size', val.toString()); } catch(e){}
+      this.pushState('Ukuran Subjudul');
     }
   }
 
@@ -2382,6 +2800,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (propVal) propVal.innerText = `${val} pt`;
     if (save) {
       try { localStorage.setItem('alqalam_body_font_size', val.toString()); } catch(e){}
+      this.pushState('Ukuran Font Naskah');
     }
   }
 
@@ -2396,6 +2815,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (propVal) propVal.innerText = `${val} px`;
     if (save) {
       try { localStorage.setItem('alqalam_author_badge_size', val.toString()); } catch(e){}
+      this.pushState('Ukuran Badge Penulis');
     }
   }
 
@@ -2429,6 +2849,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
           y: this.headlineOffsetY
         }));
       } catch(e) {}
+      this.pushState('Offset Judul');
     }
   }
 
@@ -2448,6 +2869,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
           y: this.subheadlineOffsetY
         }));
       } catch(e) {}
+      this.pushState('Offset Subjudul');
     }
   }
 
@@ -2467,6 +2889,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
           y: this.bylineOffsetY
         }));
       } catch(e) {}
+      this.pushState('Offset Byline');
     }
   }
 
@@ -2595,6 +3018,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         this.repositionCanvasHud();
         this.justDragged = true;
         setTimeout(() => { this.justDragged = false; }, 120);
+        this.pushState('Geser Objek');
       }
     };
 
@@ -2615,6 +3039,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       try {
         localStorage.setItem('alqalam_author_photo_pos', JSON.stringify({ left, top }));
       } catch (e) {}
+      this.pushState('Posisi Foto Penulis');
     }
   }
 
@@ -2633,12 +3058,14 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     localStorage.removeItem('alqalam_author_photo_pos');
     this.setAuthorPhotoPosition(0, 35, false);
     this.repositionCanvasHud();
+    this.pushState('Reset Posisi Foto');
   }
 
   resetAuthorBadgePosition() {
     localStorage.removeItem('alqalam_author_badge_pos');
     this.setAuthorBadgePosition(32, 235, false);
     this.repositionCanvasHud();
+    this.pushState('Reset Posisi Badge');
   }
 
   applyAuthorPosPreset(key) {
@@ -2670,6 +3097,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.chkHeadlineSpacer.checked = target.spacer;
       this.toggleHeadlineSpacer(target.spacer, true);
     }
+    this.pushState('Preset Posisi Penulis');
   }
 
   loadDemoPreset() {
@@ -2726,6 +3154,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.formatNewspaperContent();
     this.updateBottomInsertsVisibility();
     if (window.lucide) window.lucide.createIcons();
+    this.pushState('Muat Ulang Demo');
   }
 
   showLoading(title, desc) {
