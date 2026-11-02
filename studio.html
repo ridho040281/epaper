@@ -401,11 +401,11 @@
         <div id="a3-sheet" class="a3-sheet relative p-8 flex flex-col justify-between overflow-hidden">
 
           <!-- SHEET HEADER CONTAINER -->
-          <div id="container-sheet-header" class="w-full flex-shrink-0 mb-4 pb-1">
+          <div id="container-sheet-header" class="w-full flex-shrink-0 mb-4 pb-1 canvas-selectable transition-all select-none" data-canvas-type="header" title="Klik dan seret langsung untuk menggeser posisi Kop Master">
             
             <!-- OPTION A: Custom Uploaded Master Header View -->
-            <div id="view-custom-header-wrapper" class="w-full relative canvas-selectable group" data-canvas-type="header">
-              <img id="view-custom-header-img" src="" alt="Header Master Koran" class="w-full h-auto object-contain block mx-auto transition-transform duration-200">
+            <div id="view-custom-header-wrapper" class="w-full relative group">
+              <img id="view-custom-header-img" src="" alt="Header Master Koran" class="w-full h-auto object-contain block mx-auto transition-transform duration-200 pointer-events-none select-none">
               
               <!-- Floating Overlay Edition Box (Pojok Kanan Atas, Sejajar Bawah Huruf M) -->
               <div id="view-custom-header-overlay-box" style="top: 52px; right: 24px;" class="absolute text-right font-serif leading-snug text-slate-900 pointer-events-none select-none z-10">
@@ -531,7 +531,7 @@
             </div>
 
             <!-- Newspaper 3-Columns Text -->
-            <div class="flex-1 newspaper-columns text-slate-900 font-serif text-[11.5px] leading-relaxed select-text canvas-selectable transition-all" id="view-newspaper-content" data-canvas-type="newspaper-content" title="Klik untuk atur ukuran huruf naskah koran">
+            <div class="flex-1 newspaper-columns text-slate-900 font-serif text-[11.5px] leading-relaxed select-none canvas-selectable transition-all" id="view-newspaper-content" data-canvas-type="newspaper-content" title="Klik dan seret langsung untuk menggeser posisi naskah koran (atau klik ganda untuk buka editor teks)">
               <!-- Rendered dynamically -->
             </div>
 
@@ -1055,6 +1055,6 @@
   </div>
 
   <!-- Main Studio JavaScript with Corel Interface -->
-  <script src="js/studio.js?v=20261102_undoredo02"></script>
+  <script src="js/studio.js?v=20261102_dragkoptext01"></script>
 </body>
 </html>

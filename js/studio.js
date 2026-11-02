@@ -255,6 +255,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.subheadlineOffsetY     = 0;
     this.bylineOffsetX          = 0;
     this.bylineOffsetY          = 0;
+    this.headerOffsetX          = 0;
+    this.headerOffsetY          = 0;
+    this.bodyOffsetX            = 0;
+    this.bodyOffsetY            = 0;
     this.justDragged            = false;
 
     // Action Buttons
@@ -762,6 +766,28 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         const offset = JSON.parse(savedBylineOffset);
         if (typeof offset.x === 'number' && typeof offset.y === 'number') {
           this.setBylineOffset(offset.x, offset.y, false);
+        }
+      } catch(e) {}
+    }
+
+    // Pulihkan offset posisi Kop Master
+    const savedHeaderOffset = localStorage.getItem('alqalam_header_offset');
+    if (savedHeaderOffset) {
+      try {
+        const offset = JSON.parse(savedHeaderOffset);
+        if (typeof offset.x === 'number' && typeof offset.y === 'number') {
+          this.setHeaderOffset(offset.x, offset.y, false);
+        }
+      } catch(e) {}
+    }
+
+    // Pulihkan offset posisi Naskah Koran
+    const savedBodyOffset = localStorage.getItem('alqalam_body_offset');
+    if (savedBodyOffset) {
+      try {
+        const offset = JSON.parse(savedBodyOffset);
+        if (typeof offset.x === 'number' && typeof offset.y === 'number') {
+          this.setBodyOffset(offset.x, offset.y, false);
         }
       } catch(e) {}
     }
@@ -1375,23 +1401,42 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.makeTextElementDraggable(
       this.viewHeadline,
       () => ({ x: this.headlineOffsetX, y: this.headlineOffsetY }),
-      (x, y, save) => this.setHeadlineOffset(x, y, save)
+      (x, y, save) => this.setHeadlineOffset(x, y, save),
+      'Geser Judul'
     );
 
     this.makeTextElementDraggable(
       this.viewSubheadline,
       () => ({ x: this.subheadlineOffsetX, y: this.subheadlineOffsetY }),
-      (x, y, save) => this.setSubheadlineOffset(x, y, save)
+      (x, y, save) => this.setSubheadlineOffset(x, y, save),
+      'Geser Subjudul'
     );
 
     this.makeTextElementDraggable(
       this.viewBylineContainer,
       () => ({ x: this.bylineOffsetX, y: this.bylineOffsetY }),
-      (x, y, save) => this.setBylineOffset(x, y, save)
+      (x, y, save) => this.setBylineOffset(x, y, save),
+      'Geser Byline'
+    );
+
+    // Kop Master (Header) Langsung Geser Dinamis
+    this.makeTextElementDraggable(
+      this.containerSheetHeader || this.viewCustomHeaderWrapper,
+      () => ({ x: this.headerOffsetX, y: this.headerOffsetY }),
+      (x, y, save) => this.setHeaderOffset(x, y, save),
+      'Geser Posisi Kop'
+    );
+
+    // Naskah Koran (3 Kolom Teks) Langsung Geser Dinamis
+    this.makeTextElementDraggable(
+      this.viewNewspaperContent,
+      () => ({ x: this.bodyOffsetX, y: this.bodyOffsetY }),
+      (x, y, save) => this.setBodyOffset(x, y, save),
+      'Geser Posisi Naskah'
     );
   }
 
-  makeTextElementDraggable(elem, getOffsetFn, setOffsetFn) {
+  makeTextElementDraggable(elem, getOffsetFn, setOffsetFn, actionLabel = 'Geser Teks') {
     if (!elem) return;
 
     elem.setAttribute('draggable', 'false');
@@ -1469,7 +1514,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
         this.justDragged = true;
         setTimeout(() => { this.justDragged = false; }, 120);
-        this.pushState('Geser Teks');
+        this.pushState(actionLabel);
       }
     };
 
@@ -1609,6 +1654,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
           e.stopPropagation();
           const editTarget = (type === 'byline' && this.viewByline) ? this.viewByline : target;
           this.startInlineEditing(editTarget);
+        } else if (type === 'newspaper-content') {
+          e.stopPropagation();
+          this.toggleDock(true);
+          this.switchDockTab('tab-pane-naskah');
+          this.inpBodyText?.focus();
         }
       }
     });
@@ -1722,13 +1772,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     });
 
     bindTool('tool-header', () => {
-      if (this.viewCustomHeaderWrapper) this.selectCanvasElement(this.viewCustomHeaderWrapper);
+      const headerEl = this.containerSheetHeader || this.viewCustomHeaderWrapper;
+      if (headerEl) this.selectCanvasElement(headerEl);
     });
 
     bindTool('tool-body', () => {
       if (this.viewNewspaperContent) this.selectCanvasElement(this.viewNewspaperContent);
-      this.toggleDock(true);
-      this.switchDockTab('tab-pane-naskah');
     });
 
     bindTool('tool-activity', () => {
@@ -1956,6 +2005,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
       customHeaderSrc: (this.viewCustomHeaderImg && !this.viewCustomHeaderImg.classList.contains('hidden')) ? (this.viewCustomHeaderImg.src || '') : '',
       customHeaderHasImg: !!(this.viewCustomHeaderImg && !this.viewCustomHeaderImg.classList.contains('hidden') && this.viewCustomHeaderImg.getAttribute('src')),
+      headerOffsetX: this.headerOffsetX || 0,
+      headerOffsetY: this.headerOffsetY || 0,
       kopSizeIndex: (typeof this.kopSizeIndex === 'number') ? this.kopSizeIndex : 1,
       headerDatePosition: this.headerDatePosition || 'overlay',
       fullWidthHeader: this.chkFullWidthHeader ? this.chkFullWidthHeader.checked : false,
@@ -1969,6 +2020,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
       bodyText: this.inpBodyText ? this.inpBodyText.value : '',
       bodyFontSize: this.bodyFontSize || 11.5,
+      bodyOffsetX: this.bodyOffsetX || 0,
+      bodyOffsetY: this.bodyOffsetY || 0,
 
       activityPhotoSrc: (this.viewActivityImg && !this.viewActivityImg.classList.contains('hidden')) ? (this.viewActivityImg.src || '') : '',
       showActivityImg: this.chkShowActivityImg ? this.chkShowActivityImg.checked : false,
@@ -2123,6 +2176,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
 
       // 4. Header & Kop
+      if (state.headerOffsetX !== undefined && state.headerOffsetY !== undefined) {
+        this.setHeaderOffset(state.headerOffsetX, state.headerOffsetY, false);
+      }
       if (state.kopSizeIndex !== undefined) {
         this.applyKopSize(state.kopSizeIndex);
       }
@@ -2166,6 +2222,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
       if (state.bodyFontSize !== undefined) {
         this.setBodyFontSize(state.bodyFontSize, false);
+      }
+      if (state.bodyOffsetX !== undefined && state.bodyOffsetY !== undefined) {
+        this.setBodyOffset(state.bodyOffsetX, state.bodyOffsetY, false);
       }
 
       // 7. Bottom Inserts
@@ -2476,6 +2535,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
             <span>Full-Bleed 100%</span>
           </label>
           <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-kop-reset-offset" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700" title="Kembalikan posisi Kop ke posisi normal (0, 0)">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>Reset Posisi</span>
+          </button>
+          <div class="h-4 w-px bg-slate-800"></div>
           <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
             <button type="button" id="prop-btn-kop-pos-overlay" class="px-2 py-0.5 rounded text-[11px] font-semibold ${this.headerDatePosition === 'overlay' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'} transition" title="Pojok Kanan Atas">Pojok Atas</button>
             <button type="button" id="prop-btn-kop-pos-below" class="px-2 py-0.5 rounded text-[11px] font-semibold ${this.headerDatePosition === 'below' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'} transition" title="Di Bawah Kop">Di Bawah</button>
@@ -2512,6 +2576,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
           <span id="prop-val-word-count" class="px-2 py-0.5 bg-slate-800 text-emerald-400 rounded font-mono text-[11px] border border-slate-700">
             ${words} kata
           </span>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-body-reset-offset" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700" title="Kembalikan posisi naskah ke posisi normal (0, 0)">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>Reset Posisi</span>
+          </button>
           <div class="h-4 w-px bg-slate-800"></div>
           <button type="button" id="prop-btn-open-body-editor" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center gap-1.5 shadow transition active:scale-95 text-xs">
             <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
@@ -2674,6 +2743,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         this.setHeaderDatePosition('hide');
         this.updateCorelPropertyBar('header');
       });
+      document.getElementById('prop-btn-kop-reset-offset')?.addEventListener('click', () => {
+        this.setHeaderOffset(0, 0, true);
+      });
       document.getElementById('prop-btn-kop-upload')?.addEventListener('click', () => {
         this.inpCustomHeader?.click();
       });
@@ -2689,6 +2761,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
       document.getElementById('prop-btn-body-size-up')?.addEventListener('click', () => {
         this.setBodyFontSize(this.bodyFontSize + 0.5);
+      });
+      document.getElementById('prop-btn-body-reset-offset')?.addEventListener('click', () => {
+        this.setBodyOffset(0, 0, true);
       });
       document.getElementById('prop-btn-open-body-editor')?.addEventListener('click', () => {
         this.toggleDock(true);
@@ -2890,6 +2965,47 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         }));
       } catch(e) {}
       this.pushState('Offset Byline');
+    }
+  }
+
+  setHeaderOffset(x, y, save = true) {
+    this.headerOffsetX = Math.round(x) || 0;
+    this.headerOffsetY = Math.round(y) || 0;
+    const headerEl = this.containerSheetHeader || this.viewCustomHeaderWrapper;
+    if (headerEl) {
+      const transform = (this.headerOffsetX !== 0 || this.headerOffsetY !== 0)
+        ? `translate(${this.headerOffsetX}px, ${this.headerOffsetY}px)`
+        : '';
+      headerEl.style.transform = transform;
+    }
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_header_offset', JSON.stringify({
+          x: this.headerOffsetX,
+          y: this.headerOffsetY
+        }));
+      } catch(e) {}
+      this.pushState('Geser Posisi Kop');
+    }
+  }
+
+  setBodyOffset(x, y, save = true) {
+    this.bodyOffsetX = Math.round(x) || 0;
+    this.bodyOffsetY = Math.round(y) || 0;
+    if (this.viewNewspaperContent) {
+      const transform = (this.bodyOffsetX !== 0 || this.bodyOffsetY !== 0)
+        ? `translate(${this.bodyOffsetX}px, ${this.bodyOffsetY}px)`
+        : '';
+      this.viewNewspaperContent.style.transform = transform;
+    }
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_body_offset', JSON.stringify({
+          x: this.bodyOffsetX,
+          y: this.bodyOffsetY
+        }));
+      } catch(e) {}
+      this.pushState('Geser Posisi Naskah');
     }
   }
 
@@ -3151,6 +3267,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.viewEventLogoImg.src = 'assets/template/demo_logo_sumpah_pemuda.jpg';
     }
 
+    this.setHeaderOffset(0, 0, false);
+    this.setBodyOffset(0, 0, false);
+    this.setHeadlineOffset(0, 0, false);
+    this.setSubheadlineOffset(0, 0, false);
+    this.setBylineOffset(0, 0, false);
     this.formatNewspaperContent();
     this.updateBottomInsertsVisibility();
     if (window.lucide) window.lucide.createIcons();
