@@ -227,6 +227,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.containerBottomInserts = document.getElementById('container-bottom-inserts');
     this.viewActivityImg        = document.getElementById('view-activity-img');
     this.containerViewActivity  = document.getElementById('container-view-activity');
+    this.layerActivityPhotos    = document.getElementById('layer-activity-photos');
+    this.listActivityPhotosDock = document.getElementById('list-activity-photos-dock');
+    this.btnDockAddActivityPhoto= document.getElementById('btn-dock-add-activity-photo');
+    this.activityPhotos         = [];
+    this.selectedPhotoId        = null;
     this.viewCalloutQuote       = document.getElementById('view-callout-quote');
     this.containerViewIllustration = document.getElementById('container-view-illustration');
     this.viewIllustrationImg    = document.getElementById('view-illustration-img');
@@ -825,6 +830,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     // 8. Format naskah ke 3 kolom koran dengan teks yang sudah dipulihkan
     this.formatNewspaperContent(false);
 
+    // Pulihkan dan inisialisasi foto dokumentasi kegiatan dinamis (bisa banyak foto & di tengah naskah)
+    this.initActivityPhotos();
+
     // Pulihkan foto penulis dari IndexedDB / LocalStorage / Server
     this.loadSavedAuthorPhoto();
 
@@ -963,16 +971,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   }
 
   updateBottomInsertsVisibility() {
-    const hasActivity = (this.chkShowActivityImg?.checked && this.viewActivityImg?.getAttribute('src')) ? true : false;
     const quoteText = this.inpCalloutQuote?.value?.trim() || '';
     const hasQuote = quoteText !== '';
     const logoVal = this.selEventLogo?.value || 'none';
     const hasLogo = (logoVal !== 'none' && this.viewEventLogoImg?.getAttribute('src')) ? true : false;
     const hasIllustration = (this.containerViewIllustration && this.containerViewIllustration.style.display !== 'none' && this.viewIllustrationImg?.getAttribute('src')) ? true : false;
 
-    if (this.containerViewActivity) {
-      this.containerViewActivity.style.display = hasActivity ? 'flex' : 'none';
-    }
     if (this.viewCalloutQuote) {
       if (hasQuote) {
         this.viewCalloutQuote.innerText = `"${quoteText}"`;
@@ -985,7 +989,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.containerViewEventLogo.style.display = hasLogo ? 'flex' : 'none';
     }
 
-    const shouldShowSection = hasActivity || hasQuote || hasLogo || hasIllustration;
+    const shouldShowSection = hasQuote || hasLogo || hasIllustration;
     if (this.containerBottomInserts) {
       this.containerBottomInserts.style.display = shouldShowSection ? 'grid' : 'none';
     }
@@ -1804,6 +1808,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
   inferElementType(el) {
     if (!el) return 'page';
+    if (el.closest('.activity-photo-card') || el.classList.contains('activity-photo-card') || el.getAttribute('data-canvas-type') === 'activity-photo') {
+      const card = el.closest('.activity-photo-card') || el;
+      this.selectedPhotoId = card.getAttribute('data-photo-id') || null;
+      return 'activity-photo';
+    }
     if (el === this.viewHeadline || el.id === 'view-headline') return 'headline';
     if (el === this.viewSubheadline || el.id === 'view-subheadline') return 'subheadline';
     if (el === this.viewBylineContainer || el === this.viewByline || el.id === 'view-byline-container') return 'byline';
@@ -1825,7 +1834,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       'author-badge': 'tool-badge',
       'header': 'tool-header',
       'newspaper-content': 'tool-body',
-      'bottom-inserts': 'tool-activity'
+      'bottom-inserts': 'tool-activity',
+      'activity-photo': 'tool-activity'
     };
     const activeToolId = toolMap[type] || 'tool-pick';
     document.querySelectorAll('#corel-toolbox .corel-tool-btn').forEach(btn => {
@@ -1877,12 +1887,17 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     });
 
     bindTool('tool-activity', () => {
-      if (this.containerBottomInserts) {
-        this.containerBottomInserts.style.display = 'grid';
-        this.selectCanvasElement(this.containerBottomInserts);
-      }
       this.toggleDock(true);
       this.switchDockTab('tab-pane-sisipan');
+      if (this.activityPhotos && this.activityPhotos.length > 0) {
+        const firstPhoto = this.activityPhotos[0];
+        const card = document.getElementById('card-photo-' + firstPhoto.id);
+        if (card) {
+          this.selectedPhotoId = firstPhoto.id;
+          this.selectCanvasElement(card);
+          return;
+        }
+      }
     });
 
     bindTool('tool-paste-direct', () => {
@@ -1894,6 +1909,524 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     bindTool('tool-dock-toggle', () => {
       this.toggleDock();
     });
+  }
+
+  /* ==========================================================================
+     DYNAMIC FLOATING ACTIVITY PHOTOS ENGINE (Multi-photo, Drag & Corner Resize)
+     ========================================================================== */
+
+  initActivityPhotos() {
+    this.layerActivityPhotos = document.getElementById('layer-activity-photos');
+    this.listActivityPhotosDock = document.getElementById('list-activity-photos-dock');
+
+    const saved = localStorage.getItem('alqalam_activity_photos');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          this.activityPhotos = parsed;
+        }
+      } catch (e) {}
+    }
+
+    // Jika belum ada data sama sekali di storage, sediakan 1 foto demo bawaan di posisi tengah naskah
+    if (!this.activityPhotos || this.activityPhotos.length === 0) {
+      this.activityPhotos = [
+        {
+          id: 'photo_1',
+          src: 'assets/template/demo_activity_math.jpg',
+          caption: 'Suasana murid MTsN 1 Blitar saat aktif berdiskusi pelajaran matematika.',
+          left: 275,
+          top: 560,
+          width: 290,
+          visible: true
+        }
+      ];
+    }
+
+    if (!this.selectedPhotoId && this.activityPhotos.length > 0) {
+      this.selectedPhotoId = this.activityPhotos[0].id;
+    }
+
+    this.renderActivityPhotos();
+    this.renderActivityPhotosDockList();
+  }
+
+  saveActivityPhotos() {
+    try {
+      localStorage.setItem('alqalam_activity_photos', JSON.stringify(this.activityPhotos));
+    } catch (e) {}
+  }
+
+  addNewActivityPhoto(customData = null) {
+    const count = this.activityPhotos.length;
+    const newId = 'photo_' + Date.now();
+    const offset = (count * 30) % 150;
+    const defaultLeft = Math.min(480, 260 + offset);
+    const defaultTop = Math.min(800, 540 + offset);
+
+    const newPhoto = Object.assign({
+      id: newId,
+      src: 'assets/template/demo_activity_math.jpg',
+      caption: `Keterangan foto kegiatan #${count + 1}...`,
+      left: defaultLeft,
+      top: defaultTop,
+      width: 290,
+      visible: true
+    }, customData || {});
+
+    this.activityPhotos.push(newPhoto);
+    this.selectedPhotoId = newId;
+    this.saveActivityPhotos();
+    this.renderActivityPhotos();
+    this.renderActivityPhotosDockList();
+
+    const newCard = document.getElementById('card-photo-' + newId);
+    if (newCard) {
+      this.selectCanvasElement(newCard);
+    }
+
+    this.pushState('Tambah Foto Kegiatan');
+
+    // Jika belum ada custom image src, langsung buka pemilih file
+    if (!customData || !customData.src) {
+      setTimeout(() => {
+        document.getElementById('inp-dock-upload-' + newId)?.click();
+      }, 150);
+    }
+  }
+
+  deleteActivityPhoto(photoId) {
+    const idx = this.activityPhotos.findIndex(p => p.id === photoId);
+    if (idx === -1) return;
+
+    if (confirm(`Hapus foto kegiatan #${idx + 1} ini dari lembar koran?`)) {
+      this.activityPhotos.splice(idx, 1);
+      this.selectedPhotoId = this.activityPhotos.length > 0 ? this.activityPhotos[0].id : null;
+      this.saveActivityPhotos();
+      this.renderActivityPhotos();
+      this.renderActivityPhotosDockList();
+      this.deselectCanvasElement();
+      this.pushState('Hapus Foto Kegiatan');
+    }
+  }
+
+  setActivityPhotoWidth(photoId, width, save = true) {
+    const photo = this.activityPhotos.find(p => p.id === photoId);
+    if (!photo) return;
+    photo.width = Math.round(Math.max(100, Math.min(800, width)));
+    const card = document.getElementById('card-photo-' + photoId);
+    if (card) {
+      card.style.width = `${photo.width}px`;
+    }
+    const valSpan = document.getElementById('prop-val-photo-width');
+    if (valSpan && this.selectedPhotoId === photoId) {
+      valSpan.innerText = `${photo.width} px`;
+    }
+    if (save) {
+      this.saveActivityPhotos();
+      this.pushState('Ukuran Foto Kegiatan');
+    }
+  }
+
+  setActivityPhotoPosition(photoId, left, top, save = true) {
+    const photo = this.activityPhotos.find(p => p.id === photoId);
+    if (!photo) return;
+    photo.left = Math.round(left);
+    photo.top = Math.round(top);
+    const card = document.getElementById('card-photo-' + photoId);
+    if (card) {
+      card.style.left = `${photo.left}px`;
+      card.style.top = `${photo.top}px`;
+    }
+    if (save) {
+      this.saveActivityPhotos();
+      this.pushState('Posisi Foto Kegiatan');
+    }
+  }
+
+  handleActivityPhotoFile(photoId, file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const photo = this.activityPhotos.find(p => p.id === photoId);
+      if (photo) {
+        photo.src = dataUrl;
+        this.saveActivityPhotos();
+        this.renderActivityPhotos();
+        this.renderActivityPhotosDockList();
+        this.pushState('Upload Foto Kegiatan');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  renderActivityPhotos() {
+    if (!this.layerActivityPhotos) {
+      this.layerActivityPhotos = document.getElementById('layer-activity-photos');
+    }
+    if (!this.layerActivityPhotos) return;
+
+    this.layerActivityPhotos.innerHTML = '';
+
+    this.activityPhotos.forEach((photo, idx) => {
+      if (photo.visible === false || !photo.src) return;
+
+      const isSelected = this.selectedPhotoId === photo.id;
+      const card = document.createElement('div');
+      card.id = 'card-photo-' + photo.id;
+      card.className = `activity-photo-card absolute flex flex-col select-none group touch-none z-20 canvas-selectable ${isSelected ? 'canvas-selected' : ''}`;
+      card.setAttribute('data-canvas-type', 'activity-photo');
+      card.setAttribute('data-photo-id', photo.id);
+      card.style.left = `${photo.left || 275}px`;
+      card.style.top = `${photo.top || 560}px`;
+      card.style.width = `${photo.width || 290}px`;
+      card.style.cursor = 'grab';
+      card.title = `Foto Dokumentasi #${idx + 1} (Klik untuk pilih, geser ke posisi mana saja di halaman, seret sudut kanan bawah untuk ubah ukuran)`;
+
+      card.innerHTML = `
+        <div class="activity-photo-frame w-full bg-white rounded-xl p-2 shadow-lg border border-slate-300 relative transition-all group-hover:border-emerald-500">
+          <!-- Gambar (Natural Aspect Ratio) -->
+          <div class="w-full overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
+            <img src="${photo.src}" alt="${photo.caption || 'Foto Dokumentasi'}" class="w-full h-auto object-cover block pointer-events-none select-none max-h-[500px]">
+          </div>
+          <!-- Keterangan Jurnalistik -->
+          ${photo.caption ? `
+            <div class="activity-photo-caption text-[10px] font-sans text-slate-700 mt-1.5 px-1 leading-snug italic select-none" data-photo-id="${photo.id}">
+              <span class="font-bold not-italic text-emerald-800 mr-1">▲ DOKUMENTASI:</span>${photo.caption}
+            </div>
+          ` : ''}
+          <!-- Dynamic Corner Resize Handle -->
+          <div class="handle-resize-activity-photo export-ignore absolute -bottom-2.5 -right-2.5 w-6 h-6 bg-emerald-500 hover:bg-emerald-400 active:scale-125 border-2 border-white rounded-full shadow-lg cursor-nwse-resize z-40 flex items-center justify-center transition-transform hover:scale-125 touch-none select-none"
+               data-photo-id="${photo.id}"
+               title="Klik tahan dan seret untuk memperbesar / memperkecil foto kegiatan">
+            <i data-lucide="scaling" class="w-3.5 h-3.5 text-white pointer-events-none stroke-[2.5]"></i>
+          </div>
+        </div>
+      `;
+
+      this.layerActivityPhotos.appendChild(card);
+
+      // Inisialisasi Direct Drag & Drop ke mana saja di lembaran koran (termasuk tengah teks)
+      this.initActivityPhotoDrag(card, photo);
+
+      // Inisialisasi Corner Resize Handle langsung pada objek di halaman
+      const handle = card.querySelector('.handle-resize-activity-photo');
+      if (handle) {
+        this.initActivityPhotoResize(handle, card, photo);
+      }
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  initActivityPhotoDrag(card, photo) {
+    if (!card || !this.a3Sheet) return;
+
+    let isDown = false;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = photo.left || 275;
+    let initialTop = photo.top || 560;
+
+    const onMove = (e) => {
+      if (!isDown) return;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+      const zoom = this.zoomScale || 1;
+      const dx = (clientX - startX) / zoom;
+      const dy = (clientY - startY) / zoom;
+
+      if (!isDragging && Math.hypot(dx, dy) > 3) {
+        isDragging = true;
+        card.style.cursor = 'grabbing';
+      }
+
+      if (isDragging) {
+        if (e.cancelable) e.preventDefault();
+        const sheetW = this.a3Sheet.offsetWidth || 840;
+        const sheetH = this.a3Sheet.offsetHeight || 1188;
+
+        const newLeft = Math.round(Math.max(-50, Math.min(sheetW - 50, initialLeft + dx)));
+        const newTop = Math.round(Math.max(50, Math.min(sheetH - 50, initialTop + dy)));
+
+        card.style.left = `${newLeft}px`;
+        card.style.top = `${newTop}px`;
+        photo.left = newLeft;
+        photo.top = newTop;
+
+        if (typeof this.repositionCanvasHud === 'function') {
+          this.repositionCanvasHud();
+        }
+      }
+    };
+
+    const onEnd = () => {
+      if (!isDown) return;
+      isDown = false;
+
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+
+      if (isDragging) {
+        isDragging = false;
+        card.style.cursor = 'grab';
+        this.saveActivityPhotos();
+        this.justDragged = true;
+        setTimeout(() => { this.justDragged = false; }, 120);
+        this.pushState('Geser Foto Kegiatan');
+      }
+    };
+
+    const onStart = (e) => {
+      if (e.type === 'mousedown' && e.button !== 0) return;
+      if (e.target.closest('.export-ignore')) return;
+
+      isDown = true;
+      isDragging = false;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      startX = clientX;
+      startY = clientY;
+
+      initialLeft = parseFloat(card.style.left) || photo.left || 275;
+      initialTop = parseFloat(card.style.top) || photo.top || 560;
+
+      this.selectedPhotoId = photo.id;
+      this.selectCanvasElement(card);
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    card.addEventListener('mousedown', onStart);
+    card.addEventListener('touchstart', onStart, { passive: false });
+  }
+
+  initActivityPhotoResize(handle, card, photo) {
+    if (!handle || !card || !this.a3Sheet) return;
+
+    let isResizing = false;
+    let startX = 0;
+    let startY = 0;
+    let initialWidth = photo.width || 290;
+
+    const onResizeMove = (e) => {
+      if (!isResizing) return;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+      const zoom = this.zoomScale || 1;
+      const dx = (clientX - startX) / zoom;
+      const dy = (clientY - startY) / zoom;
+
+      // Geser diagonal sudut kanan bawah: dx>0 dy>0 perbesar, sebaliknya perkecil
+      const delta = (dx + dy) / 1.414;
+      const newWidth = Math.round(Math.max(100, Math.min(800, initialWidth + delta)));
+
+      card.style.width = `${newWidth}px`;
+      photo.width = newWidth;
+
+      const valSpan = document.getElementById('prop-val-photo-width');
+      if (valSpan && this.selectedPhotoId === photo.id) {
+        valSpan.innerText = `${newWidth} px`;
+      }
+
+      if (typeof this.repositionCanvasHud === 'function') {
+        this.repositionCanvasHud();
+      }
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onResizeEnd = () => {
+      if (!isResizing) return;
+      isResizing = false;
+
+      window.removeEventListener('mousemove', onResizeMove);
+      window.removeEventListener('mouseup', onResizeEnd);
+      window.removeEventListener('touchmove', onResizeMove);
+      window.removeEventListener('touchend', onResizeEnd);
+
+      card.classList.remove('ring-2', 'ring-emerald-400', 'ring-dashed');
+      handle.classList.remove('scale-125', 'bg-emerald-400');
+      document.body.style.cursor = '';
+
+      photo.width = card.offsetWidth || photo.width || 290;
+      this.saveActivityPhotos();
+      this.justDragged = true;
+      setTimeout(() => { this.justDragged = false; }, 120);
+      this.pushState('Ukuran Foto Kegiatan');
+    };
+
+    const onResizeStart = (e) => {
+      e.stopPropagation();
+      if (e.type === 'mousedown' && e.button !== 0) return;
+
+      isResizing = true;
+      const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+      startX = clientX;
+      startY = clientY;
+
+      initialWidth = card.offsetWidth || photo.width || 290;
+
+      card.classList.add('ring-2', 'ring-emerald-400', 'ring-dashed');
+      handle.classList.add('scale-125', 'bg-emerald-400');
+      document.body.style.cursor = 'nwse-resize';
+
+      this.selectedPhotoId = photo.id;
+      this.selectCanvasElement(card);
+
+      window.addEventListener('mousemove', onResizeMove);
+      window.addEventListener('mouseup', onResizeEnd);
+      window.addEventListener('touchmove', onResizeMove, { passive: false });
+      window.addEventListener('touchend', onResizeEnd);
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    handle.addEventListener('mousedown', onResizeStart);
+    handle.addEventListener('touchstart', onResizeStart, { passive: false });
+  }
+
+  renderActivityPhotosDockList() {
+    if (!this.listActivityPhotosDock) {
+      this.listActivityPhotosDock = document.getElementById('list-activity-photos-dock');
+    }
+    if (!this.listActivityPhotosDock) return;
+
+    if (!this.activityPhotos || this.activityPhotos.length === 0) {
+      this.listActivityPhotosDock.innerHTML = `
+        <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl text-center text-slate-500 text-xs">
+          <i data-lucide="image" class="w-8 h-8 text-slate-600 mx-auto mb-1"></i>
+          <span>Belum ada foto kegiatan. Klik tombol <b>+ Tambah Foto</b> di atas untuk menyisipkan foto dokumentasi.</span>
+        </div>
+      `;
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    let html = '';
+    this.activityPhotos.forEach((photo, idx) => {
+      const isSelected = this.selectedPhotoId === photo.id;
+      html += `
+        <div class="bg-slate-900 border ${isSelected ? 'border-emerald-500 ring-1 ring-emerald-500/50' : 'border-slate-800'} rounded-xl p-3 space-y-2.5 transition">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[11px] flex items-center justify-center font-mono">#${idx + 1}</span>
+              <span class="text-xs font-bold text-white">Foto Dokumentasi #${idx + 1}</span>
+              <span class="text-[10px] font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">${photo.width || 290}px</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" class="btn-dock-photo-center p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-300 transition cursor-pointer" data-photo-id="${photo.id}" title="Posisikan ke Tengah Naskah">
+                <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
+              </button>
+              <button type="button" class="btn-dock-photo-delete p-1 rounded hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 transition cursor-pointer" data-photo-id="${photo.id}" title="Hapus Foto ini">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex gap-2.5 items-center">
+            <!-- Thumbnail -->
+            <div class="w-20 h-16 bg-slate-950 border border-slate-700/80 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center relative group">
+              ${photo.src ? `<img src="${photo.src}" class="w-full h-full object-cover">` : `<i data-lucide="image" class="w-6 h-6 text-slate-600"></i>`}
+              <label class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition">
+                <i data-lucide="upload" class="w-4 h-4 text-white"></i>
+                <input type="file" id="inp-dock-upload-${photo.id}" class="hidden inp-dock-upload-file" data-photo-id="${photo.id}" accept="image/*">
+              </label>
+            </div>
+
+            <!-- Upload button & caption -->
+            <div class="flex-1 space-y-1.5">
+              <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-semibold border border-slate-700 transition">
+                <i data-lucide="upload" class="w-3 h-3 text-emerald-400"></i>
+                <span>Ganti Gambar</span>
+                <input type="file" class="hidden inp-dock-upload-file" data-photo-id="${photo.id}" accept="image/*">
+              </label>
+              <input type="text" 
+                     class="inp-dock-photo-caption w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg text-white text-[11px] px-2 py-1 outline-none transition" 
+                     data-photo-id="${photo.id}" 
+                     placeholder="Keterangan / Caption foto..." 
+                     value="${(photo.caption || '').replace(/"/g, '&quot;')}">
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    this.listActivityPhotosDock.innerHTML = html;
+
+    // Wire events inside dock list
+    this.listActivityPhotosDock.querySelectorAll('.inp-dock-upload-file').forEach(inp => {
+      inp.addEventListener('change', (e) => {
+        const photoId = inp.getAttribute('data-photo-id');
+        const file = e.target.files?.[0];
+        if (photoId && file) {
+          this.handleActivityPhotoFile(photoId, file);
+        }
+      });
+    });
+
+    this.listActivityPhotosDock.querySelectorAll('.inp-dock-photo-caption').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const photoId = inp.getAttribute('data-photo-id');
+        const photo = this.activityPhotos.find(p => p.id === photoId);
+        if (photo) {
+          photo.caption = e.target.value;
+          this.saveActivityPhotos();
+          // Update live on canvas card caption
+          const cardCaption = document.querySelector(`#card-photo-${photoId} .activity-photo-caption`);
+          if (cardCaption) {
+            if (photo.caption) {
+              cardCaption.innerHTML = `<span class="font-bold not-italic text-emerald-800 mr-1">▲ DOKUMENTASI:</span>${photo.caption}`;
+              cardCaption.style.display = 'block';
+            } else {
+              cardCaption.style.display = 'none';
+            }
+          } else if (photo.caption) {
+            this.renderActivityPhotos();
+          }
+        }
+      });
+    });
+
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-center').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const photoId = btn.getAttribute('data-photo-id');
+        if (photoId) {
+          this.setActivityPhotoPosition(photoId, 275, 560, true);
+          const card = document.getElementById('card-photo-' + photoId);
+          if (card) {
+            this.selectedPhotoId = photoId;
+            this.selectCanvasElement(card);
+          }
+        }
+      });
+    });
+
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const photoId = btn.getAttribute('data-photo-id');
+        if (photoId) {
+          this.deleteActivityPhoto(photoId);
+        }
+      });
+    });
+
+    if (window.lucide) window.lucide.createIcons();
   }
 
   saveArticleDraft() {
@@ -1916,6 +2449,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   initCorelDock() {
     this.btnToggleDock = document.getElementById('btn-toggle-dock');
     this.btnCloseDock = document.getElementById('btn-close-dock');
+    this.btnDockAddActivityPhoto = document.getElementById('btn-dock-add-activity-photo');
+    this.btnDockAddActivityPhoto?.addEventListener('click', () => this.addNewActivityPhoto());
 
     this.btnToggleDock?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2147,6 +2682,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       bodyFontSize: this.bodyFontSize || 11.5,
       bodyOffsetX: this.bodyOffsetX || 0,
       bodyOffsetY: this.bodyOffsetY || 0,
+      activityPhotos: JSON.parse(JSON.stringify(this.activityPhotos || [])),
 
       activityPhotoSrc: (this.viewActivityImg && !this.viewActivityImg.classList.contains('hidden')) ? (this.viewActivityImg.src || '') : '',
       showActivityImg: this.chkShowActivityImg ? this.chkShowActivityImg.checked : false,
@@ -2350,6 +2886,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
       if (state.bodyOffsetX !== undefined && state.bodyOffsetY !== undefined) {
         this.setBodyOffset(state.bodyOffsetX, state.bodyOffsetY, false);
+      }
+      if (state.activityPhotos !== undefined) {
+        this.activityPhotos = JSON.parse(JSON.stringify(state.activityPhotos));
+        this.saveActivityPhotos();
+        this.renderActivityPhotos();
+        this.renderActivityPhotosDockList();
       }
 
       // 7. Bottom Inserts
@@ -2716,18 +3258,51 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
           </button>
         </div>
       `;
-    } else if (type === 'bottom-inserts') {
+    } else if (type === 'activity-photo') {
+      const photoId = this.selectedPhotoId;
+      const photoIndex = this.activityPhotos.findIndex(p => p.id === photoId);
+      const photo = photoIndex !== -1 ? this.activityPhotos[photoIndex] : (this.activityPhotos[0] || null);
+      const photoNum = photoIndex !== -1 ? (photoIndex + 1) : 1;
+      const width = photo ? (photo.width || 290) : 290;
+
       html = `
         <div class="flex items-center gap-2 flex-wrap">
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
             <i data-lucide="image" class="w-3.5 h-3.5"></i>
-            <span>Sisipan Visual</span>
+            <span>Foto Kegiatan #${photoNum}</span>
           </span>
           <div class="h-4 w-px bg-slate-800"></div>
-          <button type="button" id="prop-btn-upload-activity" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold">
-            <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
-            <span>Upload Foto Kegiatan</span>
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-photo-width-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Ukuran Foto">➖</button>
+            <span id="prop-val-photo-width" class="w-16 text-center font-mono font-bold text-emerald-400 text-xs">${width} px</span>
+            <button type="button" id="prop-btn-photo-width-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Perbesar Ukuran Foto">➕</button>
+          </div>
+          <div class="h-4 w-px bg-slate-800"></div>
+          <button type="button" id="prop-btn-photo-center" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold" title="Posisikan tepat di tengah naskah koran">
+            <i data-lucide="crosshair" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Tengah Naskah</span>
           </button>
+          <button type="button" id="prop-btn-photo-upload" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold" title="Ganti File Foto Kegiatan">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Ganti Foto</span>
+          </button>
+          <button type="button" id="prop-btn-photo-add" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow transition active:scale-95" title="Tambah Foto Kegiatan Lainnya">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>+ Tambah Foto</span>
+          </button>
+          <button type="button" id="prop-btn-photo-delete" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 rounded-lg border border-rose-800 transition" title="Hapus Foto Kegiatan ini">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `;
+    } else if (type === 'bottom-inserts') {
+      html = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
+            <i data-lucide="award" class="w-3.5 h-3.5"></i>
+            <span>Kutipan & Logo Acara</span>
+          </span>
+          <div class="h-4 w-px bg-slate-800"></div>
           <button type="button" id="prop-btn-open-sisipan" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold">
             <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
             <span>Panel Sisipan Lengkap</span>
@@ -2898,10 +3473,34 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         this.switchDockTab('tab-pane-naskah');
         this.inpBodyText?.focus();
       });
-    } else if (type === 'bottom-inserts') {
-      document.getElementById('prop-btn-upload-activity')?.addEventListener('click', () => {
-        this.inpActivityPhoto?.click();
+    } else if (type === 'activity-photo') {
+      const photoId = this.selectedPhotoId;
+      document.getElementById('prop-btn-photo-width-down')?.addEventListener('click', () => {
+        if (!photoId) return;
+        const photo = this.activityPhotos.find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoWidth(photoId, Math.max(100, (photo.width || 290) - 15), true);
       });
+      document.getElementById('prop-btn-photo-width-up')?.addEventListener('click', () => {
+        if (!photoId) return;
+        const photo = this.activityPhotos.find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoWidth(photoId, Math.min(800, (photo.width || 290) + 15), true);
+      });
+      document.getElementById('prop-btn-photo-center')?.addEventListener('click', () => {
+        if (!photoId) return;
+        this.setActivityPhotoPosition(photoId, 275, 560, true);
+      });
+      document.getElementById('prop-btn-photo-upload')?.addEventListener('click', () => {
+        if (!photoId) return;
+        document.getElementById('inp-dock-upload-' + photoId)?.click();
+      });
+      document.getElementById('prop-btn-photo-add')?.addEventListener('click', () => {
+        this.addNewActivityPhoto();
+      });
+      document.getElementById('prop-btn-photo-delete')?.addEventListener('click', () => {
+        if (!photoId) return;
+        this.deleteActivityPhoto(photoId);
+      });
+    } else if (type === 'bottom-inserts') {
       document.getElementById('prop-btn-open-sisipan')?.addEventListener('click', () => {
         this.toggleDock(true);
         this.switchDockTab('tab-pane-sisipan');
@@ -3401,6 +4000,21 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.setHeadlineOffset(0, 0, false);
     this.setSubheadlineOffset(0, 0, false);
     this.setBylineOffset(0, 0, false);
+    this.activityPhotos = [
+      {
+        id: 'photo_1',
+        src: 'assets/template/demo_activity_math.jpg',
+        caption: 'Suasana murid MTsN 1 Blitar saat aktif berdiskusi pelajaran matematika.',
+        left: 275,
+        top: 560,
+        width: 290,
+        visible: true
+      }
+    ];
+    this.selectedPhotoId = 'photo_1';
+    this.saveActivityPhotos();
+    this.renderActivityPhotos();
+    this.renderActivityPhotosDockList();
     this.formatNewspaperContent(true);
     this.saveArticleDraft();
     this.updateBottomInsertsVisibility();
@@ -3894,25 +4508,26 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const dataUrl = this.pendingPastedDataUrl;
     this.closePasteModal();
 
-    if (this.viewActivityImg) {
-      this.viewActivityImg.src = dataUrl;
-      this.viewActivityImg.classList.remove('hidden');
+    // Jika ada foto kegiatan yang sedang dipilih, gantikan fotonya
+    if (this.selectedPhotoId) {
+      const photo = this.activityPhotos.find(p => p.id === this.selectedPhotoId);
+      if (photo) {
+        photo.src = dataUrl;
+        this.saveActivityPhotos();
+        this.renderActivityPhotos();
+        this.renderActivityPhotosDockList();
+        this.pushState('Ganti Gambar Foto Kegiatan');
+        alert('✅ Berhasil!\n\nGambar dari Canva telah dipasang pada Foto Kegiatan #' + (this.activityPhotos.indexOf(photo) + 1));
+        return;
+      }
     }
-    if (this.previewActivityImg) {
-      this.previewActivityImg.src = dataUrl;
-      this.previewActivityImg.classList.remove('hidden');
-    }
-    if (this.placeholderPreviewActivity) {
-      this.placeholderPreviewActivity.classList.add('hidden');
-    }
-    if (this.labelActivityPhoto) {
-      this.labelActivityPhoto.innerText = 'Ganti Foto Kegiatan';
-    }
-    if (this.chkShowActivityImg) {
-      this.chkShowActivityImg.checked = true;
-    }
-    this.updateBottomInsertsVisibility();
-    alert('📸 Berhasil!\n\nGambar dari Canva telah dipasang pada Foto Kegiatan.');
+
+    // Jika belum ada / tidak ada yang dipilih, tambahkan foto kegiatan baru
+    this.addNewActivityPhoto({
+      src: dataUrl,
+      caption: 'Foto Dokumentasi Kegiatan'
+    });
+    alert('✅ Berhasil!\n\nGambar dari Canva telah ditambahkan sebagai Foto Kegiatan baru.');
   }
 }
 

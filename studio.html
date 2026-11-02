@@ -478,6 +478,11 @@
 
           </div>
 
+          <!-- DYNAMIC FLOATING ACTIVITY PHOTOS LAYER (Bisa di tengah teks naskah) -->
+          <div id="layer-activity-photos" class="contents">
+            <!-- Rendered dynamically by renderActivityPhotos() -->
+          </div>
+
           <!-- SHEET BODY (AUTHOR + HEADLINE + 3-COLUMN NEWSPAPER) -->
           <div class="flex-1 flex flex-col">
             
@@ -535,15 +540,12 @@
               <!-- Rendered dynamically -->
             </div>
 
-            <!-- Mid/Bottom Visual Inserts: Classroom Photo + Callout + Logo (Hidden by default) -->
+            <!-- Mid/Bottom Visual Inserts: Callout Box + Logo Event (Hidden by default) -->
             <div id="container-bottom-inserts" style="display: none;" class="mt-4 pt-3 border-t-2 border-slate-300 grid grid-cols-12 gap-4 items-center">
               
-              <!-- Activity Photo (Left 7 cols) -->
-              <div class="col-span-7 flex flex-col" id="container-view-activity" style="display: none;">
-                <div class="w-full h-44 bg-slate-100 rounded-lg overflow-hidden border border-slate-300 shadow-sm">
-                  <img id="view-activity-img" src="" alt="Foto Kegiatan" class="w-full h-full object-cover">
-                </div>
-                <div class="mt-2 p-2.5 bg-amber-50/80 border-l-4 border-amber-500 text-[11px] font-serif italic text-slate-800 leading-snug rounded-r" id="view-callout-quote" style="display: none;">
+              <!-- Callout Quote (Left 7 cols) -->
+              <div class="col-span-7 flex flex-col" id="container-view-activity">
+                <div class="p-2.5 bg-amber-50/80 border-l-4 border-amber-500 text-[11px] font-serif italic text-slate-800 leading-snug rounded-r shadow-sm" id="view-callout-quote" style="display: none;">
                 </div>
               </div>
 
@@ -698,32 +700,26 @@
         <!-- ==================== TAB 3: SISIPAN VISUAL ==================== -->
         <div id="tab-pane-sisipan" class="dock-tab-pane hidden space-y-4">
           
-          <!-- Foto Kegiatan -->
+          <!-- Foto Dokumentasi & Kegiatan (Multi-Photo Dinamis) -->
           <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-3">
-            <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
-              <i data-lucide="image" class="w-4 h-4"></i>
-              <span>Foto Dokumentasi / Kegiatan</span>
-            </h3>
-
-            <div class="w-full h-36 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden relative flex items-center justify-center">
-              <img id="preview-activity-img" src="" alt="Foto Kegiatan" class="hidden w-full h-full object-cover">
-              <div id="placeholder-preview-activity" class="flex flex-col items-center justify-center text-slate-500 p-2 text-center">
-                <i data-lucide="image" class="w-8 h-8 text-slate-600"></i>
-                <span class="text-[10px] mt-1 text-slate-500 font-sans">Belum ada foto kegiatan (opsional)</span>
-              </div>
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold text-emerald-400 flex items-center gap-2">
+                <i data-lucide="images" class="w-4 h-4"></i>
+                <span>Foto Dokumentasi / Kegiatan</span>
+              </h3>
+              <button type="button" id="btn-dock-add-activity-photo" class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow transition active:scale-95 cursor-pointer" title="Tambah Foto Dokumentasi Baru">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>+ Tambah Foto</span>
+              </button>
             </div>
 
-            <div class="flex items-center justify-between gap-3">
-              <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold border border-slate-700 transition">
-                <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span id="label-activity-photo">Upload Foto Kegiatan</span>
-                <input type="file" id="inp-activity-photo" accept="image/*" class="hidden">
-              </label>
+            <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+              💡 <b>Fitur Dinamis:</b> Foto kegiatan tidak lagi kaku di bawah. Anda bisa <b>menyeret foto ke tengah teks naskah</b>, memperbesar/memperkecil langsung dengan <b>menarik sudut kanan bawah foto di halaman</b>, dan menambahkan lebih dari satu foto.
+            </p>
 
-              <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                <input type="checkbox" id="chk-show-activity-img" class="rounded border-slate-700 text-emerald-600 focus:ring-emerald-500">
-                <span>Tampilkan Foto</span>
-              </label>
+            <!-- Dynamic List of Activity Photos in Dock -->
+            <div id="list-activity-photos-dock" class="space-y-3 pt-1">
+              <!-- Rendered dynamically -->
             </div>
           </div>
 
@@ -1058,6 +1054,6 @@
   </div>
 
   <!-- Main Studio JavaScript with Corel Interface -->
-  <script src="js/studio.js?v=20261102_persisttext01"></script>
+  <script src="js/studio.js?v=20261102_dynamicphotos01"></script>
 </body>
 </html>
