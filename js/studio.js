@@ -319,38 +319,52 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.btnKopSizeUp?.addEventListener('click', () => this.changeKopSize(1));
     this.chkFullWidthHeader?.addEventListener('change', () => this.updateHeaderFullBleed());
 
-    // Live Input Event Listeners
-    const bindLive = (inp, views) => {
+    // Live Input Event Listeners dengan Auto-Save ke LocalStorage
+    const bindLive = (inp, views, storageKey = null) => {
       if (!inp) return;
+      const targetViews = Array.isArray(views) ? views : [views];
       inp.addEventListener('input', () => {
         const val = inp.value;
-        views.forEach(v => {
+        targetViews.forEach(v => {
           if (v) v.innerText = val;
         });
+        if (storageKey) {
+          try { localStorage.setItem(storageKey, val); } catch (e) {}
+        }
       });
     };
 
-    bindLive(this.inpDay, [this.viewDay, this.viewDayCustomOverlay, this.viewDayCustomBar]);
-    bindLive(this.inpDateMasehi, [this.viewDateMasehi, this.viewDateMasehiCustomOverlay, this.viewDateMasehiCustomBar]);
-    bindLive(this.inpDateHijri, [this.viewDateHijri, this.viewDateHijriCustomOverlay, this.viewDateHijriCustomBar]);
-    bindLive(this.inpEditionNum, [this.viewEditionNum, this.viewEditionNumCustomOverlay, this.viewEditionNumCustomBar]);
-    bindLive(this.inpHeadline, this.viewHeadline);
-    bindLive(this.inpSubheadline, this.viewSubheadline);
+    bindLive(this.inpDay, [this.viewDay, this.viewDayCustomOverlay, this.viewDayCustomBar], 'alqalam_day');
+    bindLive(this.inpDateMasehi, [this.viewDateMasehi, this.viewDateMasehiCustomOverlay, this.viewDateMasehiCustomBar], 'alqalam_date_masehi');
+    bindLive(this.inpDateHijri, [this.viewDateHijri, this.viewDateHijriCustomOverlay, this.viewDateHijriCustomBar], 'alqalam_date_hijri');
+    bindLive(this.inpEditionNum, [this.viewEditionNum, this.viewEditionNumCustomOverlay, this.viewEditionNumCustomBar], 'alqalam_edition_num');
+    bindLive(this.inpHeadline, this.viewHeadline, 'alqalam_headline_text');
+    bindLive(this.inpSubheadline, this.viewSubheadline, 'alqalam_subheadline_text');
+    bindLive(this.inpPageNum, this.viewFooterPage, 'alqalam_page_num');
+
     // Callout quote updates
     this.inpCalloutQuote?.addEventListener('input', () => {
       this.updateBottomInsertsVisibility();
+      try { localStorage.setItem('alqalam_callout_quote', this.inpCalloutQuote.value); } catch(e) {}
     });
-    bindLive(this.inpPageNum, this.viewFooterPage);
 
     // Author Name updates both Badge & Byline
     this.inpAuthorName?.addEventListener('input', () => {
       const name = this.inpAuthorName.value.trim();
       if (this.viewAuthorBadge) this.viewAuthorBadge.innerText = name;
       if (this.viewByline) this.viewByline.innerText = name;
+      try { localStorage.setItem('alqalam_author_name', this.inpAuthorName.value); } catch(e) {}
     });
 
-    // Body Text Live Formatter
-    this.inpBodyText?.addEventListener('input', () => this.formatNewspaperContent());
+    // Body Text Live Formatter dengan Auto-Save
+    this.inpBodyText?.addEventListener('input', () => {
+      this.formatNewspaperContent(true);
+    });
+
+    // Simpan seluruh draft sebelum tab/jendela ditutup atau di-reload
+    window.addEventListener('beforeunload', () => {
+      this.saveArticleDraft();
+    });
 
     // Photo Uploads & Gaya Tampilan Penulis
     this.inpAuthorPhoto?.addEventListener('change', (e) => this.handleAuthorPhotoUpload(e));
@@ -690,9 +704,16 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     reader.readAsDataURL(file);
   }
 
-  formatNewspaperContent() {
+  formatNewspaperContent(save = true) {
     if (!this.inpBodyText || !this.viewNewspaperContent) return;
     const text = this.inpBodyText.value.trim();
+
+    // Simpan otomatis ke localStorage agar teks berita TIDAK HILANG saat di-reload
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_body_text', this.inpBodyText.value);
+      } catch (e) {}
+    }
     
     // Update word count
     const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
@@ -726,7 +747,83 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
   }
 
   initDefaultContent() {
-    this.formatNewspaperContent();
+    // 1. Pulihkan Tipe Template (Opini Guru / Liputan Berita)
+    const savedTemplate = localStorage.getItem('alqalam_template_type');
+    if (savedTemplate) {
+      this.setTemplateStyle(savedTemplate, false);
+    }
+
+    // 2. Pulihkan Teks Naskah Berita dari LocalStorage (Mencegah hilang saat reload)
+    const savedBodyText = localStorage.getItem('alqalam_body_text');
+    if (savedBodyText !== null && this.inpBodyText) {
+      this.inpBodyText.value = savedBodyText;
+    } else if (this.inpBodyText && !this.inpBodyText.value) {
+      // Jika pertama kali buka dan belum ada di storage, muat teks demo bawaan
+      this.inpBodyText.value = this.demoText;
+      try { localStorage.setItem('alqalam_body_text', this.demoText); } catch(e){}
+    }
+
+    // 3. Pulihkan Judul Utama Berita
+    const savedHeadline = localStorage.getItem('alqalam_headline_text');
+    if (savedHeadline !== null && this.inpHeadline) {
+      this.inpHeadline.value = savedHeadline;
+      if (this.viewHeadline) this.viewHeadline.innerText = savedHeadline;
+    }
+
+    // 4. Pulihkan Subjudul Berita
+    const savedSubheadline = localStorage.getItem('alqalam_subheadline_text');
+    if (savedSubheadline !== null && this.inpSubheadline) {
+      this.inpSubheadline.value = savedSubheadline;
+      if (this.viewSubheadline) this.viewSubheadline.innerText = savedSubheadline;
+    }
+
+    // 5. Pulihkan Nama Penulis
+    const savedAuthorName = localStorage.getItem('alqalam_author_name');
+    if (savedAuthorName !== null && this.inpAuthorName) {
+      this.inpAuthorName.value = savedAuthorName;
+      if (this.viewAuthorBadge) this.viewAuthorBadge.innerText = savedAuthorName;
+      if (this.viewByline) this.viewByline.innerText = savedAuthorName;
+    }
+
+    // 6. Pulihkan Kutipan / Callout Quote
+    const savedQuote = localStorage.getItem('alqalam_callout_quote');
+    if (savedQuote !== null && this.inpCalloutQuote) {
+      this.inpCalloutQuote.value = savedQuote;
+    }
+
+    // 7. Pulihkan Hari & Tanggal Edisi
+    const savedDay = localStorage.getItem('alqalam_day');
+    if (savedDay !== null && this.inpDay) {
+      this.inpDay.value = savedDay;
+      [this.viewDay, this.viewDayCustomOverlay, this.viewDayCustomBar].forEach(v => { if (v) v.innerText = savedDay; });
+    }
+
+    const savedDateM = localStorage.getItem('alqalam_date_masehi');
+    if (savedDateM !== null && this.inpDateMasehi) {
+      this.inpDateMasehi.value = savedDateM;
+      [this.viewDateMasehi, this.viewDateMasehiCustomOverlay, this.viewDateMasehiCustomBar].forEach(v => { if (v) v.innerText = savedDateM; });
+    }
+
+    const savedDateH = localStorage.getItem('alqalam_date_hijri');
+    if (savedDateH !== null && this.inpDateHijri) {
+      this.inpDateHijri.value = savedDateH;
+      [this.viewDateHijri, this.viewDateHijriCustomOverlay, this.viewDateHijriCustomBar].forEach(v => { if (v) v.innerText = savedDateH; });
+    }
+
+    const savedEdition = localStorage.getItem('alqalam_edition_num');
+    if (savedEdition !== null && this.inpEditionNum) {
+      this.inpEditionNum.value = savedEdition;
+      [this.viewEditionNum, this.viewEditionNumCustomOverlay, this.viewEditionNumCustomBar].forEach(v => { if (v) v.innerText = savedEdition; });
+    }
+
+    const savedPage = localStorage.getItem('alqalam_page_num');
+    if (savedPage !== null && this.inpPageNum) {
+      this.inpPageNum.value = savedPage;
+      if (this.viewFooterPage) this.viewFooterPage.innerText = savedPage;
+    }
+
+    // 8. Format naskah ke 3 kolom koran dengan teks yang sudah dipulihkan
+    this.formatNewspaperContent(false);
 
     // Pulihkan foto penulis dari IndexedDB / LocalStorage / Server
     this.loadSavedAuthorPhoto();
@@ -821,8 +918,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     if (this.placeholderPreviewActivity) this.placeholderPreviewActivity.classList.remove('hidden');
     if (this.labelActivityPhoto) this.labelActivityPhoto.innerText = 'Upload Foto Kegiatan';
 
-    if (this.inpCalloutQuote) this.inpCalloutQuote.value = '';
-    if (this.viewCalloutQuote) this.viewCalloutQuote.style.display = 'none';
+    this.updateBottomInsertsVisibility();
 
     if (this.selEventLogo) this.selEventLogo.value = 'none';
     if (this.viewEventLogoImg) this.viewEventLogoImg.src = '';
@@ -1800,6 +1896,23 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     });
   }
 
+  saveArticleDraft() {
+    try {
+      if (this.inpBodyText) localStorage.setItem('alqalam_body_text', this.inpBodyText.value);
+      if (this.inpHeadline) localStorage.setItem('alqalam_headline_text', this.inpHeadline.value);
+      if (this.inpSubheadline) localStorage.setItem('alqalam_subheadline_text', this.inpSubheadline.value);
+      if (this.inpAuthorName) localStorage.setItem('alqalam_author_name', this.inpAuthorName.value);
+      if (this.inpCalloutQuote) localStorage.setItem('alqalam_callout_quote', this.inpCalloutQuote.value);
+      if (this.inpDay) localStorage.setItem('alqalam_day', this.inpDay.value);
+      if (this.inpDateMasehi) localStorage.setItem('alqalam_date_masehi', this.inpDateMasehi.value);
+      if (this.inpDateHijri) localStorage.setItem('alqalam_date_hijri', this.inpDateHijri.value);
+      if (this.inpEditionNum) localStorage.setItem('alqalam_edition_num', this.inpEditionNum.value);
+      if (this.inpPageNum) localStorage.setItem('alqalam_page_num', this.inpPageNum.value);
+    } catch (e) {
+      console.warn('Gagal menyimpan draft artikel:', e);
+    }
+  }
+
   initCorelDock() {
     this.btnToggleDock = document.getElementById('btn-toggle-dock');
     this.btnCloseDock = document.getElementById('btn-close-dock');
@@ -1821,6 +1934,18 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         const targetId = btn.getAttribute('data-target');
         this.switchDockTab(targetId);
       });
+    });
+
+    // Clear Text button in Naskah tab
+    const btnClearText = document.getElementById('btn-clear-body-text');
+    btnClearText?.addEventListener('click', () => {
+      if (confirm('Kosongkan seluruh teks naskah artikel koran?')) {
+        if (this.inpBodyText) {
+          this.inpBodyText.value = '';
+          this.formatNewspaperContent(true);
+          this.pushState('Kosongkan Naskah');
+        }
+      }
     });
 
     // Quick Paste button in Naskah tab
@@ -2239,6 +2364,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         this.selEventLogo.value = state.eventLogo;
       }
       this.updateBottomInsertsVisibility();
+
+      // Simpan pemulihan Undo/Redo ke localStorage
+      this.saveArticleDraft();
 
       // Refresh HUD and Property Bar
       this.repositionCanvasHud();
@@ -2816,6 +2944,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       el.removeEventListener('blur', onBlur);
       el.removeEventListener('keydown', onKeyDown);
       this.repositionCanvasHud();
+      this.saveArticleDraft();
       this.pushState('Edit Teks');
     };
 
@@ -3272,7 +3401,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.setHeadlineOffset(0, 0, false);
     this.setSubheadlineOffset(0, 0, false);
     this.setBylineOffset(0, 0, false);
-    this.formatNewspaperContent();
+    this.formatNewspaperContent(true);
+    this.saveArticleDraft();
     this.updateBottomInsertsVisibility();
     if (window.lucide) window.lucide.createIcons();
     this.pushState('Muat Ulang Demo');
