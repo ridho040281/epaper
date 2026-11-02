@@ -739,16 +739,44 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
     let html = '';
 
+    // Foto sebelum paragraf pertama (paragraphIndex === 0)
+    const photosPre = (this.activityPhotos || []).filter(p => p.visible !== false && p.src && p.paragraphIndex === 0);
+    photosPre.forEach(p => {
+      html += this.renderInTextPhotoCardHtml(p);
+    });
+
     paragraphs.forEach((p, idx) => {
       const safeText = p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const pNum = idx + 1;
+
       if (idx === 0) {
-        html += `<p class="drop-cap mb-3 leading-relaxed">${safeText}</p>`;
+        html += `<p class="newspaper-para drop-cap mb-3 leading-relaxed" data-para-index="${pNum}">${safeText}</p>`;
       } else {
-        html += `<p class="mb-3 leading-relaxed text-justify" style="text-indent: 1.25rem;">${safeText}</p>`;
+        html += `<p class="newspaper-para mb-3 leading-relaxed text-justify" style="text-indent: 1.25rem;" data-para-index="${pNum}">${safeText}</p>`;
       }
+
+      // Sisipkan foto kegiatan in-text yang diposisikan setelah paragraf ini
+      const photosHere = (this.activityPhotos || []).filter(photo => {
+        if (photo.visible === false || !photo.src) return false;
+        const pIdx = (typeof photo.paragraphIndex === 'number') ? photo.paragraphIndex : 1;
+        return pIdx === pNum;
+      });
+
+      photosHere.forEach(photo => {
+        html += this.renderInTextPhotoCardHtml(photo);
+      });
+    });
+
+    // Foto jika nomor paragraf melebihi total paragraf
+    const photosPost = (this.activityPhotos || []).filter(p => p.visible !== false && p.src && p.paragraphIndex > paragraphs.length);
+    photosPost.forEach(p => {
+      html += this.renderInTextPhotoCardHtml(p);
     });
 
     this.viewNewspaperContent.innerHTML = html;
+
+    // Pasang interaksi klik, seret antar paragraf & resize sudut langsung di halaman
+    this.initInTextPhotoCards();
   }
 
   initDefaultContent() {
@@ -1552,7 +1580,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const onStart = (e) => {
       if (e.type === 'mousedown' && e.button !== 0) return;
       if (elem.isContentEditable || elem.classList.contains('canvas-inline-editing')) return;
-      if (e.target.closest('.export-ignore')) return;
+      if (e.target.closest('.activity-photo-card') || e.target.closest('.export-ignore')) return;
 
       isDown = true;
       isDragging = false;
@@ -1915,30 +1943,40 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
      DYNAMIC FLOATING ACTIVITY PHOTOS ENGINE (Multi-photo, Drag & Corner Resize)
      ========================================================================== */
 
+  /* ==========================================================================
+     DYNAMIC IN-TEXT ACTIVITY PHOTOS ENGINE (Text Wrap & In-Flow Multi-Photos)
+     ========================================================================== */
+
   initActivityPhotos() {
-    this.layerActivityPhotos = document.getElementById('layer-activity-photos');
     this.listActivityPhotosDock = document.getElementById('list-activity-photos-dock');
 
     const saved = localStorage.getItem('alqalam_activity_photos');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          this.activityPhotos = parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.activityPhotos = parsed.map((p, idx) => {
+            return Object.assign({
+              paragraphIndex: (typeof p.paragraphIndex === 'number') ? p.paragraphIndex : (idx + 1),
+              columnSpan: p.columnSpan || 'none',
+              height: p.height || 220,
+              visible: true
+            }, p);
+          });
         }
       } catch (e) {}
     }
 
-    // Jika belum ada data sama sekali di storage, sediakan 1 foto demo bawaan di posisi tengah naskah
+    // Jika belum ada foto, sediakan 1 foto demo bawaan tepat di Paragraf 1 (Kolom 1 seperti koran cetak)
     if (!this.activityPhotos || this.activityPhotos.length === 0) {
       this.activityPhotos = [
         {
           id: 'photo_1',
           src: 'assets/template/demo_activity_math.jpg',
           caption: 'Suasana murid MTsN 1 Blitar saat aktif berdiskusi pelajaran matematika.',
-          left: 275,
-          top: 560,
-          width: 290,
+          paragraphIndex: 1, // Tepat setelah paragraf 1 (Kolom 1)
+          columnSpan: 'none', // Pas 1 kolom koran
+          height: 220,
           visible: true
         }
       ];
@@ -1948,7 +1986,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.selectedPhotoId = this.activityPhotos[0].id;
     }
 
-    this.renderActivityPhotos();
+    this.saveActivityPhotos();
+    this.formatNewspaperContent(false);
     this.renderActivityPhotosDockList();
   }
 
@@ -1958,208 +1997,154 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     } catch (e) {}
   }
 
-  addNewActivityPhoto(customData = null) {
-    const count = this.activityPhotos.length;
-    const newId = 'photo_' + Date.now();
-    const offset = (count * 30) % 150;
-    const defaultLeft = Math.min(480, 260 + offset);
-    const defaultTop = Math.min(800, 540 + offset);
+  renderInTextPhotoCardHtml(photo) {
+    const isSelected = this.selectedPhotoId === photo.id;
+    const isSpanAll = photo.columnSpan === 'all';
+    const photoHeight = photo.height || 220;
 
-    const newPhoto = Object.assign({
-      id: newId,
-      src: 'assets/template/demo_activity_math.jpg',
-      caption: `Keterangan foto kegiatan #${count + 1}...`,
-      left: defaultLeft,
-      top: defaultTop,
-      width: 290,
-      visible: true
-    }, customData || {});
-
-    this.activityPhotos.push(newPhoto);
-    this.selectedPhotoId = newId;
-    this.saveActivityPhotos();
-    this.renderActivityPhotos();
-    this.renderActivityPhotosDockList();
-
-    const newCard = document.getElementById('card-photo-' + newId);
-    if (newCard) {
-      this.selectCanvasElement(newCard);
-    }
-
-    this.pushState('Tambah Foto Kegiatan');
-
-    // Jika belum ada custom image src, langsung buka pemilih file
-    if (!customData || !customData.src) {
-      setTimeout(() => {
-        document.getElementById('inp-dock-upload-' + newId)?.click();
-      }, 150);
-    }
-  }
-
-  deleteActivityPhoto(photoId) {
-    const idx = this.activityPhotos.findIndex(p => p.id === photoId);
-    if (idx === -1) return;
-
-    if (confirm(`Hapus foto kegiatan #${idx + 1} ini dari lembar koran?`)) {
-      this.activityPhotos.splice(idx, 1);
-      this.selectedPhotoId = this.activityPhotos.length > 0 ? this.activityPhotos[0].id : null;
-      this.saveActivityPhotos();
-      this.renderActivityPhotos();
-      this.renderActivityPhotosDockList();
-      this.deselectCanvasElement();
-      this.pushState('Hapus Foto Kegiatan');
-    }
-  }
-
-  setActivityPhotoWidth(photoId, width, save = true) {
-    const photo = this.activityPhotos.find(p => p.id === photoId);
-    if (!photo) return;
-    photo.width = Math.round(Math.max(100, Math.min(800, width)));
-    const card = document.getElementById('card-photo-' + photoId);
-    if (card) {
-      card.style.width = `${photo.width}px`;
-    }
-    const valSpan = document.getElementById('prop-val-photo-width');
-    if (valSpan && this.selectedPhotoId === photoId) {
-      valSpan.innerText = `${photo.width} px`;
-    }
-    if (save) {
-      this.saveActivityPhotos();
-      this.pushState('Ukuran Foto Kegiatan');
-    }
-  }
-
-  setActivityPhotoPosition(photoId, left, top, save = true) {
-    const photo = this.activityPhotos.find(p => p.id === photoId);
-    if (!photo) return;
-    photo.left = Math.round(left);
-    photo.top = Math.round(top);
-    const card = document.getElementById('card-photo-' + photoId);
-    if (card) {
-      card.style.left = `${photo.left}px`;
-      card.style.top = `${photo.top}px`;
-    }
-    if (save) {
-      this.saveActivityPhotos();
-      this.pushState('Posisi Foto Kegiatan');
-    }
-  }
-
-  handleActivityPhotoFile(photoId, file) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      const photo = this.activityPhotos.find(p => p.id === photoId);
-      if (photo) {
-        photo.src = dataUrl;
-        this.saveActivityPhotos();
-        this.renderActivityPhotos();
-        this.renderActivityPhotosDockList();
-        this.pushState('Upload Foto Kegiatan');
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-
-  renderActivityPhotos() {
-    if (!this.layerActivityPhotos) {
-      this.layerActivityPhotos = document.getElementById('layer-activity-photos');
-    }
-    if (!this.layerActivityPhotos) return;
-
-    this.layerActivityPhotos.innerHTML = '';
-
-    this.activityPhotos.forEach((photo, idx) => {
-      if (photo.visible === false || !photo.src) return;
-
-      const isSelected = this.selectedPhotoId === photo.id;
-      const card = document.createElement('div');
-      card.id = 'card-photo-' + photo.id;
-      card.className = `activity-photo-card absolute flex flex-col select-none group touch-none z-20 canvas-selectable ${isSelected ? 'canvas-selected' : ''}`;
-      card.setAttribute('data-canvas-type', 'activity-photo');
-      card.setAttribute('data-photo-id', photo.id);
-      card.style.left = `${photo.left || 275}px`;
-      card.style.top = `${photo.top || 560}px`;
-      card.style.width = `${photo.width || 290}px`;
-      card.style.cursor = 'grab';
-      card.title = `Foto Dokumentasi #${idx + 1} (Klik untuk pilih, geser ke posisi mana saja di halaman, seret sudut kanan bawah untuk ubah ukuran)`;
-
-      card.innerHTML = `
-        <div class="activity-photo-frame w-full bg-white rounded-xl p-2 shadow-lg border border-slate-300 relative transition-all group-hover:border-emerald-500">
-          <!-- Gambar (Natural Aspect Ratio) -->
-          <div class="w-full overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center">
-            <img src="${photo.src}" alt="${photo.caption || 'Foto Dokumentasi'}" class="w-full h-auto object-cover block pointer-events-none select-none max-h-[500px]">
+    return `
+      <div id="card-photo-${photo.id}" 
+           class="activity-photo-card in-text-photo my-3 relative select-none group touch-none canvas-selectable ${isSelected ? 'canvas-selected' : ''}" 
+           data-canvas-type="activity-photo" 
+           data-photo-id="${photo.id}"
+           style="break-inside: avoid; page-break-inside: avoid; -webkit-column-break-inside: avoid; ${isSpanAll ? 'column-span: all; width: 100%;' : 'width: 100%;'} cursor: grab;"
+           title="Foto Dokumentasi (Klik untuk pilih, seret langsung ke paragraf lain, tarik handle sudut kanan bawah untuk ubah ukuran)">
+        
+        <div class="activity-photo-frame w-full bg-white rounded-xl p-2 shadow-md border ${isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/50' : 'border-slate-300'} relative transition-all group-hover:border-emerald-500">
+          
+          <!-- Gambar Dokumentasi (In-Flow Natural View) -->
+          <div class="activity-photo-img-wrap w-full overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center relative" style="height: ${photoHeight}px;">
+            <img src="${photo.src}" alt="${photo.caption || 'Foto Dokumentasi'}" class="w-full h-full object-cover block pointer-events-none select-none">
           </div>
-          <!-- Keterangan Jurnalistik -->
+
+          <!-- Keterangan Jurnalistik / Caption -->
           ${photo.caption ? `
             <div class="activity-photo-caption text-[10px] font-sans text-slate-700 mt-1.5 px-1 leading-snug italic select-none" data-photo-id="${photo.id}">
               <span class="font-bold not-italic text-emerald-800 mr-1">▲ DOKUMENTASI:</span>${photo.caption}
             </div>
           ` : ''}
-          <!-- Dynamic Corner Resize Handle -->
+
+          <!-- Dynamic Corner Resize Handle (Langsung di objek di halaman) -->
           <div class="handle-resize-activity-photo export-ignore absolute -bottom-2.5 -right-2.5 w-6 h-6 bg-emerald-500 hover:bg-emerald-400 active:scale-125 border-2 border-white rounded-full shadow-lg cursor-nwse-resize z-40 flex items-center justify-center transition-transform hover:scale-125 touch-none select-none"
                data-photo-id="${photo.id}"
-               title="Klik tahan dan seret untuk memperbesar / memperkecil foto kegiatan">
-            <i data-lucide="scaling" class="w-3.5 h-3.5 text-white pointer-events-none stroke-[2.5]"></i>
+               title="Klik tahan dan seret untuk memperbesar / memperkecil foto langsung di halaman">
+            <i data-lucide="scaling" class="w-3 h-3 text-white pointer-events-none"></i>
+          </div>
+
+          <!-- Badge Indikator Posisi saat Hover -->
+          <div class="export-ignore absolute top-2 right-2 px-1.5 py-0.5 rounded bg-slate-900/80 text-emerald-300 text-[9px] font-mono opacity-0 group-hover:opacity-100 transition pointer-events-none flex items-center gap-1 shadow">
+            <span>${isSpanAll ? 'Bentang 3 Kolom' : '1 Kolom Koran'}</span>
+            <span>•</span>
+            <span>Paragraf ${photo.paragraphIndex || 1}</span>
           </div>
         </div>
-      `;
+      </div>
+    `;
+  }
 
-      this.layerActivityPhotos.appendChild(card);
+  initInTextPhotoCards() {
+    if (!this.viewNewspaperContent) return;
 
-      // Inisialisasi Direct Drag & Drop ke mana saja di lembaran koran (termasuk tengah teks)
-      this.initActivityPhotoDrag(card, photo);
+    const cards = this.viewNewspaperContent.querySelectorAll('.activity-photo-card');
+    cards.forEach(card => {
+      const photoId = card.getAttribute('data-photo-id');
+      const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+      if (!photo) return;
 
-      // Inisialisasi Corner Resize Handle langsung pada objek di halaman
+      // Klik untuk memilih elemen dan menampilkan property bar
+      card.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.export-ignore')) return;
+        this.selectedPhotoId = photo.id;
+        this.selectCanvasElement(card);
+      });
+
+      // Geser langsung antar-paragraf di lembar koran
+      this.initInTextPhotoDrag(card, photo);
+
+      // Handle resize sudut kanan-bawah
       const handle = card.querySelector('.handle-resize-activity-photo');
       if (handle) {
-        this.initActivityPhotoResize(handle, card, photo);
+        this.initInTextPhotoResize(handle, card, photo);
       }
     });
 
     if (window.lucide) window.lucide.createIcons();
   }
 
-  initActivityPhotoDrag(card, photo) {
-    if (!card || !this.a3Sheet) return;
+  initInTextPhotoDrag(card, photo) {
+    if (!card || !this.viewNewspaperContent) return;
 
     let isDown = false;
     let isDragging = false;
     let startX = 0;
     let startY = 0;
-    let initialLeft = photo.left || 275;
-    let initialTop = photo.top || 560;
+    let dropIndicator = null;
+    let targetParagraphIndex = photo.paragraphIndex || 1;
+
+    const getTargetIndex = (clientX, clientY) => {
+      const paras = Array.from(this.viewNewspaperContent.querySelectorAll('.newspaper-para'));
+      if (paras.length === 0) return { index: 1, targetEl: null, insertAfter: true };
+
+      let bestDist = Infinity;
+      let bestIdx = 1;
+      let insertAfter = true;
+      let targetParaEl = null;
+
+      paras.forEach(p => {
+        const r = p.getBoundingClientRect();
+        const pIdx = parseInt(p.getAttribute('data-para-index'), 10) || 1;
+        const midX = r.left + r.width / 2;
+        const midY = r.top + r.height / 2;
+        const dist = Math.hypot(clientX - midX, clientY - midY);
+
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = pIdx;
+          insertAfter = (clientY >= midY);
+          targetParaEl = p;
+        }
+      });
+
+      return {
+        index: insertAfter ? bestIdx : Math.max(0, bestIdx - 1),
+        targetEl: targetParaEl,
+        insertAfter: insertAfter
+      };
+    };
 
     const onMove = (e) => {
       if (!isDown) return;
       const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
 
-      const zoom = this.zoomScale || 1;
-      const dx = (clientX - startX) / zoom;
-      const dy = (clientY - startY) / zoom;
+      const dx = clientX - startX;
+      const dy = clientY - startY;
 
-      if (!isDragging && Math.hypot(dx, dy) > 3) {
+      if (!isDragging && Math.hypot(dx, dy) > 6) {
         isDragging = true;
+        card.style.opacity = '0.5';
         card.style.cursor = 'grabbing';
+        document.body.style.cursor = 'grabbing';
       }
 
       if (isDragging) {
         if (e.cancelable) e.preventDefault();
-        const sheetW = this.a3Sheet.offsetWidth || 840;
-        const sheetH = this.a3Sheet.offsetHeight || 1188;
 
-        const newLeft = Math.round(Math.max(-50, Math.min(sheetW - 50, initialLeft + dx)));
-        const newTop = Math.round(Math.max(50, Math.min(sheetH - 50, initialTop + dy)));
+        const result = getTargetIndex(clientX, clientY);
+        targetParagraphIndex = result.index;
 
-        card.style.left = `${newLeft}px`;
-        card.style.top = `${newTop}px`;
-        photo.left = newLeft;
-        photo.top = newTop;
+        if (!dropIndicator) {
+          dropIndicator = document.createElement('div');
+          dropIndicator.id = 'in-text-drop-indicator';
+          dropIndicator.className = 'export-ignore w-full h-1.5 bg-emerald-500 rounded-full my-1 shadow animate-pulse';
+        }
 
-        if (typeof this.repositionCanvasHud === 'function') {
-          this.repositionCanvasHud();
+        if (result.targetEl) {
+          if (result.insertAfter) {
+            result.targetEl.after(dropIndicator);
+          } else {
+            result.targetEl.before(dropIndicator);
+          }
         }
       }
     };
@@ -2173,17 +2158,34 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
 
+      if (dropIndicator && dropIndicator.parentNode) {
+        dropIndicator.remove();
+        dropIndicator = null;
+      }
+
+      document.body.style.cursor = '';
+      card.style.opacity = '';
+      card.style.cursor = 'grab';
+
       if (isDragging) {
         isDragging = false;
-        card.style.cursor = 'grab';
-        this.saveActivityPhotos();
-        this.justDragged = true;
-        setTimeout(() => { this.justDragged = false; }, 120);
-        this.pushState('Geser Foto Kegiatan');
+        if (photo.paragraphIndex !== targetParagraphIndex) {
+          photo.paragraphIndex = targetParagraphIndex;
+          this.saveActivityPhotos();
+          this.formatNewspaperContent(false);
+          this.renderActivityPhotosDockList();
+          this.updateCorelPropertyBar('activity-photo');
+
+          const newCard = document.getElementById('card-photo-' + photo.id);
+          if (newCard) this.selectCanvasElement(newCard);
+
+          this.pushState('Pindah Posisi Foto di Naskah');
+        }
       }
     };
 
     const onStart = (e) => {
+      e.stopPropagation();
       if (e.type === 'mousedown' && e.button !== 0) return;
       if (e.target.closest('.export-ignore')) return;
 
@@ -2193,9 +2195,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
       startX = clientX;
       startY = clientY;
-
-      initialLeft = parseFloat(card.style.left) || photo.left || 275;
-      initialTop = parseFloat(card.style.top) || photo.top || 560;
+      targetParagraphIndex = photo.paragraphIndex || 1;
 
       this.selectedPhotoId = photo.id;
       this.selectCanvasElement(card);
@@ -2212,13 +2212,15 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     card.addEventListener('touchstart', onStart, { passive: false });
   }
 
-  initActivityPhotoResize(handle, card, photo) {
-    if (!handle || !card || !this.a3Sheet) return;
+  initInTextPhotoResize(handle, card, photo) {
+    if (!handle || !card) return;
 
     let isResizing = false;
     let startX = 0;
     let startY = 0;
-    let initialWidth = photo.width || 290;
+    let initialHeight = photo.height || 220;
+
+    const imgWrap = card.querySelector('.activity-photo-img-wrap');
 
     const onResizeMove = (e) => {
       if (!isResizing) return;
@@ -2226,23 +2228,28 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
 
       const zoom = this.zoomScale || 1;
-      const dx = (clientX - startX) / zoom;
       const dy = (clientY - startY) / zoom;
+      const dx = (clientX - startX) / zoom;
 
-      // Geser diagonal sudut kanan bawah: dx>0 dy>0 perbesar, sebaliknya perkecil
-      const delta = (dx + dy) / 1.414;
-      const newWidth = Math.round(Math.max(100, Math.min(800, initialWidth + delta)));
+      const newHeight = Math.round(Math.max(100, Math.min(600, initialHeight + dy)));
+      photo.height = newHeight;
 
-      card.style.width = `${newWidth}px`;
-      photo.width = newWidth;
-
-      const valSpan = document.getElementById('prop-val-photo-width');
-      if (valSpan && this.selectedPhotoId === photo.id) {
-        valSpan.innerText = `${newWidth} px`;
+      if (imgWrap) {
+        imgWrap.style.height = `${newHeight}px`;
       }
 
-      if (typeof this.repositionCanvasHud === 'function') {
-        this.repositionCanvasHud();
+      // Jika ditarik ke kanan jauh (> 260px) aktifkan bentang 3 kolom penuh
+      if (dx > 260 && photo.columnSpan !== 'all') {
+        photo.columnSpan = 'all';
+        card.style.columnSpan = 'all';
+      } else if (dx < -120 && photo.columnSpan === 'all') {
+        photo.columnSpan = 'none';
+        card.style.columnSpan = 'none';
+      }
+
+      const valSpan = document.getElementById('prop-val-photo-height');
+      if (valSpan && this.selectedPhotoId === photo.id) {
+        valSpan.innerText = `${newHeight} px`;
       }
 
       if (e.cancelable) e.preventDefault();
@@ -2261,10 +2268,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       handle.classList.remove('scale-125', 'bg-emerald-400');
       document.body.style.cursor = '';
 
-      photo.width = card.offsetWidth || photo.width || 290;
       this.saveActivityPhotos();
-      this.justDragged = true;
-      setTimeout(() => { this.justDragged = false; }, 120);
+      this.formatNewspaperContent(false);
+      this.renderActivityPhotosDockList();
       this.pushState('Ukuran Foto Kegiatan');
     };
 
@@ -2277,8 +2283,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
       startX = clientX;
       startY = clientY;
-
-      initialWidth = card.offsetWidth || photo.width || 290;
+      initialHeight = photo.height || 220;
 
       card.classList.add('ring-2', 'ring-emerald-400', 'ring-dashed');
       handle.classList.add('scale-125', 'bg-emerald-400');
@@ -2299,6 +2304,131 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     handle.addEventListener('touchstart', onResizeStart, { passive: false });
   }
 
+  addNewActivityPhoto(customData = null) {
+    const count = (this.activityPhotos || []).length;
+    const newId = 'photo_' + Date.now();
+    const paras = (this.inpBodyText?.value || '').split(/\n\s*\n/).filter(Boolean);
+    const maxParas = Math.max(1, paras.length);
+
+    // Otomatis posisikan di paragraf berurutan: foto 1 di para 1 (kolom 1), foto 2 di para 3 (kolom 2), dst.
+    const targetPara = Math.min(maxParas, (count * 2) + 1);
+
+    const newPhoto = Object.assign({
+      id: newId,
+      src: 'assets/template/demo_activity_math.jpg',
+      caption: `Keterangan foto kegiatan #${count + 1}...`,
+      paragraphIndex: targetPara,
+      columnSpan: 'none',
+      height: 220,
+      visible: true
+    }, customData || {});
+
+    this.activityPhotos.push(newPhoto);
+    this.selectedPhotoId = newId;
+    this.saveActivityPhotos();
+    this.formatNewspaperContent(false);
+    this.renderActivityPhotosDockList();
+
+    const newCard = document.getElementById('card-photo-' + newId);
+    if (newCard) {
+      this.selectCanvasElement(newCard);
+    }
+
+    this.pushState('Tambah Foto Kegiatan');
+
+    if (!customData || !customData.src) {
+      setTimeout(() => {
+        document.getElementById('inp-dock-upload-' + newId)?.click();
+      }, 150);
+    }
+  }
+
+  deleteActivityPhoto(photoId) {
+    const idx = (this.activityPhotos || []).findIndex(p => p.id === photoId);
+    if (idx === -1) return;
+
+    if (confirm(`Hapus foto kegiatan #${idx + 1} ini dari lembar koran?`)) {
+      this.activityPhotos.splice(idx, 1);
+      this.selectedPhotoId = this.activityPhotos.length > 0 ? this.activityPhotos[0].id : null;
+      this.saveActivityPhotos();
+      this.formatNewspaperContent(false);
+      this.renderActivityPhotosDockList();
+      this.deselectCanvasElement();
+      this.pushState('Hapus Foto Kegiatan');
+    }
+  }
+
+  moveActivityPhotoParagraph(photoId, delta) {
+    const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+    if (!photo) return;
+    const paras = (this.inpBodyText?.value || '').split(/\n\s*\n/).filter(Boolean);
+    const maxIdx = Math.max(1, paras.length);
+    const current = (typeof photo.paragraphIndex === 'number') ? photo.paragraphIndex : 1;
+    photo.paragraphIndex = Math.max(0, Math.min(maxIdx, current + delta));
+    this.saveActivityPhotos();
+    this.formatNewspaperContent(false);
+    this.renderActivityPhotosDockList();
+    this.updateCorelPropertyBar('activity-photo');
+
+    const card = document.getElementById('card-photo-' + photoId);
+    if (card) this.selectCanvasElement(card);
+
+    this.pushState('Pindah Paragraf Foto');
+  }
+
+  toggleActivityPhotoColumnSpan(photoId) {
+    const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+    if (!photo) return;
+    photo.columnSpan = (photo.columnSpan === 'all') ? 'none' : 'all';
+    this.saveActivityPhotos();
+    this.formatNewspaperContent(false);
+    this.renderActivityPhotosDockList();
+    this.updateCorelPropertyBar('activity-photo');
+
+    const card = document.getElementById('card-photo-' + photoId);
+    if (card) this.selectCanvasElement(card);
+
+    this.pushState('Bentang Kolom Foto');
+  }
+
+  setActivityPhotoHeight(photoId, height, save = true) {
+    const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+    if (!photo) return;
+    photo.height = Math.round(Math.max(100, Math.min(650, height)));
+    const card = document.getElementById('card-photo-' + photoId);
+    const imgWrap = card?.querySelector('.activity-photo-img-wrap');
+    if (imgWrap) imgWrap.style.height = `${photo.height}px`;
+    const valSpan = document.getElementById('prop-val-photo-height');
+    if (valSpan && this.selectedPhotoId === photoId) {
+      valSpan.innerText = `${photo.height} px`;
+    }
+    if (save) {
+      this.saveActivityPhotos();
+      this.pushState('Tinggi Foto Kegiatan');
+    }
+  }
+
+  handleActivityPhotoFile(photoId, file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+      if (photo) {
+        photo.src = dataUrl;
+        this.saveActivityPhotos();
+        this.formatNewspaperContent(false);
+        this.renderActivityPhotosDockList();
+        this.pushState('Upload Foto Kegiatan');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  renderActivityPhotos() {
+    this.formatNewspaperContent(false);
+  }
+
   renderActivityPhotosDockList() {
     if (!this.listActivityPhotosDock) {
       this.listActivityPhotosDock = document.getElementById('list-activity-photos-dock');
@@ -2316,29 +2446,31 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       return;
     }
 
+    const paras = (this.inpBodyText?.value || '').split(/\n\s*\n/).filter(Boolean);
+    const totalParas = Math.max(1, paras.length);
+
     let html = '';
     this.activityPhotos.forEach((photo, idx) => {
       const isSelected = this.selectedPhotoId === photo.id;
+      const pIdx = (typeof photo.paragraphIndex === 'number') ? photo.paragraphIndex : (idx + 1);
+      const isSpanAll = photo.columnSpan === 'all';
+
       html += `
         <div class="bg-slate-900 border ${isSelected ? 'border-emerald-500 ring-1 ring-emerald-500/50' : 'border-slate-800'} rounded-xl p-3 space-y-2.5 transition">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5">
               <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[11px] flex items-center justify-center font-mono">#${idx + 1}</span>
               <span class="text-xs font-bold text-white">Foto Dokumentasi #${idx + 1}</span>
-              <span class="text-[10px] font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">${photo.width || 290}px</span>
             </div>
             <div class="flex items-center gap-1">
-              <button type="button" class="btn-dock-photo-center p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-emerald-300 transition cursor-pointer" data-photo-id="${photo.id}" title="Posisikan ke Tengah Naskah">
-                <i data-lucide="crosshair" class="w-3.5 h-3.5"></i>
-              </button>
               <button type="button" class="btn-dock-photo-delete p-1 rounded hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 transition cursor-pointer" data-photo-id="${photo.id}" title="Hapus Foto ini">
                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
               </button>
             </div>
           </div>
 
+          <!-- Thumbnail & Ganti Gambar -->
           <div class="flex gap-2.5 items-center">
-            <!-- Thumbnail -->
             <div class="w-20 h-16 bg-slate-950 border border-slate-700/80 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center relative group">
               ${photo.src ? `<img src="${photo.src}" class="w-full h-full object-cover">` : `<i data-lucide="image" class="w-6 h-6 text-slate-600"></i>`}
               <label class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition">
@@ -2347,7 +2479,6 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
               </label>
             </div>
 
-            <!-- Upload button & caption -->
             <div class="flex-1 space-y-1.5">
               <label class="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[11px] font-semibold border border-slate-700 transition">
                 <i data-lucide="upload" class="w-3 h-3 text-emerald-400"></i>
@@ -2361,13 +2492,36 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
                      value="${(photo.caption || '').replace(/"/g, '&quot;')}">
             </div>
           </div>
+
+          <!-- Kontrol Posisi di Paragraf Naskah (Text Wrap) -->
+          <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800 space-y-1.5 text-[11px]">
+            <div class="flex items-center justify-between text-slate-300">
+              <span class="flex items-center gap-1 font-medium text-slate-400">
+                <i data-lucide="align-left" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Posisi di Teks:</span>
+              </span>
+              <div class="flex items-center gap-1">
+                <button type="button" class="btn-dock-photo-para-up px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-bold" data-photo-id="${photo.id}" title="Geser ke Paragraf Sebelumnya (Naik)">⬆</button>
+                <span class="font-mono font-bold text-emerald-400 px-1">Paragraf ${pIdx}</span>
+                <button type="button" class="btn-dock-photo-para-down px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-bold" data-photo-id="${photo.id}" title="Geser ke Paragraf Berikutnya (Turun)">⬇</button>
+              </div>
+            </div>
+
+            <!-- Toggle Bentang 1 Kolom vs 3 Kolom Penuh -->
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800/80">
+              <span class="text-slate-400">Gaya Bentang:</span>
+              <button type="button" class="btn-dock-photo-toggle-span px-2 py-0.5 rounded text-[10px] font-bold ${isSpanAll ? 'bg-amber-600/30 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-200 border border-slate-700'}" data-photo-id="${photo.id}">
+                ${isSpanAll ? 'Bentang 3 Kolom Penuh' : 'Pas 1 Kolom Koran'}
+              </button>
+            </div>
+          </div>
         </div>
       `;
     });
 
     this.listActivityPhotosDock.innerHTML = html;
 
-    // Wire events inside dock list
+    // Pasang Event Listeners di Dock List
     this.listActivityPhotosDock.querySelectorAll('.inp-dock-upload-file').forEach(inp => {
       inp.addEventListener('change', (e) => {
         const photoId = inp.getAttribute('data-photo-id');
@@ -2381,11 +2535,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.listActivityPhotosDock.querySelectorAll('.inp-dock-photo-caption').forEach(inp => {
       inp.addEventListener('input', (e) => {
         const photoId = inp.getAttribute('data-photo-id');
-        const photo = this.activityPhotos.find(p => p.id === photoId);
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
         if (photo) {
           photo.caption = e.target.value;
           this.saveActivityPhotos();
-          // Update live on canvas card caption
           const cardCaption = document.querySelector(`#card-photo-${photoId} .activity-photo-caption`);
           if (cardCaption) {
             if (photo.caption) {
@@ -2395,34 +2548,37 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
               cardCaption.style.display = 'none';
             }
           } else if (photo.caption) {
-            this.renderActivityPhotos();
+            this.formatNewspaperContent(false);
           }
         }
       });
     });
 
-    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-center').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-para-up').forEach(btn => {
+      btn.addEventListener('click', () => {
         const photoId = btn.getAttribute('data-photo-id');
-        if (photoId) {
-          this.setActivityPhotoPosition(photoId, 275, 560, true);
-          const card = document.getElementById('card-photo-' + photoId);
-          if (card) {
-            this.selectedPhotoId = photoId;
-            this.selectCanvasElement(card);
-          }
-        }
+        if (photoId) this.moveActivityPhotoParagraph(photoId, -1);
+      });
+    });
+
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-para-down').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const photoId = btn.getAttribute('data-photo-id');
+        if (photoId) this.moveActivityPhotoParagraph(photoId, 1);
+      });
+    });
+
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-toggle-span').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const photoId = btn.getAttribute('data-photo-id');
+        if (photoId) this.toggleActivityPhotoColumnSpan(photoId);
       });
     });
 
     this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-delete').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
+      btn.addEventListener('click', () => {
         const photoId = btn.getAttribute('data-photo-id');
-        if (photoId) {
-          this.deleteActivityPhoto(photoId);
-        }
+        if (photoId) this.deleteActivityPhoto(photoId);
       });
     });
 
@@ -2890,7 +3046,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       if (state.activityPhotos !== undefined) {
         this.activityPhotos = JSON.parse(JSON.stringify(state.activityPhotos));
         this.saveActivityPhotos();
-        this.renderActivityPhotos();
+        this.formatNewspaperContent(false);
         this.renderActivityPhotosDockList();
       }
 
@@ -3260,10 +3416,12 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       `;
     } else if (type === 'activity-photo') {
       const photoId = this.selectedPhotoId;
-      const photoIndex = this.activityPhotos.findIndex(p => p.id === photoId);
-      const photo = photoIndex !== -1 ? this.activityPhotos[photoIndex] : (this.activityPhotos[0] || null);
+      const photoIndex = (this.activityPhotos || []).findIndex(p => p.id === photoId);
+      const photo = photoIndex !== -1 ? this.activityPhotos[photoIndex] : ((this.activityPhotos && this.activityPhotos[0]) || null);
       const photoNum = photoIndex !== -1 ? (photoIndex + 1) : 1;
-      const width = photo ? (photo.width || 290) : 290;
+      const pIdx = photo ? (photo.paragraphIndex || 1) : 1;
+      const isSpanAll = photo ? (photo.columnSpan === 'all') : false;
+      const photoHeight = photo ? (photo.height || 220) : 220;
 
       html = `
         <div class="flex items-center gap-2 flex-wrap">
@@ -3272,25 +3430,50 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
             <span>Foto Kegiatan #${photoNum}</span>
           </span>
           <div class="h-4 w-px bg-slate-800"></div>
+
+          <!-- Posisi Paragraf / Kolom -->
           <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
-            <button type="button" id="prop-btn-photo-width-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Ukuran Foto">➖</button>
-            <span id="prop-val-photo-width" class="w-16 text-center font-mono font-bold text-emerald-400 text-xs">${width} px</span>
-            <button type="button" id="prop-btn-photo-width-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Perbesar Ukuran Foto">➕</button>
+            <button type="button" id="prop-btn-photo-para-up" class="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1" title="Geser ke Paragraf Sebelumnya (Naik)">
+              <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
+              <span>Naik</span>
+            </button>
+            <span class="text-[11px] font-mono text-emerald-400 px-1.5 font-bold">Paragraf ${pIdx}</span>
+            <button type="button" id="prop-btn-photo-para-down" class="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1" title="Geser ke Paragraf Berikutnya (Turun)">
+              <span>Turun</span>
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+            </button>
           </div>
+
           <div class="h-4 w-px bg-slate-800"></div>
-          <button type="button" id="prop-btn-photo-center" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold" title="Posisikan tepat di tengah naskah koran">
-            <i data-lucide="crosshair" class="w-3.5 h-3.5 text-emerald-400"></i>
-            <span>Tengah Naskah</span>
+
+          <!-- Bentang Kolom (1 Kolom vs 3 Kolom) -->
+          <button type="button" id="prop-btn-photo-toggle-span" class="px-2.5 py-1 ${isSpanAll ? 'bg-amber-600/30 text-amber-300 border-amber-500/40' : 'bg-slate-800 text-slate-200 border-slate-700'} hover:bg-slate-700 text-xs rounded-lg border transition flex items-center gap-1.5 font-semibold" title="Beralih antara 1 Kolom Koran atau Bentang Penuh 3 Kolom">
+            <i data-lucide="${isSpanAll ? 'columns-3' : 'column'}" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>${isSpanAll ? 'Bentang 3 Kolom' : '1 Kolom Koran'}</span>
           </button>
+
+          <div class="h-4 w-px bg-slate-800"></div>
+
+          <!-- Tinggi Foto -->
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+            <button type="button" id="prop-btn-photo-height-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Tinggi Foto">➖</button>
+            <span id="prop-val-photo-height" class="w-16 text-center font-mono font-bold text-emerald-400 text-xs">${photoHeight} px</span>
+            <button type="button" id="prop-btn-photo-height-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Perbesar Tinggi Foto">➕</button>
+          </div>
+
+          <div class="h-4 w-px bg-slate-800"></div>
+
           <button type="button" id="prop-btn-photo-upload" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg border border-slate-700 transition flex items-center gap-1 font-semibold" title="Ganti File Foto Kegiatan">
             <i data-lucide="upload" class="w-3.5 h-3.5 text-emerald-400"></i>
             <span>Ganti Foto</span>
           </button>
-          <button type="button" id="prop-btn-photo-add" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow transition active:scale-95" title="Tambah Foto Kegiatan Lainnya">
+
+          <button type="button" id="prop-btn-photo-add" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow transition active:scale-95 cursor-pointer" title="Tambah Foto Dokumentasi Lainnya">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
             <span>+ Tambah Foto</span>
           </button>
-          <button type="button" id="prop-btn-photo-delete" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 rounded-lg border border-rose-800 transition" title="Hapus Foto Kegiatan ini">
+
+          <button type="button" id="prop-btn-photo-delete" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 text-xs rounded-lg border border-rose-800/50 transition flex items-center gap-1 cursor-pointer" title="Hapus Foto ini dari halaman">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -3475,19 +3658,27 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
     } else if (type === 'activity-photo') {
       const photoId = this.selectedPhotoId;
-      document.getElementById('prop-btn-photo-width-down')?.addEventListener('click', () => {
+      document.getElementById('prop-btn-photo-para-up')?.addEventListener('click', () => {
         if (!photoId) return;
-        const photo = this.activityPhotos.find(p => p.id === photoId);
-        if (photo) this.setActivityPhotoWidth(photoId, Math.max(100, (photo.width || 290) - 15), true);
+        this.moveActivityPhotoParagraph(photoId, -1);
       });
-      document.getElementById('prop-btn-photo-width-up')?.addEventListener('click', () => {
+      document.getElementById('prop-btn-photo-para-down')?.addEventListener('click', () => {
         if (!photoId) return;
-        const photo = this.activityPhotos.find(p => p.id === photoId);
-        if (photo) this.setActivityPhotoWidth(photoId, Math.min(800, (photo.width || 290) + 15), true);
+        this.moveActivityPhotoParagraph(photoId, 1);
       });
-      document.getElementById('prop-btn-photo-center')?.addEventListener('click', () => {
+      document.getElementById('prop-btn-photo-toggle-span')?.addEventListener('click', () => {
         if (!photoId) return;
-        this.setActivityPhotoPosition(photoId, 275, 560, true);
+        this.toggleActivityPhotoColumnSpan(photoId);
+      });
+      document.getElementById('prop-btn-photo-height-down')?.addEventListener('click', () => {
+        if (!photoId) return;
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoHeight(photoId, Math.max(100, (photo.height || 220) - 15), true);
+      });
+      document.getElementById('prop-btn-photo-height-up')?.addEventListener('click', () => {
+        if (!photoId) return;
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoHeight(photoId, Math.min(600, (photo.height || 220) + 15), true);
       });
       document.getElementById('prop-btn-photo-upload')?.addEventListener('click', () => {
         if (!photoId) return;
