@@ -1999,26 +1999,39 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           this.activityPhotos = parsed.map((p, idx) => {
+            const cleanCaption = (p.caption && !p.caption.includes('Suasana murid MTsN 1 Blitar')) ? p.caption : '';
             return Object.assign({
               paragraphIndex: (typeof p.paragraphIndex === 'number') ? p.paragraphIndex : (idx + 1),
-              columnSpan: p.columnSpan || 'none',
+              columnSpan: 'none',
+              wrapMode: (p.wrapMode && p.wrapMode !== 'center') ? p.wrapMode : 'left',
+              frameMode: (p.frameMode === 'box') ? 'box' : 'transparent',
+              widthPercent: p.widthPercent || 65,
               height: p.height || 220,
+              caption: cleanCaption,
               visible: true
-            }, p);
+            }, p, {
+              // Pastikan nilai default transparan tanpa box & rata kiri aktif segera
+              wrapMode: (p.wrapMode && p.wrapMode !== 'center') ? p.wrapMode : 'left',
+              frameMode: (p.frameMode === 'box') ? 'box' : 'transparent',
+              caption: cleanCaption
+            });
           });
         }
       } catch (e) {}
     }
 
-    // Jika belum ada foto, sediakan 1 foto demo bawaan tepat di Paragraf 1 (Kolom 1 seperti koran cetak)
+    // Jika belum ada foto, sediakan 1 foto demo bawaan transparan & rata kiri (teks mengitari di kanan)
     if (!this.activityPhotos || this.activityPhotos.length === 0) {
       this.activityPhotos = [
         {
           id: 'photo_1',
           src: 'assets/template/demo_activity_math.jpg',
-          caption: 'Suasana murid MTsN 1 Blitar saat aktif berdiskusi pelajaran matematika.',
+          caption: '', // Tanpa teks caption agar tidak muncul box caption
           paragraphIndex: 1, // Tepat setelah paragraf 1 (Kolom 1)
-          columnSpan: 'none', // Pas 1 kolom koran
+          columnSpan: 'none',
+          wrapMode: 'left', // Rata kiri agar teks mengalir di samping kanan
+          frameMode: 'transparent', // Transparan tanpa box
+          widthPercent: 65,
           height: 220,
           visible: true
         }
@@ -2042,8 +2055,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
   renderInTextPhotoCardHtml(photo) {
     const isSelected = this.selectedPhotoId === photo.id;
-    const isTransparent = (photo.frameMode === 'transparent' || photo.frameMode === 'none');
-    const wrapMode = photo.wrapMode || (photo.columnSpan === 'all' ? 'span-all' : 'center');
+    const isTransparent = (photo.frameMode !== 'box');
+    const wrapMode = (photo.wrapMode && photo.wrapMode !== 'center') ? photo.wrapMode : 'left';
     const photoHeight = photo.height || 220;
     const widthPct = photo.widthPercent || (wrapMode === 'center' || wrapMode === 'span-all' ? 100 : 65);
 
@@ -2085,7 +2098,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         <div class="${frameClass}">
           
           <!-- Gambar Dokumentasi / Cutout PNG -->
-          <div class="activity-photo-img-wrap w-full ${isTransparent ? 'overflow-visible' : 'overflow-hidden rounded-lg bg-slate-100'} flex items-center justify-center relative" style="${!isTransparent || photo.height ? `height: ${photoHeight}px;` : ''}">
+          <div class="activity-photo-img-wrap w-full ${isTransparent ? 'overflow-visible flex items-start justify-center' : 'overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center'} relative" style="${!isTransparent || photo.height ? `height: ${photoHeight}px;` : ''}">
             <img src="${photo.src}" alt="${photo.caption || 'Foto Dokumentasi'}" class="${imgClass}">
           </div>
 
@@ -2294,7 +2307,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     let initialWidthPct = photo.widthPercent || 65;
 
     const imgWrap = card.querySelector('.activity-photo-img-wrap');
-    const wrapMode = photo.wrapMode || (photo.columnSpan === 'all' ? 'span-all' : 'center');
+    const wrapMode = (photo.wrapMode && photo.wrapMode !== 'center') ? photo.wrapMode : 'left';
 
     const onResizeMove = (e) => {
       if (!isResizing) return;
@@ -2546,12 +2559,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const photo = (this.activityPhotos || []).find(p => p.id === photoId);
       if (photo) {
         photo.src = dataUrl;
-        // Jika file PNG, otomatis atur ke mode transparan (cutout PNG) & rata kiri agar teks mengalir rapi!
-        if (isPng) {
-          photo.frameMode = 'transparent';
-          photo.wrapMode = 'left';
-          photo.widthPercent = 65;
-        }
+        photo.caption = ''; // Hapus caption default agar tidak ada box caption
+        // Otomatis aktifkan mode transparan (cutout PNG tanpa box) & rata kiri agar teks mengalir mengitari gambar
+        photo.frameMode = 'transparent';
+        photo.wrapMode = 'left';
+        photo.widthPercent = 65;
         this.saveActivityPhotos();
         this.formatNewspaperContent(false);
         this.renderActivityPhotosDockList();
@@ -2590,8 +2602,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.activityPhotos.forEach((photo, idx) => {
       const isSelected = this.selectedPhotoId === photo.id;
       const pIdx = (typeof photo.paragraphIndex === 'number') ? photo.paragraphIndex : (idx + 1);
-      const isTransparent = (photo.frameMode === 'transparent' || photo.frameMode === 'none');
-      const wrapMode = photo.wrapMode || (photo.columnSpan === 'all' ? 'span-all' : 'center');
+      const isTransparent = (photo.frameMode !== 'box');
+      const wrapMode = (photo.wrapMode && photo.wrapMode !== 'center') ? photo.wrapMode : 'left';
       const widthPct = photo.widthPercent || 65;
 
       html += `
@@ -3682,8 +3694,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const photo = photoIndex !== -1 ? this.activityPhotos[photoIndex] : ((this.activityPhotos && this.activityPhotos[0]) || null);
       const photoNum = photoIndex !== -1 ? (photoIndex + 1) : 1;
       const pIdx = photo ? (photo.paragraphIndex || 1) : 1;
-      const isTransparent = photo ? (photo.frameMode === 'transparent' || photo.frameMode === 'none') : false;
-      const wrapMode = photo ? (photo.wrapMode || (photo.columnSpan === 'all' ? 'span-all' : 'center')) : 'center';
+      const isTransparent = photo ? (photo.frameMode !== 'box') : true;
+      const wrapMode = photo ? ((photo.wrapMode && photo.wrapMode !== 'center') ? photo.wrapMode : 'left') : 'left';
       const photoHeight = photo ? (photo.height || 220) : 220;
       const widthPct = photo ? (photo.widthPercent || 65) : 65;
 
@@ -4774,10 +4786,13 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       {
         id: 'photo_1',
         src: 'assets/template/demo_activity_math.jpg',
-        caption: 'Suasana murid MTsN 1 Blitar saat aktif berdiskusi pelajaran matematika.',
-        left: 275,
-        top: 560,
-        width: 290,
+        caption: '',
+        paragraphIndex: 1,
+        columnSpan: 'none',
+        wrapMode: 'left',
+        frameMode: 'transparent',
+        widthPercent: 65,
+        height: 220,
         visible: true
       }
     ];
@@ -5283,11 +5298,16 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const photo = this.activityPhotos.find(p => p.id === this.selectedPhotoId);
       if (photo) {
         photo.src = dataUrl;
+        photo.caption = '';
+        photo.frameMode = 'transparent';
+        photo.wrapMode = 'left';
+        photo.widthPercent = 65;
         this.saveActivityPhotos();
-        this.renderActivityPhotos();
+        this.formatNewspaperContent(false);
         this.renderActivityPhotosDockList();
+        this.updateCorelPropertyBar('activity-photo');
         this.pushState('Ganti Gambar Foto Kegiatan');
-        alert('✅ Berhasil!\n\nGambar dari Canva telah dipasang pada Foto Kegiatan #' + (this.activityPhotos.indexOf(photo) + 1));
+        alert('✅ Berhasil!\n\nGambar telah dipasang pada Foto Kegiatan #' + (this.activityPhotos.indexOf(photo) + 1) + ' (Mode PNG Transparan & Rata Kiri).');
         return;
       }
     }
@@ -5295,7 +5315,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     // Jika belum ada / tidak ada yang dipilih, tambahkan foto kegiatan baru
     this.addNewActivityPhoto({
       src: dataUrl,
-      caption: 'Foto Dokumentasi Kegiatan'
+      caption: '',
+      frameMode: 'transparent',
+      wrapMode: 'left',
+      widthPercent: 65
     });
     alert('✅ Berhasil!\n\nGambar dari Canva telah ditambahkan sebagai Foto Kegiatan baru.');
   }
