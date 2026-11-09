@@ -2042,27 +2042,56 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
   renderInTextPhotoCardHtml(photo) {
     const isSelected = this.selectedPhotoId === photo.id;
-    const isSpanAll = photo.columnSpan === 'all';
+    const isTransparent = (photo.frameMode === 'transparent' || photo.frameMode === 'none');
+    const wrapMode = photo.wrapMode || (photo.columnSpan === 'all' ? 'span-all' : 'center');
     const photoHeight = photo.height || 220;
+    const widthPct = photo.widthPercent || (wrapMode === 'center' || wrapMode === 'span-all' ? 100 : 65);
+
+    let wrapStyle = '';
+
+    if (wrapMode === 'span-all') {
+      wrapStyle = 'column-span: all; width: 100%; float: none; clear: both; margin: 16px 0;';
+    } else if (wrapMode === 'left') {
+      wrapStyle = `float: left; width: ${widthPct}%; margin: 4px 14px 6px 0; clear: left; shape-outside: url('${photo.src}'); shape-image-threshold: 0.15; shape-margin: 10px;`;
+    } else if (wrapMode === 'right') {
+      wrapStyle = `float: right; width: ${widthPct}%; margin: 4px 0 6px 14px; clear: right; shape-outside: url('${photo.src}'); shape-image-threshold: 0.15; shape-margin: 10px;`;
+    } else {
+      wrapStyle = 'display: block; width: 100%; float: none; clear: both; margin: 12px 0;';
+    }
+
+    const frameClass = isTransparent
+      ? `activity-photo-frame w-full bg-transparent border-0 shadow-none p-0 relative transition-all ${isSelected ? 'ring-2 ring-emerald-500/80 ring-offset-2 rounded-lg' : ''}`
+      : `activity-photo-frame w-full bg-white rounded-xl p-2 shadow-md border ${isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/50' : 'border-slate-300'} relative transition-all group-hover:border-emerald-500`;
+
+    const imgClass = isTransparent
+      ? 'w-full h-auto object-contain block pointer-events-none select-none max-h-[460px]'
+      : 'w-full h-full object-cover block pointer-events-none select-none';
+
+    const wrapModeLabel = {
+      'left': 'Rata Kiri (Teks di Kanan)',
+      'right': 'Rata Kanan (Teks di Kiri)',
+      'center': '1 Kolom Penuh',
+      'span-all': 'Bentang 3 Kolom'
+    }[wrapMode] || '1 Kolom';
 
     return `
       <div id="card-photo-${photo.id}" 
-           class="activity-photo-card in-text-photo my-3 relative select-none group touch-none canvas-selectable ${isSelected ? 'canvas-selected' : ''}" 
+           class="activity-photo-card in-text-photo relative select-none group touch-none canvas-selectable ${isSelected ? 'canvas-selected' : ''}" 
            data-canvas-type="activity-photo" 
            data-photo-id="${photo.id}"
-           style="break-inside: avoid; page-break-inside: avoid; -webkit-column-break-inside: avoid; ${isSpanAll ? 'column-span: all; width: 100%;' : 'width: 100%;'} cursor: grab;"
-           title="Foto Dokumentasi (Klik untuk pilih, seret langsung ke paragraf lain, tarik handle sudut kanan bawah untuk ubah ukuran)">
+           style="break-inside: avoid; page-break-inside: avoid; -webkit-column-break-inside: avoid; ${wrapStyle} cursor: grab;"
+           title="Gambar / Foto (Klik untuk pilih, seret langsung ke paragraf lain, tarik handle sudut kanan bawah untuk ubah ukuran)">
         
-        <div class="activity-photo-frame w-full bg-white rounded-xl p-2 shadow-md border ${isSelected ? 'border-emerald-500 ring-2 ring-emerald-500/50' : 'border-slate-300'} relative transition-all group-hover:border-emerald-500">
+        <div class="${frameClass}">
           
-          <!-- Gambar Dokumentasi (In-Flow Natural View) -->
-          <div class="activity-photo-img-wrap w-full overflow-hidden rounded-lg bg-slate-100 flex items-center justify-center relative" style="height: ${photoHeight}px;">
-            <img src="${photo.src}" alt="${photo.caption || 'Foto Dokumentasi'}" class="w-full h-full object-cover block pointer-events-none select-none">
+          <!-- Gambar Dokumentasi / Cutout PNG -->
+          <div class="activity-photo-img-wrap w-full ${isTransparent ? 'overflow-visible' : 'overflow-hidden rounded-lg bg-slate-100'} flex items-center justify-center relative" style="${!isTransparent || photo.height ? `height: ${photoHeight}px;` : ''}">
+            <img src="${photo.src}" alt="${photo.caption || 'Foto Dokumentasi'}" class="${imgClass}">
           </div>
 
-          <!-- Keterangan Jurnalistik / Caption -->
-          ${photo.caption ? `
-            <div class="activity-photo-caption text-[10px] font-sans text-slate-700 mt-1.5 px-1 leading-snug italic select-none" data-photo-id="${photo.id}">
+          <!-- Keterangan Jurnalistik / Caption (Hanya tampil jika ada isi keterangan) -->
+          ${(photo.caption && photo.caption.trim()) ? `
+            <div class="activity-photo-caption text-[10px] font-sans text-slate-700 mt-1 px-1 leading-snug italic select-none" data-photo-id="${photo.id}">
               <span class="font-bold not-italic text-emerald-800 mr-1">▲ DOKUMENTASI:</span>${photo.caption}
             </div>
           ` : ''}
@@ -2070,15 +2099,15 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
           <!-- Dynamic Corner Resize Handle (Langsung di objek di halaman) -->
           <div class="handle-resize-activity-photo export-ignore absolute -bottom-2.5 -right-2.5 w-6 h-6 bg-emerald-500 hover:bg-emerald-400 active:scale-125 border-2 border-white rounded-full shadow-lg cursor-nwse-resize z-40 flex items-center justify-center transition-transform hover:scale-125 touch-none select-none"
                data-photo-id="${photo.id}"
-               title="Klik tahan dan seret untuk memperbesar / memperkecil foto langsung di halaman">
+               title="Klik tahan dan seret untuk mengubah ukuran / lebar foto langsung di halaman">
             <i data-lucide="scaling" class="w-3 h-3 text-white pointer-events-none"></i>
           </div>
 
           <!-- Badge Indikator Posisi saat Hover -->
-          <div class="export-ignore absolute top-2 right-2 px-1.5 py-0.5 rounded bg-slate-900/80 text-emerald-300 text-[9px] font-mono opacity-0 group-hover:opacity-100 transition pointer-events-none flex items-center gap-1 shadow">
-            <span>${isSpanAll ? 'Bentang 3 Kolom' : '1 Kolom Koran'}</span>
+          <div class="export-ignore absolute top-1 right-1 px-1.5 py-0.5 rounded bg-slate-900/85 text-emerald-300 text-[9px] font-mono opacity-0 group-hover:opacity-100 transition pointer-events-none flex items-center gap-1 shadow-md z-30">
+            <span>${isTransparent ? 'PNG Transparan' : 'Box Kartu'}</span>
             <span>•</span>
-            <span>Paragraf ${photo.paragraphIndex || 1}</span>
+            <span>${wrapModeLabel}</span>
           </div>
         </div>
       </div>
@@ -2262,8 +2291,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     let startX = 0;
     let startY = 0;
     let initialHeight = photo.height || 220;
+    let initialWidthPct = photo.widthPercent || 65;
 
     const imgWrap = card.querySelector('.activity-photo-img-wrap');
+    const wrapMode = photo.wrapMode || (photo.columnSpan === 'all' ? 'span-all' : 'center');
 
     const onResizeMove = (e) => {
       if (!isResizing) return;
@@ -2274,25 +2305,43 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const dy = (clientY - startY) / zoom;
       const dx = (clientX - startX) / zoom;
 
-      const newHeight = Math.round(Math.max(100, Math.min(600, initialHeight + dy)));
+      // Ubah tinggi foto
+      const newHeight = Math.round(Math.max(80, Math.min(650, initialHeight + dy)));
       photo.height = newHeight;
 
       if (imgWrap) {
         imgWrap.style.height = `${newHeight}px`;
       }
 
-      // Jika ditarik ke kanan jauh (> 260px) aktifkan bentang 3 kolom penuh
-      if (dx > 260 && photo.columnSpan !== 'all') {
-        photo.columnSpan = 'all';
-        card.style.columnSpan = 'all';
-      } else if (dx < -120 && photo.columnSpan === 'all') {
-        photo.columnSpan = 'none';
-        card.style.columnSpan = 'none';
+      // Jika mode rata kiri/kanan, dx mengubah persentase lebar (% kolom)
+      if (wrapMode === 'left' || wrapMode === 'right') {
+        const factor = (wrapMode === 'left') ? 1 : -1;
+        const newWidthPct = Math.round(Math.max(30, Math.min(100, initialWidthPct + (dx * factor * 0.35))));
+        photo.widthPercent = newWidthPct;
+        card.style.width = `${newWidthPct}%`;
+
+        const valWidthSpan = document.getElementById('prop-val-photo-width');
+        if (valWidthSpan && this.selectedPhotoId === photo.id) {
+          valWidthSpan.innerText = `${newWidthPct}%`;
+        }
+      } else {
+        // Jika mode tengah/bentang penuh, tarik jauh ke kanan mengaktifkan bentang 3 kolom
+        if (dx > 260 && photo.wrapMode !== 'span-all') {
+          photo.wrapMode = 'span-all';
+          photo.columnSpan = 'all';
+          card.style.columnSpan = 'all';
+          card.style.width = '100%';
+        } else if (dx < -120 && photo.wrapMode === 'span-all') {
+          photo.wrapMode = 'center';
+          photo.columnSpan = 'none';
+          card.style.columnSpan = 'none';
+          card.style.width = '100%';
+        }
       }
 
-      const valSpan = document.getElementById('prop-val-photo-height');
-      if (valSpan && this.selectedPhotoId === photo.id) {
-        valSpan.innerText = `${newHeight} px`;
+      const valHeightSpan = document.getElementById('prop-val-photo-height');
+      if (valHeightSpan && this.selectedPhotoId === photo.id) {
+        valHeightSpan.innerText = `${newHeight} px`;
       }
 
       if (e.cancelable) e.preventDefault();
@@ -2327,6 +2376,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       startX = clientX;
       startY = clientY;
       initialHeight = photo.height || 220;
+      initialWidthPct = photo.widthPercent || 65;
 
       card.classList.add('ring-2', 'ring-emerald-400', 'ring-dashed');
       handle.classList.add('scale-125', 'bg-emerald-400');
@@ -2359,9 +2409,11 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const newPhoto = Object.assign({
       id: newId,
       src: 'assets/template/demo_activity_math.jpg',
-      caption: `Keterangan foto kegiatan #${count + 1}...`,
+      caption: '', // Kosongkan secara default agar tidak ada box caption jika PNG
       paragraphIndex: targetPara,
-      columnSpan: 'none',
+      wrapMode: 'left', // Default rata kiri agar teks mengalir di samping kanan
+      frameMode: 'transparent', // Default transparan (cutout PNG)
+      widthPercent: 65,
       height: 220,
       visible: true
     }, customData || {});
@@ -2390,7 +2442,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     const idx = (this.activityPhotos || []).findIndex(p => p.id === photoId);
     if (idx === -1) return;
 
-    if (confirm(`Hapus foto kegiatan #${idx + 1} ini dari lembar koran?`)) {
+    if (confirm(`Hapus foto/gambar kegiatan #${idx + 1} ini dari lembar koran?`)) {
       this.activityPhotos.splice(idx, 1);
       this.selectedPhotoId = this.activityPhotos.length > 0 ? this.activityPhotos[0].id : null;
       this.saveActivityPhotos();
@@ -2398,6 +2450,55 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       this.renderActivityPhotosDockList();
       this.deselectCanvasElement();
       this.pushState('Hapus Foto Kegiatan');
+    }
+  }
+
+  setActivityPhotoFrameMode(photoId, frameMode) {
+    const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+    if (!photo) return;
+    photo.frameMode = frameMode; // 'transparent' vs 'box'
+    this.saveActivityPhotos();
+    this.formatNewspaperContent(false);
+    this.renderActivityPhotosDockList();
+    this.updateCorelPropertyBar('activity-photo');
+
+    const card = document.getElementById('card-photo-' + photoId);
+    if (card) this.selectCanvasElement(card);
+
+    this.pushState('Gaya Bingkai Foto');
+  }
+
+  setActivityPhotoWrapMode(photoId, wrapMode) {
+    const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+    if (!photo) return;
+    photo.wrapMode = wrapMode; // 'left', 'right', 'center', 'span-all'
+    photo.columnSpan = (wrapMode === 'span-all') ? 'all' : 'none';
+    this.saveActivityPhotos();
+    this.formatNewspaperContent(false);
+    this.renderActivityPhotosDockList();
+    this.updateCorelPropertyBar('activity-photo');
+
+    const card = document.getElementById('card-photo-' + photoId);
+    if (card) this.selectCanvasElement(card);
+
+    this.pushState('Posisi Aliran Foto');
+  }
+
+  setActivityPhotoWidthPercent(photoId, widthPercent, save = true) {
+    const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+    if (!photo) return;
+    photo.widthPercent = Math.round(Math.max(25, Math.min(100, widthPercent)));
+    const card = document.getElementById('card-photo-' + photoId);
+    if (card && (photo.wrapMode === 'left' || photo.wrapMode === 'right')) {
+      card.style.width = `${photo.widthPercent}%`;
+    }
+    const valSpan = document.getElementById('prop-val-photo-width');
+    if (valSpan && this.selectedPhotoId === photoId) {
+      valSpan.innerText = `${photo.widthPercent}%`;
+    }
+    if (save) {
+      this.saveActivityPhotos();
+      this.pushState('Lebar Foto Kegiatan');
     }
   }
 
@@ -2419,25 +2520,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.pushState('Pindah Paragraf Foto');
   }
 
-  toggleActivityPhotoColumnSpan(photoId) {
-    const photo = (this.activityPhotos || []).find(p => p.id === photoId);
-    if (!photo) return;
-    photo.columnSpan = (photo.columnSpan === 'all') ? 'none' : 'all';
-    this.saveActivityPhotos();
-    this.formatNewspaperContent(false);
-    this.renderActivityPhotosDockList();
-    this.updateCorelPropertyBar('activity-photo');
-
-    const card = document.getElementById('card-photo-' + photoId);
-    if (card) this.selectCanvasElement(card);
-
-    this.pushState('Bentang Kolom Foto');
-  }
-
   setActivityPhotoHeight(photoId, height, save = true) {
     const photo = (this.activityPhotos || []).find(p => p.id === photoId);
     if (!photo) return;
-    photo.height = Math.round(Math.max(100, Math.min(650, height)));
+    photo.height = Math.round(Math.max(80, Math.min(650, height)));
     const card = document.getElementById('card-photo-' + photoId);
     const imgWrap = card?.querySelector('.activity-photo-img-wrap');
     if (imgWrap) imgWrap.style.height = `${photo.height}px`;
@@ -2453,15 +2539,23 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
   handleActivityPhotoFile(photoId, file) {
     if (!file) return;
+    const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target.result;
       const photo = (this.activityPhotos || []).find(p => p.id === photoId);
       if (photo) {
         photo.src = dataUrl;
+        // Jika file PNG, otomatis atur ke mode transparan (cutout PNG) & rata kiri agar teks mengalir rapi!
+        if (isPng) {
+          photo.frameMode = 'transparent';
+          photo.wrapMode = 'left';
+          photo.widthPercent = 65;
+        }
         this.saveActivityPhotos();
         this.formatNewspaperContent(false);
         this.renderActivityPhotosDockList();
+        this.updateCorelPropertyBar('activity-photo');
         this.pushState('Upload Foto Kegiatan');
       }
     };
@@ -2496,14 +2590,19 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.activityPhotos.forEach((photo, idx) => {
       const isSelected = this.selectedPhotoId === photo.id;
       const pIdx = (typeof photo.paragraphIndex === 'number') ? photo.paragraphIndex : (idx + 1);
-      const isSpanAll = photo.columnSpan === 'all';
+      const isTransparent = (photo.frameMode === 'transparent' || photo.frameMode === 'none');
+      const wrapMode = photo.wrapMode || (photo.columnSpan === 'all' ? 'span-all' : 'center');
+      const widthPct = photo.widthPercent || 65;
 
       html += `
         <div class="bg-slate-900 border ${isSelected ? 'border-emerald-500 ring-1 ring-emerald-500/50' : 'border-slate-800'} rounded-xl p-3 space-y-2.5 transition">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5">
               <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-[11px] flex items-center justify-center font-mono">#${idx + 1}</span>
-              <span class="text-xs font-bold text-white">Foto Dokumentasi #${idx + 1}</span>
+              <span class="text-xs font-bold text-white">Gambar / Foto #${idx + 1}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-mono ${isTransparent ? 'bg-amber-950/80 text-amber-300 border border-amber-800/60' : 'bg-slate-800 text-slate-400 border border-slate-700'}">
+                ${isTransparent ? 'PNG Cutout' : 'Box Putih'}
+              </span>
             </div>
             <div class="flex items-center gap-1">
               <button type="button" class="btn-dock-photo-delete p-1 rounded hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 transition cursor-pointer" data-photo-id="${photo.id}" title="Hapus Foto ini">
@@ -2515,7 +2614,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
           <!-- Thumbnail & Ganti Gambar -->
           <div class="flex gap-2.5 items-center">
             <div class="w-20 h-16 bg-slate-950 border border-slate-700/80 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center relative group">
-              ${photo.src ? `<img src="${photo.src}" class="w-full h-full object-cover">` : `<i data-lucide="image" class="w-6 h-6 text-slate-600"></i>`}
+              ${photo.src ? `<img src="${photo.src}" class="w-full h-full object-contain p-1">` : `<i data-lucide="image" class="w-6 h-6 text-slate-600"></i>`}
               <label class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition">
                 <i data-lucide="upload" class="w-4 h-4 text-white"></i>
                 <input type="file" id="inp-dock-upload-${photo.id}" class="hidden inp-dock-upload-file" data-photo-id="${photo.id}" accept="image/*">
@@ -2531,32 +2630,57 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
               <input type="text" 
                      class="inp-dock-photo-caption w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-lg text-white text-[11px] px-2 py-1 outline-none transition" 
                      data-photo-id="${photo.id}" 
-                     placeholder="Keterangan / Caption foto..." 
+                     placeholder="Keterangan (opsional, kosongkan jika tanpa caption)..." 
                      value="${(photo.caption || '').replace(/"/g, '&quot;')}">
             </div>
           </div>
 
-          <!-- Kontrol Posisi di Paragraf Naskah (Text Wrap) -->
-          <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800 space-y-1.5 text-[11px]">
+          <!-- Pilihan Gaya Bingkai: Transparan vs Box -->
+          <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-800">
+            <span class="text-slate-400 text-[11px]">Bingkai Gambar:</span>
+            <div class="flex items-center gap-1">
+              <button type="button" class="btn-dock-photo-frame px-2 py-0.5 rounded text-[10px] font-bold ${isTransparent ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300'}" data-photo-id="${photo.id}" data-frame="transparent">
+                Transparan / PNG
+              </button>
+              <button type="button" class="btn-dock-photo-frame px-2 py-0.5 rounded text-[10px] font-bold ${!isTransparent ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300'}" data-photo-id="${photo.id}" data-frame="box">
+                Box Kartu
+              </button>
+            </div>
+          </div>
+
+          <!-- Pilihan Aliran Teks (Wrap Mode) -->
+          <div class="space-y-1.5 bg-slate-950/70 p-2 rounded-lg border border-slate-800 text-[11px]">
             <div class="flex items-center justify-between text-slate-300">
-              <span class="flex items-center gap-1 font-medium text-slate-400">
-                <i data-lucide="align-left" class="w-3.5 h-3.5 text-emerald-400"></i>
-                <span>Posisi di Teks:</span>
-              </span>
+              <span class="text-slate-400">Posisi & Aliran:</span>
               <div class="flex items-center gap-1">
-                <button type="button" class="btn-dock-photo-para-up px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-bold" data-photo-id="${photo.id}" title="Geser ke Paragraf Sebelumnya (Naik)">⬆</button>
-                <span class="font-mono font-bold text-emerald-400 px-1">Paragraf ${pIdx}</span>
-                <button type="button" class="btn-dock-photo-para-down px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-bold" data-photo-id="${photo.id}" title="Geser ke Paragraf Berikutnya (Turun)">⬇</button>
+                <button type="button" class="btn-dock-photo-wrap px-1.5 py-0.5 rounded text-[10px] font-bold ${wrapMode === 'left' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}" data-photo-id="${photo.id}" data-wrap="left" title="Rata Kiri (Teks mengitari di kanan)">Kiri</button>
+                <button type="button" class="btn-dock-photo-wrap px-1.5 py-0.5 rounded text-[10px] font-bold ${wrapMode === 'right' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}" data-photo-id="${photo.id}" data-wrap="right" title="Rata Kanan (Teks mengitari di kiri)">Kanan</button>
+                <button type="button" class="btn-dock-photo-wrap px-1.5 py-0.5 rounded text-[10px] font-bold ${wrapMode === 'center' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}" data-photo-id="${photo.id}" data-wrap="center" title="1 Kolom Penuh">1 Kolom</button>
+                <button type="button" class="btn-dock-photo-wrap px-1.5 py-0.5 rounded text-[10px] font-bold ${wrapMode === 'span-all' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}" data-photo-id="${photo.id}" data-wrap="span-all" title="Bentang 3 Kolom">3 Kolom</button>
               </div>
             </div>
 
-            <!-- Toggle Bentang 1 Kolom vs 3 Kolom Penuh -->
-            <div class="flex items-center justify-between pt-1 border-t border-slate-800/80">
-              <span class="text-slate-400">Gaya Bentang:</span>
-              <button type="button" class="btn-dock-photo-toggle-span px-2 py-0.5 rounded text-[10px] font-bold ${isSpanAll ? 'bg-amber-600/30 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-200 border border-slate-700'}" data-photo-id="${photo.id}">
-                ${isSpanAll ? 'Bentang 3 Kolom Penuh' : 'Pas 1 Kolom Koran'}
-              </button>
+            <!-- Posisi Paragraf Naskah -->
+            <div class="flex items-center justify-between text-slate-300 pt-1 border-t border-slate-800/80">
+              <span class="text-slate-400">Paragraf:</span>
+              <div class="flex items-center gap-1">
+                <button type="button" class="btn-dock-photo-para-up px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-bold" data-photo-id="${photo.id}" title="Naik ke Paragraf Sebelumnya">⬆</button>
+                <span class="font-mono font-bold text-emerald-400 px-1">Para ${pIdx}</span>
+                <button type="button" class="btn-dock-photo-para-down px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-bold" data-photo-id="${photo.id}" title="Turun ke Paragraf Berikutnya">⬇</button>
+              </div>
             </div>
+
+            <!-- Lebar % Kolom (Jika Kiri / Kanan) -->
+            ${(wrapMode === 'left' || wrapMode === 'right') ? `
+              <div class="flex items-center justify-between text-slate-300 pt-1 border-t border-slate-800/80">
+                <span class="text-slate-400">Lebar Gambar:</span>
+                <div class="flex items-center gap-1">
+                  <button type="button" class="btn-dock-photo-width-down px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-bold" data-photo-id="${photo.id}">➖</button>
+                  <span class="font-mono font-bold text-emerald-400 px-1">${widthPct}%</span>
+                  <button type="button" class="btn-dock-photo-width-up px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-200 font-bold" data-photo-id="${photo.id}">➕</button>
+                </div>
+              </div>
+            ` : ''}
           </div>
         </div>
       `;
@@ -2582,18 +2706,24 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
         if (photo) {
           photo.caption = e.target.value;
           this.saveActivityPhotos();
-          const cardCaption = document.querySelector(`#card-photo-${photoId} .activity-photo-caption`);
-          if (cardCaption) {
-            if (photo.caption) {
-              cardCaption.innerHTML = `<span class="font-bold not-italic text-emerald-800 mr-1">▲ DOKUMENTASI:</span>${photo.caption}`;
-              cardCaption.style.display = 'block';
-            } else {
-              cardCaption.style.display = 'none';
-            }
-          } else if (photo.caption) {
-            this.formatNewspaperContent(false);
-          }
+          this.formatNewspaperContent(false);
         }
+      });
+    });
+
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-frame').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const photoId = btn.getAttribute('data-photo-id');
+        const frame = btn.getAttribute('data-frame');
+        if (photoId && frame) this.setActivityPhotoFrameMode(photoId, frame);
+      });
+    });
+
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-wrap').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const photoId = btn.getAttribute('data-photo-id');
+        const wrap = btn.getAttribute('data-wrap');
+        if (photoId && wrap) this.setActivityPhotoWrapMode(photoId, wrap);
       });
     });
 
@@ -2611,10 +2741,19 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
     });
 
-    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-toggle-span').forEach(btn => {
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-width-down').forEach(btn => {
       btn.addEventListener('click', () => {
         const photoId = btn.getAttribute('data-photo-id');
-        if (photoId) this.toggleActivityPhotoColumnSpan(photoId);
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoWidthPercent(photoId, (photo.widthPercent || 65) - 5);
+      });
+    });
+
+    this.listActivityPhotosDock.querySelectorAll('.btn-dock-photo-width-up').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const photoId = btn.getAttribute('data-photo-id');
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoWidthPercent(photoId, (photo.widthPercent || 65) + 5);
       });
     });
 
@@ -3543,45 +3682,87 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       const photo = photoIndex !== -1 ? this.activityPhotos[photoIndex] : ((this.activityPhotos && this.activityPhotos[0]) || null);
       const photoNum = photoIndex !== -1 ? (photoIndex + 1) : 1;
       const pIdx = photo ? (photo.paragraphIndex || 1) : 1;
-      const isSpanAll = photo ? (photo.columnSpan === 'all') : false;
+      const isTransparent = photo ? (photo.frameMode === 'transparent' || photo.frameMode === 'none') : false;
+      const wrapMode = photo ? (photo.wrapMode || (photo.columnSpan === 'all' ? 'span-all' : 'center')) : 'center';
       const photoHeight = photo ? (photo.height || 220) : 220;
+      const widthPct = photo ? (photo.widthPercent || 65) : 65;
 
       html = `
         <div class="flex items-center gap-2 flex-wrap">
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
             <i data-lucide="image" class="w-3.5 h-3.5"></i>
-            <span>Foto Kegiatan #${photoNum}</span>
+            <span>Foto #${photoNum}</span>
           </span>
           <div class="h-4 w-px bg-slate-800"></div>
 
-          <!-- Posisi Paragraf / Kolom -->
+          <!-- Pilihan Frame: Transparan (Cutout PNG) vs Box Putih -->
           <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
-            <button type="button" id="prop-btn-photo-para-up" class="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1" title="Geser ke Paragraf Sebelumnya (Naik)">
-              <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
-              <span>Naik</span>
+            <button type="button" id="prop-btn-photo-frame-trans" class="px-2 py-1 rounded text-xs font-semibold ${isTransparent ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'} transition flex items-center gap-1" title="Mode Transparan / Cutout PNG tanpa bingkai box">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i>
+              <span>PNG Transparan</span>
             </button>
-            <span class="text-[11px] font-mono text-emerald-400 px-1.5 font-bold">Paragraf ${pIdx}</span>
-            <button type="button" id="prop-btn-photo-para-down" class="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1" title="Geser ke Paragraf Berikutnya (Turun)">
-              <span>Turun</span>
-              <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+            <button type="button" id="prop-btn-photo-frame-box" class="px-2 py-1 rounded text-xs font-semibold ${!isTransparent ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'} transition flex items-center gap-1" title="Mode Kartu Putih Berbingkai (Box)">
+              <i data-lucide="square" class="w-3.5 h-3.5"></i>
+              <span>Box Putih</span>
             </button>
           </div>
 
           <div class="h-4 w-px bg-slate-800"></div>
 
-          <!-- Bentang Kolom (1 Kolom vs 3 Kolom) -->
-          <button type="button" id="prop-btn-photo-toggle-span" class="px-2.5 py-1 ${isSpanAll ? 'bg-amber-600/30 text-amber-300 border-amber-500/40' : 'bg-slate-800 text-slate-200 border-slate-700'} hover:bg-slate-700 text-xs rounded-lg border transition flex items-center gap-1.5 font-semibold" title="Beralih antara 1 Kolom Koran atau Bentang Penuh 3 Kolom">
-            <i data-lucide="${isSpanAll ? 'columns-3' : 'column'}" class="w-3.5 h-3.5 text-emerald-400"></i>
-            <span>${isSpanAll ? 'Bentang 3 Kolom' : '1 Kolom Koran'}</span>
-          </button>
+          <!-- Pilihan Posisi Aliran Teks (Wrap Mode) -->
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80" title="Posisi Gambar & Aliran Teks Mengitari Gambar">
+            <button type="button" id="prop-btn-photo-wrap-left" class="px-2 py-1 rounded text-xs font-semibold ${wrapMode === 'left' ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'} transition flex items-center gap-1" title="Rata Kiri (Teks mengalir di sebelah kanan gambar)">
+              <i data-lucide="align-left" class="w-3.5 h-3.5"></i>
+              <span>Kiri</span>
+            </button>
+            <button type="button" id="prop-btn-photo-wrap-right" class="px-2 py-1 rounded text-xs font-semibold ${wrapMode === 'right' ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'} transition flex items-center gap-1" title="Rata Kanan (Teks mengalir di sebelah kiri gambar)">
+              <i data-lucide="align-right" class="w-3.5 h-3.5"></i>
+              <span>Kanan</span>
+            </button>
+            <button type="button" id="prop-btn-photo-wrap-center" class="px-2 py-1 rounded text-xs font-semibold ${wrapMode === 'center' ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'} transition flex items-center gap-1" title="1 Kolom Penuh">
+              <i data-lucide="align-justify" class="w-3.5 h-3.5"></i>
+              <span>1 Kolom</span>
+            </button>
+            <button type="button" id="prop-btn-photo-wrap-span" class="px-2 py-1 rounded text-xs font-semibold ${wrapMode === 'span-all' ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'} transition flex items-center gap-1" title="Bentang 3 Kolom Penuh">
+              <i data-lucide="columns-3" class="w-3.5 h-3.5"></i>
+              <span>3 Kolom</span>
+            </button>
+          </div>
+
+          <!-- Lebar % Kolom jika Kiri atau Kanan -->
+          ${(wrapMode === 'left' || wrapMode === 'right') ? `
+            <div class="h-4 w-px bg-slate-800"></div>
+            <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80" title="Atur Lebar Gambar (% dari Lebar Kolom)">
+              <button type="button" id="prop-btn-photo-width-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold">➖</button>
+              <span class="text-[10px] text-slate-400 font-sans pl-1">Lebar:</span>
+              <span id="prop-val-photo-width" class="w-12 text-center font-mono font-bold text-emerald-400 text-xs">${widthPct}%</span>
+              <button type="button" id="prop-btn-photo-width-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold">➕</button>
+            </div>
+          ` : ''}
 
           <div class="h-4 w-px bg-slate-800"></div>
 
-          <!-- Tinggi Foto -->
+          <!-- Tinggi Gambar -->
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80" title="Atur Tinggi Gambar">
+            <button type="button" id="prop-btn-photo-height-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold">➖</button>
+            <span class="text-[10px] text-slate-400 font-sans pl-1">Tinggi:</span>
+            <span id="prop-val-photo-height" class="w-14 text-center font-mono font-bold text-emerald-400 text-xs">${photoHeight} px</span>
+            <button type="button" id="prop-btn-photo-height-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold">➕</button>
+          </div>
+
+          <div class="h-4 w-px bg-slate-800"></div>
+
+          <!-- Posisi Paragraf -->
           <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
-            <button type="button" id="prop-btn-photo-height-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Tinggi Foto">➖</button>
-            <span id="prop-val-photo-height" class="w-16 text-center font-mono font-bold text-emerald-400 text-xs">${photoHeight} px</span>
-            <button type="button" id="prop-btn-photo-height-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Perbesar Tinggi Foto">➕</button>
+            <button type="button" id="prop-btn-photo-para-up" class="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1" title="Geser ke Paragraf Sebelumnya (Naik)">
+              <i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>
+              <span>Naik</span>
+            </button>
+            <span class="text-[11px] font-mono text-emerald-400 px-1 font-bold">Para ${pIdx}</span>
+            <button type="button" id="prop-btn-photo-para-down" class="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1" title="Geser ke Paragraf Berikutnya (Turun)">
+              <span>Turun</span>
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+            </button>
           </div>
 
           <div class="h-4 w-px bg-slate-800"></div>
@@ -3593,7 +3774,7 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
           <button type="button" id="prop-btn-photo-add" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow transition active:scale-95 cursor-pointer" title="Tambah Foto Dokumentasi Lainnya">
             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-            <span>+ Tambah Foto</span>
+            <span>+ Tambah</span>
           </button>
 
           <button type="button" id="prop-btn-photo-delete" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 text-xs rounded-lg border border-rose-800/50 transition flex items-center gap-1 cursor-pointer" title="Hapus Foto ini dari halaman">
@@ -3803,6 +3984,50 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       });
     } else if (type === 'activity-photo') {
       const photoId = this.selectedPhotoId;
+      document.getElementById('prop-btn-photo-frame-trans')?.addEventListener('click', () => {
+        if (!photoId) return;
+        this.setActivityPhotoFrameMode(photoId, 'transparent');
+      });
+      document.getElementById('prop-btn-photo-frame-box')?.addEventListener('click', () => {
+        if (!photoId) return;
+        this.setActivityPhotoFrameMode(photoId, 'box');
+      });
+      document.getElementById('prop-btn-photo-wrap-left')?.addEventListener('click', () => {
+        if (!photoId) return;
+        this.setActivityPhotoWrapMode(photoId, 'left');
+      });
+      document.getElementById('prop-btn-photo-wrap-right')?.addEventListener('click', () => {
+        if (!photoId) return;
+        this.setActivityPhotoWrapMode(photoId, 'right');
+      });
+      document.getElementById('prop-btn-photo-wrap-center')?.addEventListener('click', () => {
+        if (!photoId) return;
+        this.setActivityPhotoWrapMode(photoId, 'center');
+      });
+      document.getElementById('prop-btn-photo-wrap-span')?.addEventListener('click', () => {
+        if (!photoId) return;
+        this.setActivityPhotoWrapMode(photoId, 'span-all');
+      });
+      document.getElementById('prop-btn-photo-width-down')?.addEventListener('click', () => {
+        if (!photoId) return;
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoWidthPercent(photoId, (photo.widthPercent || 65) - 5);
+      });
+      document.getElementById('prop-btn-photo-width-up')?.addEventListener('click', () => {
+        if (!photoId) return;
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoWidthPercent(photoId, (photo.widthPercent || 65) + 5);
+      });
+      document.getElementById('prop-btn-photo-height-down')?.addEventListener('click', () => {
+        if (!photoId) return;
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoHeight(photoId, Math.max(80, (photo.height || 220) - 15), true);
+      });
+      document.getElementById('prop-btn-photo-height-up')?.addEventListener('click', () => {
+        if (!photoId) return;
+        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
+        if (photo) this.setActivityPhotoHeight(photoId, Math.min(650, (photo.height || 220) + 15), true);
+      });
       document.getElementById('prop-btn-photo-para-up')?.addEventListener('click', () => {
         if (!photoId) return;
         this.moveActivityPhotoParagraph(photoId, -1);
@@ -3810,20 +4035,6 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       document.getElementById('prop-btn-photo-para-down')?.addEventListener('click', () => {
         if (!photoId) return;
         this.moveActivityPhotoParagraph(photoId, 1);
-      });
-      document.getElementById('prop-btn-photo-toggle-span')?.addEventListener('click', () => {
-        if (!photoId) return;
-        this.toggleActivityPhotoColumnSpan(photoId);
-      });
-      document.getElementById('prop-btn-photo-height-down')?.addEventListener('click', () => {
-        if (!photoId) return;
-        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
-        if (photo) this.setActivityPhotoHeight(photoId, Math.max(100, (photo.height || 220) - 15), true);
-      });
-      document.getElementById('prop-btn-photo-height-up')?.addEventListener('click', () => {
-        if (!photoId) return;
-        const photo = (this.activityPhotos || []).find(p => p.id === photoId);
-        if (photo) this.setActivityPhotoHeight(photoId, Math.min(600, (photo.height || 220) + 15), true);
       });
       document.getElementById('prop-btn-photo-upload')?.addEventListener('click', () => {
         if (!photoId) return;
