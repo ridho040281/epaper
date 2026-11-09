@@ -136,6 +136,20 @@
       text-align: justify;
       text-justify: inter-word;
       hyphens: auto;
+      column-fill: auto;
+      position: relative;
+    }
+
+    /* Handles for dynamic on-canvas resizing of newspaper text box */
+    .handle-resize-body {
+      display: none;
+    }
+    #view-newspaper-content.canvas-selected .handle-resize-body {
+      display: flex !important;
+    }
+    #view-newspaper-content:hover .handle-resize-body {
+      display: flex;
+      opacity: 0.85;
     }
 
     .drop-cap::first-letter {
@@ -642,6 +656,53 @@
             </p>
           </div>
 
+          <!-- Pengaturan Box Naskah Dinamis -->
+          <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3.5 space-y-3">
+            <h4 class="text-xs font-bold text-emerald-400 flex items-center justify-between">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="scaling" class="w-4 h-4"></i>
+                <span>Ukuran & Panjang Box Naskah</span>
+              </span>
+              <span class="text-[10px] font-mono text-emerald-400" id="dock-val-body-height-badge">Auto</span>
+            </h4>
+
+            <p class="text-[10px] text-slate-400 leading-relaxed bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+              💡 <b>Tarik Langsung di Halaman:</b> Klik teks naskah di lembar koran, lalu tarik handle <b>"Tarik Panjang Teks ↕"</b> di tepi bawah atau sudut kanan-bawah untuk memanjangkan/memendekkan kolom. Teks otomatis mengalir mengikuti ukuran box.
+            </p>
+
+            <div class="space-y-2 text-xs">
+              <!-- Tinggi / Panjang Box -->
+              <div class="flex items-center justify-between">
+                <span class="text-slate-300">Panjang Kolom (Tinggi):</span>
+                <div class="flex items-center gap-1">
+                  <button type="button" id="btn-dock-body-height-down" class="w-6 h-6 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold cursor-pointer" title="Perpendek Tinggi Kolom">➖</button>
+                  <span id="dock-val-body-height" class="w-16 text-center font-mono font-bold text-emerald-400 text-xs">Auto</span>
+                  <button type="button" id="btn-dock-body-height-up" class="w-6 h-6 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold cursor-pointer" title="Perpanjang Tinggi Kolom">➕</button>
+                  <button type="button" id="btn-dock-body-height-reset" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-300 font-semibold cursor-pointer" title="Kembalikan ke Auto">Auto</button>
+                </div>
+              </div>
+
+              <!-- Ukuran Font -->
+              <div class="flex items-center justify-between">
+                <span class="text-slate-300">Ukuran Huruf (Font):</span>
+                <div class="flex items-center gap-1">
+                  <button type="button" id="btn-dock-body-size-down" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs cursor-pointer" title="Kecilkan Huruf">A-</button>
+                  <span id="dock-val-body-size" class="w-14 text-center font-mono font-bold text-white text-xs">11.5 pt</span>
+                  <button type="button" id="btn-dock-body-size-up" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs cursor-pointer" title="Besarkan Huruf">A+</button>
+                  <button type="button" id="btn-dock-body-auto-fit" class="px-2 py-0.5 rounded bg-emerald-700/70 hover:bg-emerald-600 text-[10px] text-white font-bold cursor-pointer" title="Sesuaikan otomatis ukuran huruf dengan ukuran box">📐 Pas</button>
+                </div>
+              </div>
+
+              <!-- Mode Aliran Kolom -->
+              <div class="flex items-center justify-between pt-1 border-t border-slate-800">
+                <span class="text-slate-400 text-[11px]">Mode Aliran:</span>
+                <button type="button" id="btn-dock-body-column-fill" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold border border-slate-700 cursor-pointer">
+                  Isi Penuh Kolom ↕
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- ==================== TAB 2: EDISI & PENOMORAN ==================== -->
@@ -1051,6 +1112,6 @@
   </div>
 
   <!-- Main Studio JavaScript with Corel Interface -->
-  <script src="js/studio.js?v=20261102_intextwrap01"></script>
+  <script src="js/studio.js?v=20261110_resizabletext01"></script>
 </body>
 </html>

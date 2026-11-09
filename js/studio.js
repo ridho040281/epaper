@@ -252,6 +252,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     this.headlineFontSize       = 30;
     this.subheadlineFontSize    = 18;
     this.bodyFontSize           = 11.5;
+    this.bodyHeight             = null;
+    this.bodyWidth              = null;
+    this.bodyColumnFill         = 'auto';
+    this.bodyLineHeight         = 1.5;
     this.authorBadgeFontSize    = 11;
     this.customHeaderScale      = 1.0;
     this.headlineOffsetX        = 0;
@@ -775,7 +779,37 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     this.viewNewspaperContent.innerHTML = html;
 
-    // Pasang interaksi klik, seret antar paragraf & resize sudut langsung di halaman
+    // Pasang Handle Resize Langsung pada Box Naskah (Sudut Kanan-Bawah & Tepi Bawah)
+    const bodyHandlesHtml = `
+      <!-- Corner Resize Handle (Sudut Kanan Bawah) -->
+      <div id="handle-resize-body-corner" 
+           class="handle-resize-body export-ignore absolute -bottom-3 -right-3 w-7 h-7 bg-emerald-500 hover:bg-emerald-400 active:scale-125 border-2 border-white rounded-full shadow-lg cursor-nwse-resize z-40 flex items-center justify-center transition-transform hover:scale-125 touch-none select-none" 
+           title="Klik tahan & seret untuk memanjangkan/memperbesar box naskah">
+        <i data-lucide="scaling" class="w-3.5 h-3.5 text-white pointer-events-none"></i>
+      </div>
+
+      <!-- Bottom Edge Resize Handle (Pusat Bawah: Tarik Panjang Teks) -->
+      <div id="handle-resize-body-bottom" 
+           class="handle-resize-body export-ignore absolute -bottom-3.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 active:scale-110 border border-white text-white rounded-full shadow-md cursor-ns-resize z-40 flex items-center gap-1.5 text-[10px] font-sans font-bold transition-transform hover:scale-110 touch-none select-none" 
+           title="Klik tahan & seret ke bawah/atas untuk memanjangkan atau memendekkan box naskah (teks otomatis mengalir mengikuti panjang box)">
+        <i data-lucide="grip-horizontal" class="w-3.5 h-3.5 pointer-events-none"></i>
+        <span class="pointer-events-none">Tarik Panjang Teks ↕</span>
+      </div>
+
+      <!-- Right Edge Resize Handle (Tepi Kanan) -->
+      <div id="handle-resize-body-right" 
+           class="handle-resize-body export-ignore absolute -right-3 top-1/2 -translate-y-1/2 py-2 px-1 bg-emerald-600 hover:bg-emerald-500 active:scale-110 border border-white text-white rounded-full shadow-md cursor-ew-resize z-40 flex items-center justify-center transition-transform hover:scale-110 touch-none select-none" 
+           title="Klik tahan & seret ke kanan/kiri untuk melebarkan/menyempitkan box naskah">
+        <i data-lucide="grip-vertical" class="w-3.5 h-3.5 pointer-events-none"></i>
+      </div>
+    `;
+
+    this.viewNewspaperContent.insertAdjacentHTML('beforeend', bodyHandlesHtml);
+
+    // Inisialisasi resize langsung pada box naskah
+    this.initBodyResizeHandles();
+
+    // Pasang interaksi klik, seret antar paragraf & resize sudut foto kegiatan
     this.initInTextPhotoCards();
   }
 
@@ -934,6 +968,15 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
 
     const savedBodySize = localStorage.getItem('alqalam_body_font_size');
     if (savedBodySize) this.setBodyFontSize(parseFloat(savedBodySize), false);
+
+    const savedBodyHeight = localStorage.getItem('alqalam_body_height');
+    if (savedBodyHeight) this.setBodyHeight(parseInt(savedBodyHeight, 10), false);
+
+    const savedBodyWidth = localStorage.getItem('alqalam_body_width');
+    if (savedBodyWidth) this.setBodyWidth(parseInt(savedBodyWidth, 10), false);
+
+    const savedBodyColumnFill = localStorage.getItem('alqalam_body_column_fill');
+    if (savedBodyColumnFill) this.setBodyColumnFill(savedBodyColumnFill, false);
 
     const savedBadgeSize = localStorage.getItem('alqalam_author_badge_size');
     if (savedBadgeSize) this.setAuthorBadgeFontSize(parseInt(savedBadgeSize, 10), false);
@@ -2639,6 +2682,32 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
     });
 
+    // Kontrol Box Naskah Dinamis di Dock
+    document.getElementById('btn-dock-body-height-down')?.addEventListener('click', () => {
+      const cur = this.bodyHeight || (this.viewNewspaperContent?.offsetHeight || 600);
+      this.setBodyHeight(Math.max(220, cur - 40), true);
+    });
+    document.getElementById('btn-dock-body-height-up')?.addEventListener('click', () => {
+      const cur = this.bodyHeight || (this.viewNewspaperContent?.offsetHeight || 600);
+      this.setBodyHeight(Math.min(1400, cur + 40), true);
+    });
+    document.getElementById('btn-dock-body-height-reset')?.addEventListener('click', () => {
+      this.setBodyHeight(null, true);
+      this.setBodyWidth(null, true);
+    });
+    document.getElementById('btn-dock-body-size-down')?.addEventListener('click', () => {
+      this.setBodyFontSize(this.bodyFontSize - 0.5);
+    });
+    document.getElementById('btn-dock-body-size-up')?.addEventListener('click', () => {
+      this.setBodyFontSize(this.bodyFontSize + 0.5);
+    });
+    document.getElementById('btn-dock-body-auto-fit')?.addEventListener('click', () => {
+      this.autoFitBodyText();
+    });
+    document.getElementById('btn-dock-body-column-fill')?.addEventListener('click', () => {
+      this.setBodyColumnFill(this.bodyColumnFill === 'auto' ? 'balance' : 'auto', true);
+    });
+
     // Quick Paste button in Naskah tab
     const btnPasteDock = document.getElementById('btn-paste-clipboard-dock');
     btnPasteDock?.addEventListener('click', async () => {
@@ -2838,6 +2907,10 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       bodyFontSize: this.bodyFontSize || 11.5,
       bodyOffsetX: this.bodyOffsetX || 0,
       bodyOffsetY: this.bodyOffsetY || 0,
+      bodyHeight: this.bodyHeight || null,
+      bodyWidth: this.bodyWidth || null,
+      bodyColumnFill: this.bodyColumnFill || 'auto',
+      bodyLineHeight: this.bodyLineHeight || 1.5,
       activityPhotos: JSON.parse(JSON.stringify(this.activityPhotos || [])),
 
       activityPhotoSrc: (this.viewActivityImg && !this.viewActivityImg.classList.contains('hidden')) ? (this.viewActivityImg.src || '') : '',
@@ -3042,6 +3115,18 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       }
       if (state.bodyOffsetX !== undefined && state.bodyOffsetY !== undefined) {
         this.setBodyOffset(state.bodyOffsetX, state.bodyOffsetY, false);
+      }
+      if (state.bodyHeight !== undefined) {
+        this.setBodyHeight(state.bodyHeight, false);
+      }
+      if (state.bodyWidth !== undefined) {
+        this.setBodyWidth(state.bodyWidth, false);
+      }
+      if (state.bodyColumnFill !== undefined) {
+        this.setBodyColumnFill(state.bodyColumnFill, false);
+      }
+      if (state.bodyLineHeight !== undefined) {
+        this.setBodyLineHeight(state.bodyLineHeight, false);
       }
       if (state.activityPhotos !== undefined) {
         this.activityPhotos = JSON.parse(JSON.stringify(state.activityPhotos));
@@ -3387,6 +3472,9 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       `;
     } else if (type === 'newspaper-content') {
       const words = this.inpBodyText ? this.inpBodyText.value.trim().split(/\s+/).filter(Boolean).length : 0;
+      const heightText = this.bodyHeight ? `${this.bodyHeight} px` : 'Auto';
+      const isAutoFill = (this.bodyColumnFill !== 'balance');
+
       html = `
         <div class="flex items-center gap-2 flex-wrap">
           <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs">
@@ -3394,20 +3482,55 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
             <span>Naskah 3 Kolom</span>
           </span>
           <div class="h-4 w-px bg-slate-800"></div>
-          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80">
+
+          <!-- Ukuran Font Huruf -->
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80" title="Ubah Ukuran Font Naskah">
             <button type="button" id="prop-btn-body-size-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Kecilkan Huruf Naskah">A-</button>
             <span id="prop-val-body-size" class="w-14 text-center font-mono font-bold text-white text-xs">${this.bodyFontSize} pt</span>
             <button type="button" id="prop-btn-body-size-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Besarkan Huruf Naskah">A+</button>
           </div>
+
+          <div class="h-4 w-px bg-slate-800"></div>
+
+          <!-- Panjang / Tinggi Box Naskah (Dinamis) -->
+          <div class="flex items-center gap-1 bg-slate-800/80 p-0.5 rounded-lg border border-slate-700/80" title="Atur Panjang / Tinggi Box Naskah (Teks Otomatis Mengalir Mengikuti Panjang Box)">
+            <button type="button" id="prop-btn-body-height-down" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Pendekkan Tinggi Box Naskah">➖</button>
+            <span class="text-[10px] text-slate-400 font-sans pl-1">Panjang:</span>
+            <span id="prop-val-body-height" class="w-14 text-center font-mono font-bold text-emerald-400 text-xs">${heightText}</span>
+            <button type="button" id="prop-btn-body-height-up" class="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 text-slate-300 hover:text-white font-bold" title="Panjangkan Tinggi Box Naskah">➕</button>
+          </div>
+
+          <!-- Mode Aliran Kolom (Isi Penuh vs Seimbang) -->
+          <button type="button" id="prop-btn-body-column-fill" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700 transition" title="Beralih antara mode isi penuh kolom ke bawah atau seimbang antar kolom">
+            <i data-lucide="align-justify" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>${isAutoFill ? 'Isi Penuh Kolom' : 'Seimbang Kolom'}</span>
+          </button>
+
+          <!-- Auto-Fit Ukuran Huruf ke Box -->
+          <button type="button" id="prop-btn-body-auto-fit" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700 transition" title="Sesuaikan ukuran huruf secara otomatis agar naskah pas mengisi ukuran box">
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Pas Otomatis</span>
+          </button>
+
           <span id="prop-val-word-count" class="px-2 py-0.5 bg-slate-800 text-emerald-400 rounded font-mono text-[11px] border border-slate-700">
             ${words} kata
           </span>
+
           <div class="h-4 w-px bg-slate-800"></div>
+
+          <!-- Reset Posisi & Reset Ukuran -->
           <button type="button" id="prop-btn-body-reset-offset" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700" title="Kembalikan posisi naskah ke posisi normal (0, 0)">
             <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-400"></i>
             <span>Reset Posisi</span>
           </button>
+
+          <button type="button" id="prop-btn-body-reset-size" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700" title="Kembalikan ukuran box naskah ke default (Auto)">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Reset Ukuran</span>
+          </button>
+
           <div class="h-4 w-px bg-slate-800"></div>
+
           <button type="button" id="prop-btn-open-body-editor" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center gap-1.5 shadow transition active:scale-95 text-xs">
             <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
             <span>Buka Editor Teks Naskah</span>
@@ -3648,8 +3771,30 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       document.getElementById('prop-btn-body-size-up')?.addEventListener('click', () => {
         this.setBodyFontSize(this.bodyFontSize + 0.5);
       });
+      document.getElementById('prop-btn-body-height-down')?.addEventListener('click', () => {
+        const curHeight = this.bodyHeight || (this.viewNewspaperContent?.offsetHeight || 600);
+        this.setBodyHeight(Math.max(220, curHeight - 40), true);
+        this.updateCorelPropertyBar('newspaper-content');
+      });
+      document.getElementById('prop-btn-body-height-up')?.addEventListener('click', () => {
+        const curHeight = this.bodyHeight || (this.viewNewspaperContent?.offsetHeight || 600);
+        this.setBodyHeight(Math.min(1400, curHeight + 40), true);
+        this.updateCorelPropertyBar('newspaper-content');
+      });
+      document.getElementById('prop-btn-body-column-fill')?.addEventListener('click', () => {
+        this.setBodyColumnFill(this.bodyColumnFill === 'auto' ? 'balance' : 'auto', true);
+        this.updateCorelPropertyBar('newspaper-content');
+      });
+      document.getElementById('prop-btn-body-auto-fit')?.addEventListener('click', () => {
+        this.autoFitBodyText();
+      });
       document.getElementById('prop-btn-body-reset-offset')?.addEventListener('click', () => {
         this.setBodyOffset(0, 0, true);
+      });
+      document.getElementById('prop-btn-body-reset-size')?.addEventListener('click', () => {
+        this.setBodyHeight(null, true);
+        this.setBodyWidth(null, true);
+        this.updateCorelPropertyBar('newspaper-content');
       });
       document.getElementById('prop-btn-open-body-editor')?.addEventListener('click', () => {
         this.toggleDock(true);
@@ -3792,6 +3937,8 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
     }
     const propVal = document.getElementById('prop-val-body-size');
     if (propVal) propVal.innerText = `${val} pt`;
+    const dockVal = document.getElementById('dock-val-body-size');
+    if (dockVal) dockVal.innerText = `${val} pt`;
     if (save) {
       try { localStorage.setItem('alqalam_body_font_size', val.toString()); } catch(e){}
       this.pushState('Ukuran Font Naskah');
@@ -3906,6 +4053,227 @@ Mari belajar matematika dengan penuh semangat, temukan keseruannya, dan rasakan 
       } catch(e) {}
       this.pushState('Geser Posisi Kop');
     }
+  }
+
+
+  /* ==========================================================================
+     DYNAMIC ON-CANVAS RESIZING FOR 3-COLUMN NEWSPAPER TEXT BOX
+     ========================================================================== */
+
+  setBodyHeight(height, save = true) {
+    if (height === null || height === undefined || height === 'auto') {
+      this.bodyHeight = null;
+      if (this.viewNewspaperContent) {
+        this.viewNewspaperContent.style.height = '';
+        this.viewNewspaperContent.style.flex = '1 1 0%';
+      }
+    } else {
+      const val = Math.round(Math.max(200, Math.min(1400, height)));
+      this.bodyHeight = val;
+      if (this.viewNewspaperContent) {
+        this.viewNewspaperContent.style.height = `${val}px`;
+        this.viewNewspaperContent.style.flex = 'none';
+      }
+    }
+
+    const propVal = document.getElementById('prop-val-body-height');
+    if (propVal) {
+      propVal.innerText = this.bodyHeight ? `${this.bodyHeight} px` : 'Auto';
+    }
+
+    const dockVal = document.getElementById('dock-val-body-height');
+    if (dockVal) dockVal.innerText = this.bodyHeight ? `${this.bodyHeight} px` : 'Auto';
+    const dockBadge = document.getElementById('dock-val-body-height-badge');
+    if (dockBadge) dockBadge.innerText = this.bodyHeight ? `${this.bodyHeight} px` : 'Auto';
+
+    if (save) {
+      try {
+        if (this.bodyHeight) {
+          localStorage.setItem('alqalam_body_height', this.bodyHeight.toString());
+        } else {
+          localStorage.removeItem('alqalam_body_height');
+        }
+      } catch(e) {}
+      this.pushState('Ubah Tinggi Box Naskah');
+    }
+  }
+
+  setBodyWidth(width, save = true) {
+    if (width === null || width === undefined || width === 'auto') {
+      this.bodyWidth = null;
+      if (this.viewNewspaperContent) {
+        this.viewNewspaperContent.style.width = '100%';
+      }
+    } else {
+      const val = Math.round(Math.max(350, Math.min(840, width)));
+      this.bodyWidth = val;
+      if (this.viewNewspaperContent) {
+        this.viewNewspaperContent.style.width = `${val}px`;
+      }
+    }
+
+    const propVal = document.getElementById('prop-val-body-width');
+    if (propVal) {
+      propVal.innerText = this.bodyWidth ? `${this.bodyWidth} px` : '100%';
+    }
+
+    if (save) {
+      try {
+        if (this.bodyWidth) {
+          localStorage.setItem('alqalam_body_width', this.bodyWidth.toString());
+        } else {
+          localStorage.removeItem('alqalam_body_width');
+        }
+      } catch(e) {}
+      this.pushState('Ubah Lebar Box Naskah');
+    }
+  }
+
+  setBodyColumnFill(fill, save = true) {
+    this.bodyColumnFill = (fill === 'balance') ? 'balance' : 'auto';
+    if (this.viewNewspaperContent) {
+      this.viewNewspaperContent.style.columnFill = this.bodyColumnFill;
+    }
+    const propBtn = document.getElementById('prop-btn-body-column-fill');
+    if (propBtn) {
+      propBtn.innerText = (this.bodyColumnFill === 'auto') ? 'Isi Penuh Kolom' : 'Seimbang Kolom';
+    }
+    const dockBtn = document.getElementById('btn-dock-body-column-fill');
+    if (dockBtn) {
+      dockBtn.innerText = (this.bodyColumnFill === 'auto') ? 'Isi Penuh Kolom ↕' : 'Seimbang Kolom ⚖️';
+    }
+    if (save) {
+      try {
+        localStorage.setItem('alqalam_body_column_fill', this.bodyColumnFill);
+      } catch(e) {}
+      this.pushState('Mode Aliran Kolom');
+    }
+  }
+
+  autoFitBodyText() {
+    if (!this.viewNewspaperContent || !this.inpBodyText) return;
+    const text = this.inpBodyText.value.trim();
+    if (!text) return;
+
+    // Tentukan tinggi target box
+    const targetHeight = this.bodyHeight || (this.viewNewspaperContent.offsetHeight || 650);
+
+    // Cari ukuran font yang paling pas mengisi box tanpa overflow berlebih
+    let bestSize = 11.5;
+    let minDiff = Infinity;
+
+    // Uji ukuran font dari 9.5 pt sampai 14.5 pt (step 0.25)
+    for (let testSize = 9.5; testSize <= 14.5; testSize += 0.25) {
+      this.viewNewspaperContent.style.fontSize = `${testSize}px`;
+      this.viewNewspaperContent.style.lineHeight = `${(testSize * 1.5).toFixed(1)}px`;
+
+      const scrollH = this.viewNewspaperContent.scrollHeight;
+      const clientH = this.viewNewspaperContent.clientHeight || targetHeight;
+      const diff = Math.abs(scrollH - clientH);
+
+      if (diff < minDiff && scrollH <= clientH + 15) {
+        minDiff = diff;
+        bestSize = testSize;
+      }
+    }
+
+    this.setBodyFontSize(bestSize, true);
+  }
+
+  initBodyResizeHandles() {
+    if (!this.viewNewspaperContent || !this.a3Sheet) return;
+
+    const handleCorner = document.getElementById('handle-resize-body-corner');
+    const handleBottom = document.getElementById('handle-resize-body-bottom');
+    const handleRight = document.getElementById('handle-resize-body-right');
+
+    const bindResize = (handle, allowX, allowY, cursorStyle) => {
+      if (!handle) return;
+
+      let isResizing = false;
+      let startX = 0;
+      let startY = 0;
+      let initialHeight = 600;
+      let initialWidth = 760;
+
+      const onMove = (e) => {
+        if (!isResizing) return;
+        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+
+        const zoom = this.zoomScale || 1;
+        const dx = (clientX - startX) / zoom;
+        const dy = (clientY - startY) / zoom;
+
+        if (allowY) {
+          const newHeight = Math.round(Math.max(220, Math.min(1400, initialHeight + dy)));
+          this.setBodyHeight(newHeight, false);
+        }
+
+        if (allowX && Math.abs(dx) > 5) {
+          const newWidth = Math.round(Math.max(380, Math.min(840, initialWidth + dx)));
+          this.setBodyWidth(newWidth, false);
+        }
+
+        if (e.cancelable) e.preventDefault();
+      };
+
+      const onEnd = () => {
+        if (!isResizing) return;
+        isResizing = false;
+
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onEnd);
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('touchend', onEnd);
+
+        document.body.style.cursor = '';
+        handle.classList.remove('scale-125', 'bg-emerald-400');
+
+        if (this.bodyHeight) this.setBodyHeight(this.bodyHeight, true);
+        if (this.bodyWidth) this.setBodyWidth(this.bodyWidth, true);
+
+        this.pushState('Ubah Ukuran Box Naskah');
+      };
+
+      const onStart = (e) => {
+        e.stopPropagation();
+        if (e.type === 'mousedown' && e.button !== 0) return;
+
+        isResizing = true;
+        const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
+        startX = clientX;
+        startY = clientY;
+
+        initialHeight = this.viewNewspaperContent.offsetHeight || this.bodyHeight || 600;
+        initialWidth = this.viewNewspaperContent.offsetWidth || this.bodyWidth || 760;
+
+        document.body.style.cursor = cursorStyle;
+        handle.classList.add('scale-125', 'bg-emerald-400');
+
+        this.selectCanvasElement(this.viewNewspaperContent);
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onEnd);
+
+        if (e.cancelable) e.preventDefault();
+      };
+
+      handle.addEventListener('mousedown', onStart);
+      handle.addEventListener('touchstart', onStart, { passive: false });
+    };
+
+    // Sudut Kanan Bawah: Ubah Tinggi & Lebar Sekaligus
+    bindResize(handleCorner, true, true, 'nwse-resize');
+
+    // Tepi Bawah: Tarik Panjang Teks (Tinggi Saja)
+    bindResize(handleBottom, false, true, 'ns-resize');
+
+    // Tepi Kanan: Ubah Lebar Saja
+    bindResize(handleRight, true, false, 'ew-resize');
   }
 
   setBodyOffset(x, y, save = true) {
