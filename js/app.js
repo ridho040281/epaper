@@ -784,6 +784,10 @@ class EPaperApp {
     if (window.lucide) window.lucide.createIcons();
   }
 
+  async loadKafanaShelf() {
+    await this.renderKafanaCatalog();
+  }
+
   openPublication(pubId, updateHistory = true, targetEdition = null) {
     if (!PUBLICATIONS[pubId]) pubId = 'alqalam';
     this.isShelfActive = false;
@@ -2590,7 +2594,7 @@ class EPaperApp {
         await pageRenderCache.clearPub(targetPub);
         alert(`✅ ${data.message}`);
         if (targetPub === 'kafana') {
-          await this.loadKafanaShelf();
+          await this.renderKafanaCatalog();
           if (this.currentPublication === 'kafana') {
             if (this.currentPdfName === filename) {
               await this.loadKafanaEdition();
@@ -2769,7 +2773,7 @@ class EPaperApp {
 
         // Buka edisi baru
         if (targetPub === 'kafana') {
-          await this.loadKafanaShelf();
+          await this.renderKafanaCatalog();
           if (this.currentPublication === 'kafana') {
             await this.loadKafanaEdition(file.name);
           }
