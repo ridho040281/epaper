@@ -11,17 +11,6 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-// Cek jika ukuran file yang diunggah melampaui batas post_max_size PHP
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_FILES) && empty($_POST) && isset($_SERVER['CONTENT_LENGTH']) && (int)$_SERVER['CONTENT_LENGTH'] > 0) {
-    $maxPost = ini_get('post_max_size');
-    $contentLenMb = round((int)$_SERVER['CONTENT_LENGTH'] / 1024 / 1024, 1);
-    echo json_encode([
-        'success' => false,
-        'message' => "Ukuran file ({$contentLenMb} MB) melebihi batas upload PHP server (post_max_size: {$maxPost}). Silakan naikkan limit upload PHP di server atau kompres file PDF terlebih dahulu."
-    ]);
-    exit;
-}
-
 $allowedPubs = ['alqalam', 'korma', 'kafana'];
 $pub = strtolower(trim($_GET['pub'] ?? $_POST['pub'] ?? 'alqalam'));
 if (!in_array($pub, $allowedPubs)) {
@@ -263,6 +252,17 @@ switch ($action) {
         break;
 
     case 'upload':
+        // Cek jika ukuran file yang diunggah melampaui batas post_max_size PHP (PHP mengosongkan $_FILES jika post_max_size terlampaui)
+        if (empty($_FILES) && isset($_SERVER['CONTENT_LENGTH']) && (int)$_SERVER['CONTENT_LENGTH'] > 0) {
+            $maxPost = ini_get('post_max_size');
+            $contentLenMb = round((int)$_SERVER['CONTENT_LENGTH'] / 1024 / 1024, 1);
+            echo json_encode([
+                'success' => false,
+                'message' => "Ukuran file ({$contentLenMb} MB) melebihi batas upload PHP server (post_max_size: {$maxPost}). Silakan naikkan limit upload PHP di server atau kompres file PDF terlebih dahulu."
+            ]);
+            exit;
+        }
+
         if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] !== UPLOAD_ERR_OK) {
             $errCode = isset($_FILES['pdf_file']) ? $_FILES['pdf_file']['error'] : UPLOAD_ERR_NO_FILE;
             $maxUp = ini_get('upload_max_filesize');
