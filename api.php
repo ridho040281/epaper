@@ -1,8 +1,26 @@
 <?php
+@error_reporting(0);
+@ini_set('display_errors', '0');
+@ini_set('memory_limit', '512M');
+@ini_set('max_execution_time', '300');
+@ini_set('post_max_size', '150M');
+@ini_set('upload_max_filesize', '150M');
+
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
+
+// Cek jika ukuran file yang diunggah melampaui batas post_max_size PHP
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($_FILES) && empty($_POST) && isset($_SERVER['CONTENT_LENGTH']) && (int)$_SERVER['CONTENT_LENGTH'] > 0) {
+    $maxPost = ini_get('post_max_size');
+    $contentLenMb = round((int)$_SERVER['CONTENT_LENGTH'] / 1024 / 1024, 1);
+    echo json_encode([
+        'success' => false,
+        'message' => "Ukuran file ({$contentLenMb} MB) melebihi batas upload PHP server (post_max_size: {$maxPost}). Silakan naikkan limit upload PHP di server atau kompres file PDF terlebih dahulu."
+    ]);
+    exit;
+}
 
 $allowedPubs = ['alqalam', 'korma', 'kafana'];
 $pub = strtolower(trim($_GET['pub'] ?? $_POST['pub'] ?? 'alqalam'));
@@ -246,7 +264,19 @@ switch ($action) {
 
     case 'upload':
         if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] !== UPLOAD_ERR_OK) {
-            echo json_encode(['success' => false, 'message' => 'Gagal mengunggah file.']);
+            $errCode = isset($_FILES['pdf_file']) ? $_FILES['pdf_file']['error'] : UPLOAD_ERR_NO_FILE;
+            $maxUp = ini_get('upload_max_filesize');
+            $errMessages = [
+                UPLOAD_ERR_INI_SIZE   => "Ukuran file melebihi batas upload_max_filesize di php.ini server ($maxUp). Silakan naikkan batas upload di server atau kompres file PDF.",
+                UPLOAD_ERR_FORM_SIZE  => "Ukuran file melebihi batas formulir HTML.",
+                UPLOAD_ERR_PARTIAL    => "File hanya terunggah sebagian karena koneksi internet terputus.",
+                UPLOAD_ERR_NO_FILE    => "Tidak ada file PDF yang dipilih.",
+                UPLOAD_ERR_NO_TMP_DIR => "Folder temporary server tidak ditemukan.",
+                UPLOAD_ERR_CANT_WRITE => "Gagal menulis file ke disk server (periksa izin folder tmp).",
+                UPLOAD_ERR_EXTENSION  => "Ekstensi PHP membatalkan unggahan file."
+            ];
+            $msg = $errMessages[$errCode] ?? "Gagal mengunggah file (Kode error PHP: $errCode).";
+            echo json_encode(['success' => false, 'message' => $msg]);
             exit;
         }
 
@@ -262,19 +292,21 @@ switch ($action) {
         $destination = $pdfDir . DIRECTORY_SEPARATOR . $safeName;
 
         if (move_uploaded_file($file['tmp_name'], $destination)) {
-            // Pertahankan 100% ketajaman & kejernihan teks asli seperti file lokal (hingga 35 MB)
-            // Tidak mengompresi paksa agar kualitas teks tidak terdegradasi
             $fileSize = filesize($destination);
-            $maxLimit = 35 * 1024 * 1024;
             $opt = null;
-            if ($fileSize > $maxLimit) {
-                $opt = autoOptimizePdfFile($destination, $maxLimit);
+            // Hanya auto-kompres untuk dokumen koran 1-halaman (bukan kafana) dengan batas 2MB-30MB
+            if ($pub !== 'kafana' && $fileSize > 2 * 1024 * 1024 && $fileSize <= 30 * 1024 * 1024) {
+                $opt = autoOptimizePdfFile($destination, 2 * 1024 * 1024);
             }
-            $msg = 'File PDF berhasil diunggah ke publikasi ' . strtoupper($pub) . '! (Kualitas asli 100% tajam dipertahankan)';
+
+            $msg = 'File PDF berhasil diunggah ke publikasi ' . strtoupper($pub) . '!';
             if ($opt && !empty($opt['optimized'])) {
                 $origMb = round($opt['original_size'] / 1024 / 1024, 2);
                 $finalMb = round($opt['final_size'] / 1024 / 1024, 2);
                 $msg .= " (Auto-kompres: {$origMb} MB ➔ {$finalMb} MB)";
+            } else {
+                $fileMb = round($fileSize / 1024 / 1024, 2);
+                $msg .= " (Ukuran: {$fileMb} MB, kualitas asli 100% jernih dipertahankan)";
             }
 
             echo json_encode([
@@ -286,7 +318,10 @@ switch ($action) {
                 'path' => 'pdf/' . $pub . '/' . rawurlencode($safeName)
             ]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Gagal menyimpan file di server.']);
+            echo json_encode([
+                'success' => false,
+                'message' => "Gagal menyimpan file di server. Pastikan folder 'pdf/$pub/' memiliki izin tulis (write permission 755/777)."
+            ]);
         }
         break;
 
@@ -585,7 +620,12 @@ function autoOptimizePdfFile($filePath, $maxSizeBytes = 2097152) {
 
     $fileSize = filesize($filePath);
     if ($fileSize <= $maxSizeBytes) {
-        return ['optimized' => false, 'reason' => 'Already within 2 MB limit', 'size' => $fileSize];
+        return ['optimized' => false, 'reason' => 'Already within limit', 'size' => $fileSize];
+    }
+
+    // Hindari pembacaan buffer besar & regex berat pada file multi-halaman atau file > 30MB
+    if ($fileSize > 30 * 1024 * 1024) {
+        return ['optimized' => false, 'reason' => 'Ukuran file besar (>30MB) dipertahankan utuh', 'size' => $fileSize];
     }
 
     $content = file_get_contents($filePath);

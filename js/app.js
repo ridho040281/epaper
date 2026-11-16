@@ -643,13 +643,15 @@ class EPaperApp {
     this.inputModalCover?.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        this.uploadCoverFile(this.currentPublication, file);
+        const pub = this.modalPublication || this.currentPublication;
+        this.uploadCoverFile(pub, file);
       }
     });
 
     // Modal: Use First Page of PDF as Cover
     this.btnModalUsePdfCover?.addEventListener('click', () => {
-      this.useFirstPageAsCover(this.currentPublication);
+      const pub = this.modalPublication || this.currentPublication;
+      this.useFirstPageAsCover(pub);
     });
 
     // Handle Browser Back / Forward Button
@@ -2217,19 +2219,79 @@ class EPaperApp {
   // ─────────────────────────────────────────────────────────
   //  Kelola Arsip & File PDF di Server (Terproteksi PIN)
   // ─────────────────────────────────────────────────────────
-  openEditionsModal() {
+  openEditionsModal(targetPub = null) {
     const isAuth = sessionStorage.getItem('epaper_admin_auth') === 'true';
     if (isAuth) {
-      this.showEditionsModalDirect();
+      this.showEditionsModalDirect(targetPub);
     } else {
+      this.pendingModalPub = targetPub;
       this.openPinModal();
     }
   }
 
-  showEditionsModalDirect() {
+  showEditionsModalDirect(targetPub = null) {
+    if (targetPub && PUBLICATIONS[targetPub]) {
+      this.modalPublication = targetPub;
+    } else if (!this.modalPublication) {
+      if (this.kafanaShelfView && !this.kafanaShelfView.classList.contains('hidden')) {
+        this.modalPublication = 'kafana';
+      } else {
+        this.modalPublication = this.currentPublication || 'alqalam';
+      }
+    }
     this.editionsModal?.classList.remove('hidden');
     this.changePinPanel?.classList.add('hidden');
+    this.updateModalPublicationUI();
     this.loadEditionsList();
+  }
+
+  switchModalPublication(pubId) {
+    if (!PUBLICATIONS[pubId]) return;
+    this.modalPublication = pubId;
+    this.updateModalPublicationUI();
+    this.loadEditionsList();
+  }
+
+  updateModalPublicationUI() {
+    const pubId = this.modalPublication || this.currentPublication || 'alqalam';
+    const pub = PUBLICATIONS[pubId] || PUBLICATIONS.alqalam;
+
+    const editionsPubLabel = document.getElementById('editions-modal-pub-name');
+    if (editionsPubLabel) {
+      editionsPubLabel.innerText = pub.name;
+      if (pubId === 'kafana') {
+        editionsPubLabel.className = 'text-amber-400 font-bold';
+      } else if (pubId === 'korma') {
+        editionsPubLabel.className = 'text-teal-400 font-bold';
+      } else {
+        editionsPubLabel.className = 'text-emerald-400 font-bold';
+      }
+    }
+
+    const coverModalLabel = document.getElementById('cover-modal-pub-name');
+    if (coverModalLabel) coverModalLabel.innerText = pub.name;
+
+    const editionsFolderPath = document.getElementById('editions-folder-path');
+    if (editionsFolderPath) editionsFolderPath.innerText = `pdf/${pubId}/`;
+
+    const editionsFolderPathFooter = document.getElementById('editions-folder-path-footer');
+    if (editionsFolderPathFooter) editionsFolderPathFooter.innerText = `pdf/${pubId}/`;
+
+    // Highlight active publication tab
+    ['alqalam', 'korma', 'kafana'].forEach(id => {
+      const tab = document.getElementById(`tab-pub-${id}`);
+      if (!tab) return;
+      if (id === pubId) {
+        let activeBg = 'bg-emerald-600 text-white shadow-sm';
+        if (id === 'korma') activeBg = 'bg-teal-600 text-white shadow-sm';
+        if (id === 'kafana') activeBg = 'bg-amber-600 text-white shadow-sm';
+        tab.className = `px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${activeBg}`;
+      } else {
+        tab.className = 'px-3 py-1 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800';
+      }
+    });
+
+    if (window.lucide) window.lucide.createIcons();
   }
 
   openPinModal() {
@@ -2282,7 +2344,8 @@ class EPaperApp {
     if (res.success) {
       sessionStorage.setItem('epaper_admin_auth', 'true');
       this.closePinModal();
-      this.showEditionsModalDirect();
+      this.showEditionsModalDirect(this.pendingModalPub);
+      this.pendingModalPub = null;
     } else {
       if (this.pinErrorMsg) {
         this.pinErrorMsg.innerText = res.message || 'PIN salah. Silakan coba lagi.';
@@ -2376,24 +2439,32 @@ class EPaperApp {
 
   async loadEditionsList() {
     if (!this.editionsFileList) return;
+    const pubId = this.modalPublication || this.currentPublication || 'alqalam';
+    const pubInfo = PUBLICATIONS[pubId] || PUBLICATIONS.alqalam;
+
     this.editionsFileList.innerHTML = `
       <div class="text-center py-6 text-slate-400">
         <div class="w-6 h-6 border-2 border-slate-600 border-t-emerald-500 rounded-full animate-spin mx-auto mb-2"></div>
-        <span class="text-xs">Memuat daftar file PDF di server...</span>
+        <span class="text-xs">Memuat daftar file PDF ${pubInfo.name} di server...</span>
       </div>
     `;
 
     try {
-      const res  = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}&_t=${Date.now()}`);
-      const data = await res.json();
+      const res  = await fetch(`api.php?action=list&pub=${encodeURIComponent(pubId)}&_t=${Date.now()}`);
+      const rawText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (err) {
+        throw new Error(`Respon server tidak valid: ${rawText.substring(0, 100)}`);
+      }
 
       if (!data.success || !data.files || data.files.length === 0) {
-        const pubInfo = PUBLICATIONS[this.currentPublication] || PUBLICATIONS.alqalam;
         this.editionsFileList.innerHTML = `
           <div class="text-center py-8 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
             <i data-lucide="folder-x" class="w-10 h-10 mx-auto mb-2 text-slate-600"></i>
             <p class="text-sm font-semibold text-slate-300">Belum ada file PDF di folder ${pubInfo.name}</p>
-            <p class="text-xs text-slate-500 mt-1">Gunakan formulir di atas untuk mengunggah edisi pertama.</p>
+            <p class="text-xs text-slate-500 mt-1">Gunakan formulir di atas untuk mengunggah edisi pertama ke folder <code>pdf/${pubId}/</code>.</p>
           </div>
         `;
         if (window.lucide) window.lucide.createIcons();
@@ -2403,7 +2474,7 @@ class EPaperApp {
       this.editionsFileList.innerHTML = '';
 
       data.files.forEach(file => {
-        const isCurrent = this.currentPdfName === file.name;
+        const isCurrent = (this.currentPublication === pubId) && (this.currentPdfName === file.name);
         const item      = document.createElement('div');
         item.className  = `flex items-center justify-between p-3.5 rounded-xl border transition cursor-pointer select-none group ${isCurrent ? 'bg-emerald-500/10 border-emerald-500/50 shadow-sm' : 'bg-slate-800/60 border-slate-700/60 hover:border-emerald-500/60 hover:bg-slate-800/90'}`;
         item.setAttribute('title', isCurrent ? 'File ini sedang aktif dibuka' : `Klik untuk langsung membuka ${file.name}`);
@@ -2439,18 +2510,25 @@ class EPaperApp {
         `;
 
         // Klik di mana saja pada baris file -> langsung membuka dokumen
-        item.addEventListener('click', (e) => {
+        item.addEventListener('click', async (e) => {
           if (e.target.closest('.btn-delete-edition')) {
             return;
           }
-          this.loadFromServerFile(file.name);
+          if (pubId !== this.currentPublication) {
+            await this.selectPublication(pubId);
+          }
+          if (pubId === 'kafana') {
+            await this.loadKafanaEdition(file.name);
+          } else {
+            await this.loadFromServerFile(file.name);
+          }
           this.closeEditionsModal();
         });
 
         // Tombol hapus file
         item.querySelector('.btn-delete-edition')?.addEventListener('click', (e) => {
           e.stopPropagation();
-          this.deletePdfFile(file.name);
+          this.deletePdfFile(file.name, pubId);
         });
 
         this.editionsFileList.appendChild(item);
@@ -2466,32 +2544,44 @@ class EPaperApp {
     }
   }
 
-  async deletePdfFile(filename) {
-    if (!confirm(`⚠️ PERINGATAN HAPUS FILE:\n\nApakah Anda yakin ingin MENGHAPUS file "${filename}" dari server lokal?\nFile yang dihapus tidak dapat dikembalikan.`)) {
+  async deletePdfFile(filename, pubId = null) {
+    const targetPub = pubId || this.modalPublication || this.currentPublication || 'alqalam';
+    const pubInfo = PUBLICATIONS[targetPub] || PUBLICATIONS.alqalam;
+
+    if (!confirm(`⚠️ PERINGATAN HAPUS FILE:\n\nApakah Anda yakin ingin MENGHAPUS file "${filename}" dari publikasi ${pubInfo.name} di server?\nFile yang dihapus tidak dapat dikembalikan.`)) {
       return;
     }
 
     try {
       const formData = new FormData();
       formData.append('action', 'delete');
-      formData.append('pub', this.currentPublication);
+      formData.append('pub', targetPub);
       formData.append('filename', filename);
 
-      const res  = await fetch('api.php', { method: 'POST', body: formData });
-      const data = await res.json();
+      const res = await fetch(`api.php?action=delete&pub=${encodeURIComponent(targetPub)}`, { method: 'POST', body: formData });
+      const rawText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (e) {
+        throw new Error(`Respon server tidak valid (HTTP ${res.status}): ${rawText.substring(0, 100)}`);
+      }
 
       if (data.success) {
-        await pageRenderCache.clearPub(this.currentPublication);
+        await pageRenderCache.clearPub(targetPub);
         alert(`✅ ${data.message}`);
-        if (this.currentPdfName === filename) {
+        if (targetPub === 'kafana') {
+          await this.loadKafanaShelf();
           if (this.currentPublication === 'kafana') {
-            await this.loadKafanaEdition();
-          } else {
-            this.closeDocument();
+            if (this.currentPdfName === filename) {
+              await this.loadKafanaEdition();
+            } else {
+              await this.loadKafanaEdition(this.currentPdfName);
+            }
           }
-        } else {
-          if (this.currentPublication === 'kafana') {
-            await this.loadKafanaEdition(this.currentPdfName);
+        } else if (this.currentPublication === targetPub) {
+          if (this.currentPdfName === filename) {
+            this.closeDocument();
           } else {
             this.loadAllCombinedPDFs();
           }
@@ -2509,31 +2599,67 @@ class EPaperApp {
     const file = this.inputModalPdf?.files[0];
     if (!file) return;
 
+    const targetPub = this.modalPublication || this.currentPublication || 'alqalam';
+    const pubInfo = PUBLICATIONS[targetPub] || PUBLICATIONS.alqalam;
+    const fileMb = (file.size / 1024 / 1024);
+
+    // Cek batas ukuran maksimal file di sisi browser
+    if (fileMb > 150) {
+      alert(`⚠️ File "${file.name}" berukuran ${fileMb.toFixed(1)} MB.\n\nBatas maksimal upload server yang disarankan adalah 150 MB. Silakan kompres ukuran PDF terlebih dahulu sebelum mengunggah.`);
+      return;
+    }
+
     const btnSubmit = document.getElementById('btn-submit-upload');
     if (btnSubmit) {
       btnSubmit.disabled  = true;
-      btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> <span>Mengunggah...</span>`;
+      btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> <span>Mengunggah (${fileMb.toFixed(1)} MB)...</span>`;
       if (window.lucide) window.lucide.createIcons();
     }
 
     try {
       const formData = new FormData();
       formData.append('action', 'upload');
-      formData.append('pub', this.currentPublication);
+      formData.append('pub', targetPub);
       formData.append('pdf_file', file);
 
-      const res  = await fetch('api.php', { method: 'POST', body: formData });
-      const data = await res.json();
+      const res = await fetch(`api.php?action=upload&pub=${encodeURIComponent(targetPub)}`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const rawText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseErr) {
+        if (res.status === 413 || rawText.includes('413') || rawText.includes('Request Entity Too Large') || rawText.includes('Payload Too Large')) {
+          throw new Error(`Ukuran file (${fileMb.toFixed(1)} MB) melebihi batas upload web server (Nginx HTTP 413 Payload Too Large).\n\nSolusi: Pastikan konfigurasi 'client_max_body_size 150m;' telah aktif di Nginx web server aaPanel atau perkecil ukuran PDF.`);
+        }
+        if (res.status === 504 || res.status === 502) {
+          throw new Error(`Server timeout atau gateway error (HTTP ${res.status}). Proses transfer atau verifikasi file memakan waktu terlalu lama.`);
+        }
+        if (rawText.includes('Fatal error') || rawText.includes('Allowed memory size')) {
+          throw new Error(`Server kehabisan memori PHP saat memproses PDF. Silakan naikkan memory_limit di php.ini.`);
+        }
+        throw new Error(`Respon server tidak valid (HTTP ${res.status}):\n${rawText.replace(/<[^>]*>?/gm, '').substring(0, 150)}...`);
+      }
 
       if (data.success) {
-        await pageRenderCache.clearPub(this.currentPublication);
+        await pageRenderCache.clearPub(targetPub);
         alert('🎉 ' + data.message);
         if (this.inputModalPdf) this.inputModalPdf.value = '';
         this.loadEditionsList();
-        // Langsung buka PDF yang baru diunggah
-        if (this.currentPublication === 'kafana') {
-          await this.loadKafanaEdition(file.name);
+
+        // Jika upload ke KAFANA:
+        if (targetPub === 'kafana') {
+          await this.loadKafanaShelf();
+          if (this.currentPublication === 'kafana') {
+            await this.loadKafanaEdition(file.name);
+          }
         } else {
+          if (this.currentPublication !== targetPub) {
+            await this.selectPublication(targetPub);
+          }
           await this.loadFromServerFile(file.name);
         }
         this.closeEditionsModal();
@@ -2541,7 +2667,7 @@ class EPaperApp {
         alert('❌ Gagal: ' + data.message);
       }
     } catch (err) {
-      alert('Gagal mengunggah file: ' + err.message);
+      alert('Gagal mengunggah file:\n\n' + err.message);
     } finally {
       if (btnSubmit) {
         btnSubmit.disabled  = false;

@@ -23,5 +23,5 @@ Write-Host "update_scripts_only.zip created successfully."
 # 3. patch_vps.zip
 $dest3 = "$epaper\patch_vps.zip"
 if (Test-Path $dest3) { Remove-Item $dest3 -Force }
-Compress-Archive -Path "$epaper\assets", "$epaper\js", "$epaper\api.php", "$epaper\favicon.ico", "$epaper\favicon.png", "$epaper\index.html", "$epaper\logo-mtsn.png", "$epaper\og-banner.jpg", "$epaper\og-icon.jpg", "$epaper\og-icon.png", "$epaper\pin_config.txt", "$epaper\studio.html" -DestinationPath $dest3 -Force
+Compress-Archive -Path "$epaper\assets", "$epaper\js", "$epaper\api.php", "$epaper\favicon.ico", "$epaper\favicon.png", "$epaper\index.html", "$epaper\logo-mtsn.png", "$epaper\og-banner.jpg", "$epaper\og-icon.jpg", "$epaper\og-icon.png", "$epaper\pin_config.txt", "$epaper\studio.html", "$epaper\.user.ini", "$epaper\.htaccess" -DestinationPath $dest3 -Force
 Write-Host "patch_vps.zip created successfully."
