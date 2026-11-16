@@ -236,12 +236,26 @@
             <p class="text-xs text-slate-400 leading-relaxed mb-4">
               Buletin tematik MTsN 1 Blitar yang menghimpun gagasan ilmiah, esai keagamaan, rubrik sastra, dan ulasan mendalam.
             </p>
+
+            <!-- Multiple Editions List (Muncul otomatis jika ada 2 edisi atau lebih) -->
+            <div id="shelf-kafana-editions-container" class="hidden mb-4 p-3 rounded-xl bg-slate-950/70 border border-amber-500/30">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                  <i data-lucide="book-copy" class="w-3.5 h-3.5 text-amber-400"></i>
+                  <span>PILIH EDISI TERBIT:</span>
+                </span>
+                <span id="shelf-kafana-editions-count" class="text-[10px] text-slate-400 font-mono"></span>
+              </div>
+              <div id="shelf-kafana-editions-list" class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                <!-- Diisi secara dinamis dengan daftar tombol edisi KAFANA -->
+              </div>
+            </div>
           </div>
 
           <!-- Action Button -->
-          <button class="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 shadow-lg shadow-amber-950 flex items-center justify-center gap-2 group-hover:shadow-amber-900/50 transition active:scale-95">
+          <button id="btn-open-shelf-kafana" class="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 shadow-lg shadow-amber-950 flex items-center justify-center gap-2 group-hover:shadow-amber-900/50 transition active:scale-95">
             <i data-lucide="book-open" class="w-4 h-4"></i>
-            <span>Buka Buletin KAFANA</span>
+            <span id="label-open-shelf-kafana">Buka Buletin KAFANA</span>
             <i data-lucide="arrow-right" class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"></i>
           </button>
         </div>
@@ -290,6 +304,15 @@
               <i data-lucide="x" class="w-3 h-3"></i>
             </button>
           </div>
+        </div>
+
+        <!-- KAFANA Edition Selector (Muncul khusus saat membaca Buletin KAFANA) -->
+        <div id="kafana-edition-selector-container" class="hidden flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/40 rounded-xl px-2 py-1 sm:px-3 sm:py-1.5 shadow-sm ml-1 sm:ml-2 flex-shrink-0">
+          <i data-lucide="book-copy" class="w-3.5 h-3.5 text-amber-400 flex-shrink-0"></i>
+          <span class="text-[11px] font-bold text-amber-300 hidden md:inline flex-shrink-0">Edisi:</span>
+          <select id="select-kafana-edition" class="bg-slate-900/90 text-amber-200 border border-amber-500/40 rounded-lg text-xs font-bold px-2 py-1 focus:ring-1 focus:ring-amber-400 outline-none cursor-pointer max-w-[130px] sm:max-w-[200px] truncate" title="Pilih Edisi Buletin KAFANA">
+            <!-- Diisi secara dinamis dengan daftar edisi KAFANA -->
+          </select>
         </div>
       </div>
 
@@ -624,7 +647,7 @@
       <div class="p-5 space-y-3.5 overflow-y-auto flex-1">
         
         <!-- Option 1: Combined All Pages (Highlighted) -->
-        <div class="p-3.5 rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-900 shadow-lg">
+        <div id="download-combined-section" class="p-3.5 rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-900 shadow-lg">
           <div class="flex items-start justify-between gap-3 mb-1.5">
             <div class="flex items-center gap-2.5">
               <span class="p-2 rounded-lg bg-emerald-500/20 text-emerald-300">
@@ -777,6 +800,6 @@
   </div>
 
   <!-- Application Script -->
-  <script src="js/app.js?v=20261027_02"></script>
+  <script src="js/app.js?v=20261116_kafana_edisi01"></script>
 </body>
 </html>

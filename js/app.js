@@ -143,16 +143,17 @@ class EPaperApp {
     this.currentLocalFile = null;
     this.isShelfActive = true;
 
-    // Deteksi publikasi aktif dari parameter URL (?pub=alqalam | korma | kafana)
+    // Deteksi publikasi aktif dari parameter URL (?pub=alqalam | korma | kafana & edisi=...)
     const urlParams = new URLSearchParams(window.location.search);
     const pubParam = (urlParams.get('pub') || urlParams.get('koran') || '').toLowerCase();
+    const edisiParam = urlParams.get('edisi') || urlParams.get('file') || null;
 
     this.initElements();
     this.initEventListeners();
 
     if (PUBLICATIONS[pubParam]) {
       this.currentPublication = pubParam;
-      this.openPublication(pubParam, false);
+      this.openPublication(pubParam, false, edisiParam);
     } else {
       this.currentPublication = 'alqalam';
       this.showShelf(false);
@@ -260,6 +261,15 @@ class EPaperApp {
 
     // Drag-Drop Overlay
     this.dragOverlay = document.getElementById('drag-overlay');
+
+    // KAFANA Edition Elements
+    this.kafanaEditionContainer      = document.getElementById('kafana-edition-selector-container');
+    this.selectKafanaEdition         = document.getElementById('select-kafana-edition');
+    this.shelfKafanaEditionsContainer = document.getElementById('shelf-kafana-editions-container');
+    this.shelfKafanaEditionsList     = document.getElementById('shelf-kafana-editions-list');
+    this.labelOpenShelfKafana        = document.getElementById('label-open-shelf-kafana');
+    this.shelfKafanaCount            = document.getElementById('shelf-kafana-editions-count');
+    this.downloadCombinedSection     = document.getElementById('download-combined-section');
   }
 
   // ─────────────────────────────────────────────────────────
@@ -584,9 +594,21 @@ class EPaperApp {
     this.btnCloseChangePin?.addEventListener('click', () => this.changePinPanel?.classList.add('hidden'));
     this.formChangePin?.addEventListener('submit', (e) => this.handleChangePinSubmit(e));
 
+    // KAFANA Edition Selector Change (Instant Switch)
+    this.selectKafanaEdition?.addEventListener('change', (e) => {
+      const chosenFile = e.target.value;
+      if (chosenFile && chosenFile !== this.currentPdfName) {
+        this.loadKafanaEdition(chosenFile);
+      }
+    });
+
     // Shelf Cover Card Clicks
     document.querySelectorAll('[data-shelf-pub]').forEach(card => {
-      card.addEventListener('click', () => {
+      card.addEventListener('click', (e) => {
+        // Jangan picu jika yang diklik tombol edisi spesifik di dalam kartu KAFANA
+        if (e.target.closest('#shelf-kafana-editions-list button')) {
+          return;
+        }
         const pub = card.getAttribute('data-shelf-pub');
         if (pub) this.openPublication(pub, true);
       });
@@ -620,8 +642,9 @@ class EPaperApp {
     window.addEventListener('popstate', () => {
       const params = new URLSearchParams(window.location.search);
       const pub = (params.get('pub') || params.get('koran') || '').toLowerCase();
+      const edisi = params.get('edisi') || params.get('file') || null;
       if (PUBLICATIONS[pub]) {
-        this.openPublication(pub, false);
+        this.openPublication(pub, false, edisi);
       } else {
         this.showShelf(false);
       }
@@ -715,10 +738,11 @@ class EPaperApp {
     if (window.lucide) window.lucide.createIcons();
   }
 
-  openPublication(pubId, updateHistory = true) {
+  openPublication(pubId, updateHistory = true, targetEdition = null) {
     if (!PUBLICATIONS[pubId]) pubId = 'alqalam';
     this.isShelfActive = false;
     this.currentPublication = pubId;
+    this.targetEdition = targetEdition;
 
     if (this.shelfView) this.shelfView.classList.add('hidden');
     if (this.readerView) this.readerView.classList.remove('hidden');
@@ -726,6 +750,11 @@ class EPaperApp {
     if (updateHistory) {
       const url = new URL(window.location.href);
       url.searchParams.set('pub', pubId);
+      if (pubId === 'kafana' && targetEdition) {
+        url.searchParams.set('edisi', targetEdition);
+      } else if (pubId !== 'kafana') {
+        url.searchParams.delete('edisi');
+      }
       window.history.pushState({}, '', url.toString());
     }
 
@@ -754,8 +783,14 @@ class EPaperApp {
           } else {
             statEl.innerText = `${count} Edisi`;
           }
+          if (pubId === 'kafana') {
+            this.renderShelfKafanaEditions(data.files);
+          }
         } else {
           statEl.innerText = (pubId === 'kafana') ? 'Segera Terbit' : 'Belum Ada Edisi';
+          if (pubId === 'kafana') {
+            this.renderShelfKafanaEditions([]);
+          }
         }
       } catch (e) {
         console.warn(`Gagal memuat stats untuk ${pubId}:`, e);
@@ -845,6 +880,13 @@ class EPaperApp {
     }
     if (brandIcon) {
       brandIcon.setAttribute('data-lucide', pub.icon);
+    }
+
+    // Toggle KAFANA Edition Selector Bar
+    if (this.currentPublication === 'kafana') {
+      if (this.btnCombineAll) this.btnCombineAll.classList.add('hidden');
+    } else {
+      this.hideKafanaEditionSelector();
     }
 
     // 2. Update Tabs Desktop Header
@@ -963,11 +1005,20 @@ class EPaperApp {
   async autoLoadAllPDFs() {
     try {
       const pubInfo = PUBLICATIONS[this.currentPublication] || PUBLICATIONS.alqalam;
+
+      // KHUSUS KAFANA: Dipisahkan per edisi (tidak digabung menjadi satu)
+      if (this.currentPublication === 'kafana') {
+        const target = this.targetEdition;
+        this.targetEdition = null;
+        await this.loadKafanaEdition(target);
+        return;
+      }
+
+      // Untuk AL QALAM & KORMA: Gabungkan halaman koran menjadi koran lengkap
       this.showLoading(`Membuka publikasi ${pubInfo.name}...`);
       const res = await fetch(`api.php?action=list&pub=${encodeURIComponent(this.currentPublication)}&_t=${Date.now()}`);
       const data = await res.json();
       if (data.success && data.files && data.files.length > 0) {
-        // Otomatis gabungkan dan tampilkan seluruh halaman koran (semua file PDF)
         await this.loadAllCombinedPDFs();
       } else {
         this.showEmptyPublicationCanvas(pubInfo);
@@ -986,13 +1037,24 @@ class EPaperApp {
       this.showLoading(`Mengunduh ${filename}...`);
       this.currentPdfName = filename;
       this.currentLocalFile = null;
-      if (this.pdfTitle) this.pdfTitle.innerText = `${filename.replace(/\.pdf$/i, '')} (Edisi Satuan)`;
+      const cleanTitle = filename.replace(/\.pdf$/i, '');
+      if (this.pdfTitle) {
+        if (this.currentPublication === 'kafana') {
+          this.pdfTitle.innerText = `${cleanTitle}`;
+        } else {
+          this.pdfTitle.innerText = `${cleanTitle} (Edisi Satuan)`;
+        }
+      }
 
-      // Tampilkan tombol "Koran Lengkap" agar pengguna bisa kembali ke mode gabung semua
+      // Tampilkan tombol "Koran Lengkap" hanya untuk AL QALAM & KORMA (bukan KAFANA)
       if (this.btnCombineAll) {
-        this.btnCombineAll.classList.remove('hidden');
-        const span = this.btnCombineAll.querySelector('span');
-        if (span) span.innerText = 'Koran Lengkap';
+        if (this.currentPublication === 'kafana') {
+          this.btnCombineAll.classList.add('hidden');
+        } else {
+          this.btnCombineAll.classList.remove('hidden');
+          const span = this.btnCombineAll.querySelector('span');
+          if (span) span.innerText = 'Koran Lengkap';
+        }
       }
 
       const raw = `pdf/${this.currentPublication}/${decodeURIComponent(filename)}`;
@@ -1019,6 +1081,144 @@ class EPaperApp {
       alert('Gagal membuka file dari server: ' + err.message);
       this.hideLoading();
     }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  //  Manajemen Edisi Khusus Buletin KAFANA (Dipisahkan Per Edisi)
+  // ─────────────────────────────────────────────────────────
+  async loadKafanaEdition(preferredEdition = null) {
+    try {
+      const pubInfo = PUBLICATIONS.kafana;
+      this.showLoading(`Memuat buletin ${pubInfo.name}...`);
+
+      const res = await fetch(`api.php?action=list&pub=kafana&_t=${Date.now()}`);
+      const data = await res.json();
+
+      if (!data.success || !data.files || data.files.length === 0) {
+        this.showEmptyPublicationCanvas(pubInfo);
+        this.hideKafanaEditionSelector();
+        this.hideLoading();
+        return;
+      }
+
+      // Urutkan file secara natural (Vol 1, Vol 2, Vol 3...)
+      const files = data.files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+      // Tentukan edisi yang akan dibuka:
+      // 1. Dari parameter preferredEdition (jika dipanggil langsung)
+      // 2. Dari parameter URL (?edisi=... atau ?file=...)
+      // 3. Default: Edisi TERBARU (terakhir di list yang diurutkan secara natural)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlEdition = urlParams.get('edisi') || urlParams.get('file');
+
+      let targetFile = null;
+      if (preferredEdition) {
+        targetFile = files.find(f => f.name === preferredEdition || f.name.toLowerCase() === preferredEdition.toLowerCase());
+      }
+      if (!targetFile && urlEdition) {
+        targetFile = files.find(f => f.name === urlEdition || f.name.toLowerCase() === urlEdition.toLowerCase());
+      }
+      if (!targetFile) {
+        // Default ke edisi terbaru (paling baru diunggah / nomor edisi tertinggi)
+        targetFile = files[files.length - 1];
+      }
+
+      // Render Dropdown Pemilih Edisi KAFANA di Top Bar
+      this.renderKafanaEditionSelector(files, targetFile.name);
+
+      // Buka file edisi yang terpilih
+      await this.loadFromServerFile(targetFile.name);
+
+      // Pastikan tombol combine all tersembunyi untuk KAFANA
+      if (this.btnCombineAll) {
+        this.btnCombineAll.classList.add('hidden');
+      }
+
+      // Update URL query string
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('pub', 'kafana');
+      currentUrl.searchParams.set('edisi', targetFile.name);
+      window.history.replaceState({}, '', currentUrl.toString());
+
+    } catch (err) {
+      console.error('Gagal memuat edisi KAFANA:', err);
+      alert('Gagal memuat edisi KAFANA: ' + err.message);
+      this.hideLoading();
+    }
+  }
+
+  renderKafanaEditionSelector(files, activeFilename) {
+    if (!this.kafanaEditionContainer || !this.selectKafanaEdition) return;
+
+    this.selectKafanaEdition.innerHTML = '';
+    files.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.name;
+      const cleanName = f.name.replace(/\.pdf$/i, '').trim();
+      const pageInfo = f.pages ? ` (${f.pages} Hal)` : '';
+      opt.innerText = `📖 ${cleanName}${pageInfo}`;
+      if (f.name === activeFilename) {
+        opt.selected = true;
+      }
+      this.selectKafanaEdition.appendChild(opt);
+    });
+
+    this.kafanaEditionContainer.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  hideKafanaEditionSelector() {
+    if (this.kafanaEditionContainer) {
+      this.kafanaEditionContainer.classList.add('hidden');
+    }
+  }
+
+  renderShelfKafanaEditions(files) {
+    if (!this.shelfKafanaEditionsContainer || !this.shelfKafanaEditionsList) return;
+
+    if (!Array.isArray(files) || files.length <= 1) {
+      this.shelfKafanaEditionsContainer.classList.add('hidden');
+      if (this.labelOpenShelfKafana) {
+        this.labelOpenShelfKafana.innerText = 'Buka Buletin KAFANA';
+      }
+      return;
+    }
+
+    // Urutkan file secara natural: Vol 1, Vol 2...
+    const sorted = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+    this.shelfKafanaEditionsContainer.classList.remove('hidden');
+    if (this.shelfKafanaCount) {
+      this.shelfKafanaCount.innerText = `${sorted.length} Edisi Tersedia`;
+    }
+
+    this.shelfKafanaEditionsList.innerHTML = '';
+    sorted.forEach(f => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const cleanName = f.name.replace(/\.pdf$/i, '').trim();
+      btn.className = 'w-full text-left px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900/90 hover:bg-amber-600/30 text-slate-200 hover:text-amber-200 border border-slate-700/80 hover:border-amber-500/50 transition flex items-center justify-between group/ed cursor-pointer shadow-sm';
+      btn.innerHTML = `
+        <div class="flex items-center gap-2 truncate">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-amber-400 flex-shrink-0 group-hover/ed:scale-110 transition-transform"></i>
+          <span class="truncate font-medium">${cleanName}</span>
+        </div>
+        <span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex-shrink-0 font-mono">${f.pages || 1} Hal</span>
+      `;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openPublication('kafana', true, f.name);
+      });
+      this.shelfKafanaEditionsList.appendChild(btn);
+    });
+
+    if (this.labelOpenShelfKafana && sorted.length > 0) {
+      const latest = sorted[sorted.length - 1];
+      const latestClean = latest.name.replace(/\.pdf$/i, '').trim();
+      this.labelOpenShelfKafana.innerText = `Buka Edisi Terbaru (${latestClean})`;
+    }
+
+    if (window.lucide) window.lucide.createIcons();
   }
 
   // ─────────────────────────────────────────────────────────
@@ -2138,10 +2338,17 @@ class EPaperApp {
         await pageRenderCache.clearPub(this.currentPublication);
         alert(`✅ ${data.message}`);
         if (this.currentPdfName === filename) {
-          this.closeDocument();
+          if (this.currentPublication === 'kafana') {
+            await this.loadKafanaEdition();
+          } else {
+            this.closeDocument();
+          }
         } else {
-          // Sinkronisasi langsung ke tampilan koran agar file yang dihapus tidak tertinggal di layar
-          this.loadAllCombinedPDFs();
+          if (this.currentPublication === 'kafana') {
+            await this.loadKafanaEdition(this.currentPdfName);
+          } else {
+            this.loadAllCombinedPDFs();
+          }
         }
         this.loadEditionsList();
       } else {
@@ -2178,7 +2385,11 @@ class EPaperApp {
         if (this.inputModalPdf) this.inputModalPdf.value = '';
         this.loadEditionsList();
         // Langsung buka PDF yang baru diunggah
-        await this.loadFromServerFile(file.name);
+        if (this.currentPublication === 'kafana') {
+          await this.loadKafanaEdition(file.name);
+        } else {
+          await this.loadFromServerFile(file.name);
+        }
         this.closeEditionsModal();
       } else {
         alert('❌ Gagal: ' + data.message);
@@ -2209,6 +2420,15 @@ class EPaperApp {
         this.downloadCombinedDesc.innerText = `Gabungkan seluruh ${totalPages} halaman koran aktif ke dalam 1 file PDF A3 utuh siap cetak atau arsip.`;
       } else {
         this.downloadCombinedDesc.innerText = 'Belum ada halaman koran yang dimuat.';
+      }
+    }
+
+    // Untuk KAFANA: sembunyikan opsi gabung semua halaman karena buletin dipisahkan per edisi
+    if (this.downloadCombinedSection) {
+      if (this.currentPublication === 'kafana') {
+        this.downloadCombinedSection.classList.add('hidden');
+      } else {
+        this.downloadCombinedSection.classList.remove('hidden');
       }
     }
 
