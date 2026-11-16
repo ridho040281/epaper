@@ -2459,6 +2459,25 @@ class EPaperApp {
         throw new Error(`Respon server tidak valid: ${rawText.substring(0, 100)}`);
       }
 
+      // Perbarui Info Batas Server & Status Izin Folder
+      if (data.server_limits) {
+        this.serverLimits = data.server_limits;
+        const upEl = document.getElementById('server-limit-upload');
+        if (upEl) upEl.innerText = data.server_limits.upload_max_filesize || '50M';
+        const postEl = document.getElementById('server-limit-post');
+        if (postEl) postEl.innerText = data.server_limits.post_max_size || '50M';
+        const permEl = document.getElementById('server-folder-perm');
+        if (permEl) {
+          if (data.server_limits.is_writable) {
+            permEl.innerText = '✅ Siap (Bisa Ditulis)';
+            permEl.className = 'font-semibold text-emerald-400';
+          } else {
+            permEl.innerText = '❌ Terkunci (Read-Only)';
+            permEl.className = 'font-semibold text-rose-400';
+          }
+        }
+      }
+
       if (!data.success || !data.files || data.files.length === 0) {
         this.editionsFileList.innerHTML = `
           <div class="text-center py-8 text-slate-500 border-2 border-dashed border-slate-800 rounded-xl">
@@ -2595,6 +2614,26 @@ class EPaperApp {
     }
   }
 
+  parseSizeToBytes(str) {
+    if (!str) return 0;
+    const s = String(str).trim().toUpperCase();
+    const num = parseFloat(s);
+    if (s.endsWith('G')) return num * 1024 * 1024 * 1024;
+    if (s.endsWith('M')) return num * 1024 * 1024;
+    if (s.endsWith('K')) return num * 1024;
+    return num;
+  }
+
+  showModalUploadError(msg) {
+    const box = document.getElementById('modal-upload-error-box');
+    const txt = document.getElementById('modal-upload-error-msg');
+    if (box && txt) {
+      txt.innerText = msg;
+      box.classList.remove('hidden');
+    }
+    alert('❌ Gagal Mengunggah File:\n\n' + msg);
+  }
+
   async handleModalUpload() {
     const file = this.inputModalPdf?.files[0];
     if (!file) return;
@@ -2603,54 +2642,132 @@ class EPaperApp {
     const pubInfo = PUBLICATIONS[targetPub] || PUBLICATIONS.alqalam;
     const fileMb = (file.size / 1024 / 1024);
 
-    // Cek batas ukuran maksimal file di sisi browser
+    const errorBox = document.getElementById('modal-upload-error-box');
+    if (errorBox) errorBox.classList.add('hidden');
+
+    // 1. Cek batas upload server jika telah terdeteksi dari api.php
+    if (this.serverLimits && this.serverLimits.upload_max_filesize) {
+      const maxUpBytes = this.parseSizeToBytes(this.serverLimits.upload_max_filesize);
+      if (maxUpBytes > 0 && file.size > maxUpBytes) {
+        const serverLimitStr = this.serverLimits.upload_max_filesize;
+        this.showModalUploadError(
+          `Ukuran file "${file.name}" (${fileMb.toFixed(1)} MB) melebihi batas upload PHP server saat ini (${serverLimitStr}).\n\n` +
+          `Solusi:\n` +
+          `1. Buka aaPanel > Menu "App Store" > Pilih PHP yang aktif > Klik "Settings".\n` +
+          `2. Buka tab "Upload size", ubah menjadi 150M.\n` +
+          `3. Buka tab "Service" lalu klik "Restart" PHP.\n` +
+          `Atau kompres file PDF di bawah ${serverLimitStr}.`
+        );
+        return;
+      }
+    }
+
+    if (this.serverLimits && this.serverLimits.is_writable === false) {
+      this.showModalUploadError(
+        `Folder server 'pdf/${targetPub}/' berstatus terkunci (Read-Only).\n\n` +
+        `Solusi: Buka Terminal VPS dan jalankan perintah:\n` +
+        `chmod -R 777 /www/wwwroot/epaper/pdf`
+      );
+      return;
+    }
+
     if (fileMb > 150) {
-      alert(`⚠️ File "${file.name}" berukuran ${fileMb.toFixed(1)} MB.\n\nBatas maksimal upload server yang disarankan adalah 150 MB. Silakan kompres ukuran PDF terlebih dahulu sebelum mengunggah.`);
+      this.showModalUploadError(`Ukuran file (${fileMb.toFixed(1)} MB) melebihi batas maksimal 150 MB. Silakan kompres file PDF terlebih dahulu.`);
       return;
     }
 
     const btnSubmit = document.getElementById('btn-submit-upload');
+    const progWrap  = document.getElementById('modal-upload-progress-wrap');
+    const progBar   = document.getElementById('modal-upload-progress-bar');
+    const progText  = document.getElementById('modal-upload-percent-text');
+    const statText  = document.getElementById('modal-upload-status-text');
+
     if (btnSubmit) {
       btnSubmit.disabled  = true;
-      btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> <span>Mengunggah (${fileMb.toFixed(1)} MB)...</span>`;
+      btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> <span>Mengunggah...</span>`;
       if (window.lucide) window.lucide.createIcons();
     }
 
-    try {
-      const formData = new FormData();
-      formData.append('action', 'upload');
-      formData.append('pub', targetPub);
-      formData.append('pdf_file', file);
+    if (progWrap) {
+      progWrap.classList.remove('hidden');
+      if (progBar)  progBar.style.width = '0%';
+      if (progText) progText.innerText = '0%';
+      if (statText) statText.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin inline mr-1"></i> Mengunggah file (${fileMb.toFixed(1)} MB)...`;
+      if (window.lucide) window.lucide.createIcons();
+    }
 
-      const res = await fetch(`api.php?action=upload&pub=${encodeURIComponent(targetPub)}`, {
-        method: 'POST',
-        body: formData
-      });
+    const formData = new FormData();
+    formData.append('action', 'upload');
+    formData.append('pub', targetPub);
+    formData.append('pdf_file', file);
 
-      const rawText = await res.text();
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `api.php?action=upload&pub=${encodeURIComponent(targetPub)}&_t=${Date.now()}`, true);
+    xhr.timeout = 600000; // 10 menit batas waktu koneksi
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        const curMb = (e.loaded / 1024 / 1024).toFixed(1);
+        if (progBar)  progBar.style.width = `${pct}%`;
+        if (progText) progText.innerText = `${pct}%`;
+        if (statText) {
+          if (pct < 100) {
+            statText.innerText = `Mengunggah: ${curMb} MB / ${fileMb.toFixed(1)} MB (${pct}%)...`;
+          } else {
+            statText.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin inline mr-1"></i> Menyimpan & memverifikasi dokumen di server...`;
+            if (window.lucide) window.lucide.createIcons();
+          }
+        }
+      }
+    };
+
+    xhr.onload = async () => {
+      if (btnSubmit) {
+        btnSubmit.disabled  = false;
+        btnSubmit.innerHTML = `<i data-lucide="upload" class="w-4 h-4"></i> <span>Simpan PDF ke Server</span>`;
+        if (window.lucide) window.lucide.createIcons();
+      }
+
+      const raw = xhr.responseText || '';
       let data;
       try {
-        data = JSON.parse(rawText);
-      } catch (parseErr) {
-        if (res.status === 413 || rawText.includes('413') || rawText.includes('Request Entity Too Large') || rawText.includes('Payload Too Large')) {
-          throw new Error(`Ukuran file (${fileMb.toFixed(1)} MB) melebihi batas upload web server (Nginx HTTP 413 Payload Too Large).\n\nSolusi: Pastikan konfigurasi 'client_max_body_size 150m;' telah aktif di Nginx web server aaPanel atau perkecil ukuran PDF.`);
+        data = JSON.parse(raw);
+      } catch (err) {
+        if (progWrap) progWrap.classList.add('hidden');
+        if (xhr.status === 413 || raw.includes('413') || raw.includes('Request Entity Too Large') || raw.includes('Payload Too Large')) {
+          this.showModalUploadError(
+            `Ukuran file (${fileMb.toFixed(1)} MB) melebihi batas upload web server (Nginx HTTP 413 Payload Too Large).\n\n` +
+            `Solusi:\n` +
+            `1. Buka aaPanel > Menu "Website" > Klik domain "epaper.mtsn1blitar.sch.id".\n` +
+            `2. Buka tab "Config", di dalam blok "server { ... }" tambahkan baris:\n` +
+            `   client_max_body_size 150m;\n` +
+            `3. Klik Save lalu coba unggah kembali.`
+          );
+          return;
         }
-        if (res.status === 504 || res.status === 502) {
-          throw new Error(`Server timeout atau gateway error (HTTP ${res.status}). Proses transfer atau verifikasi file memakan waktu terlalu lama.`);
+        if (xhr.status === 504 || xhr.status === 502) {
+          this.showModalUploadError(`Server timeout (HTTP ${xhr.status}). Proses transfer atau verifikasi file terputus.`);
+          return;
         }
-        if (rawText.includes('Fatal error') || rawText.includes('Allowed memory size')) {
-          throw new Error(`Server kehabisan memori PHP saat memproses PDF. Silakan naikkan memory_limit di php.ini.`);
-        }
-        throw new Error(`Respon server tidak valid (HTTP ${res.status}):\n${rawText.replace(/<[^>]*>?/gm, '').substring(0, 150)}...`);
+        this.showModalUploadError(`Respon server tidak valid (HTTP ${xhr.status}):\n${raw.replace(/<[^>]*>?/gm, '').substring(0, 160)}...`);
+        return;
       }
 
       if (data.success) {
+        if (progBar)  progBar.style.width = '100%';
+        if (progText) progText.innerText = '100%';
+        if (statText) statText.innerText = '✅ Berhasil disimpan!';
+        setTimeout(() => {
+          if (progWrap) progWrap.classList.add('hidden');
+        }, 800);
+
         await pageRenderCache.clearPub(targetPub);
         alert('🎉 ' + data.message);
         if (this.inputModalPdf) this.inputModalPdf.value = '';
         this.loadEditionsList();
 
-        // Jika upload ke KAFANA:
+        // Buka edisi baru
         if (targetPub === 'kafana') {
           await this.loadKafanaShelf();
           if (this.currentPublication === 'kafana') {
@@ -2664,17 +2781,37 @@ class EPaperApp {
         }
         this.closeEditionsModal();
       } else {
-        alert('❌ Gagal: ' + data.message);
+        if (progWrap) progWrap.classList.add('hidden');
+        this.showModalUploadError(data.message || 'Gagal menyimpan file.');
       }
-    } catch (err) {
-      alert('Gagal mengunggah file:\n\n' + err.message);
-    } finally {
+    };
+
+    xhr.onerror = () => {
       if (btnSubmit) {
         btnSubmit.disabled  = false;
         btnSubmit.innerHTML = `<i data-lucide="upload" class="w-4 h-4"></i> <span>Simpan PDF ke Server</span>`;
         if (window.lucide) window.lucide.createIcons();
       }
-    }
+      if (progWrap) progWrap.classList.add('hidden');
+      this.showModalUploadError(
+        `Koneksi terputus saat mengunggah file (${fileMb.toFixed(1)} MB).\n\n` +
+        `Kemungkinan penyebab:\n` +
+        `1. Nginx memutus koneksi karena client_max_body_size belum disetel ke 150m.\n` +
+        `2. Koneksi internet terputus saat proses upload.`
+      );
+    };
+
+    xhr.ontimeout = () => {
+      if (btnSubmit) {
+        btnSubmit.disabled  = false;
+        btnSubmit.innerHTML = `<i data-lucide="upload" class="w-4 h-4"></i> <span>Simpan PDF ke Server</span>`;
+        if (window.lucide) window.lucide.createIcons();
+      }
+      if (progWrap) progWrap.classList.add('hidden');
+      this.showModalUploadError('Upload gagal karena batas waktu koneksi (timeout) terlampaui. Periksa kecepatan upload internet Anda.');
+    };
+
+    xhr.send(formData);
   }
 
   // ─────────────────────────────────────────────────────────

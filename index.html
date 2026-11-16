@@ -658,9 +658,44 @@
             <span>Simpan PDF ke Server</span>
           </button>
         </form>
-        <div class="mt-2.5 flex items-center gap-2 text-[11px] text-emerald-400/90 bg-emerald-950/40 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
-          <i data-lucide="zap" class="w-3.5 h-3.5 flex-shrink-0 text-emerald-400"></i>
-          <span><b>Kapasitas Server:</b> Mendukung PDF hingga 150 MB. Edisi majalah berhalaman banyak (seperti KAFANA) disimpan 100% utuh tanpa kompresi paksa agar kualitas teks dan foto tetap jernih.</span>
+
+        <!-- Upload Progress Bar (Real-time Upload Status) -->
+        <div id="modal-upload-progress-wrap" class="hidden mt-3 p-3 rounded-xl bg-slate-900 border border-slate-800">
+          <div class="flex justify-between items-center text-xs mb-1.5">
+            <span id="modal-upload-status-text" class="font-semibold text-emerald-400 flex items-center gap-1.5">
+              <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>
+              <span>Mengunggah file ke server...</span>
+            </span>
+            <span id="modal-upload-percent-text" class="font-mono text-emerald-300 font-bold">0%</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700/80">
+            <div id="modal-upload-progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-2.5 rounded-full transition-all duration-150" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Server Limits & Status Badge -->
+        <div id="modal-server-limits-badge" class="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-lg">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="info" class="w-3.5 h-3.5 text-blue-400"></i>
+            <span>Batas Upload Server: <b id="server-limit-upload" class="text-white">...</b></span>
+            <span class="text-slate-600">|</span>
+            <span>POST: <b id="server-limit-post" class="text-white">...</b></span>
+          </div>
+          <div id="server-folder-status" class="flex items-center gap-1 text-slate-400">
+            <span>Status Folder:</span> <span id="server-folder-perm" class="font-semibold text-emerald-400">Memeriksa...</span>
+          </div>
+        </div>
+
+        <!-- Error Message Banner in Modal -->
+        <div id="modal-upload-error-box" class="hidden mt-3 p-3 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-200 text-xs">
+          <div class="flex items-start gap-2">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+              <div class="font-bold text-rose-300 mb-1">Gagal Mengunggah Dokumen</div>
+              <p id="modal-upload-error-msg" class="whitespace-pre-wrap leading-relaxed font-sans"></p>
+            </div>
+            <button type="button" onclick="document.getElementById('modal-upload-error-box').classList.add('hidden')" class="text-rose-400 hover:text-white font-bold p-1">&times;</button>
+          </div>
         </div>
       </div>
 
@@ -885,6 +920,6 @@
   </div>
 
   <!-- Application Script -->
-  <script src="js/app.js?v=20261116_kafana_shelf02"></script>
+  <script src="js/app.js?v=20261116_upload_limits02"></script>
 </body>
 </html>

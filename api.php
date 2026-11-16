@@ -20,8 +20,10 @@ if (!in_array($pub, $allowedPubs)) {
 $baseDir = __DIR__ . DIRECTORY_SEPARATOR . 'pdf';
 $pdfDir  = $baseDir . DIRECTORY_SEPARATOR . $pub;
 if (!is_dir($pdfDir)) {
-    mkdir($pdfDir, 0777, true);
+    @mkdir($pdfDir, 0777, true);
 }
+@chmod($baseDir, 0777);
+@chmod($pdfDir, 0777);
 
 function getAdminPin() {
     $pinFile = __DIR__ . DIRECTORY_SEPARATOR . 'pin_config.txt';
@@ -179,7 +181,20 @@ switch ($action) {
                 'cover' => $coverUrl
             ];
         }
-        echo json_encode(['success' => true, 'pub' => $pub, 'files' => array_values($result)]);
+        $limits = [
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'memory_limit' => ini_get('memory_limit'),
+            'max_execution_time' => ini_get('max_execution_time'),
+            'is_writable' => is_writable($pdfDir),
+            'pdf_dir' => 'pdf/' . $pub . '/'
+        ];
+        echo json_encode([
+            'success' => true,
+            'pub' => $pub,
+            'files' => array_values($result),
+            'server_limits' => $limits
+        ]);
         break;
 
     case 'save_edition_cover':
@@ -252,13 +267,13 @@ switch ($action) {
         break;
 
     case 'upload':
-        // Cek jika ukuran file yang diunggah melampaui batas post_max_size PHP (PHP mengosongkan $_FILES jika post_max_size terlampaui)
+        // Cek jika ukuran file yang diunggah melampaui batas post_max_size PHP
         if (empty($_FILES) && isset($_SERVER['CONTENT_LENGTH']) && (int)$_SERVER['CONTENT_LENGTH'] > 0) {
             $maxPost = ini_get('post_max_size');
             $contentLenMb = round((int)$_SERVER['CONTENT_LENGTH'] / 1024 / 1024, 1);
             echo json_encode([
                 'success' => false,
-                'message' => "Ukuran file ({$contentLenMb} MB) melebihi batas upload PHP server (post_max_size: {$maxPost}). Silakan naikkan limit upload PHP di server atau kompres file PDF terlebih dahulu."
+                'message' => "Ukuran file ({$contentLenMb} MB) melebihi batas upload PHP server (post_max_size: {$maxPost}).\n\nSolusi: Buka aaPanel > App Store > PHP > Settings > Configuration modify, ubah 'post_max_size' menjadi 150M lalu Restart PHP."
             ]);
             exit;
         }
@@ -266,10 +281,11 @@ switch ($action) {
         if (!isset($_FILES['pdf_file']) || $_FILES['pdf_file']['error'] !== UPLOAD_ERR_OK) {
             $errCode = isset($_FILES['pdf_file']) ? $_FILES['pdf_file']['error'] : UPLOAD_ERR_NO_FILE;
             $maxUp = ini_get('upload_max_filesize');
+            $contentLenMb = isset($_SERVER['CONTENT_LENGTH']) ? round((int)$_SERVER['CONTENT_LENGTH'] / 1024 / 1024, 1) : 0;
             $errMessages = [
-                UPLOAD_ERR_INI_SIZE   => "Ukuran file melebihi batas upload_max_filesize di php.ini server ($maxUp). Silakan naikkan batas upload di server atau kompres file PDF.",
+                UPLOAD_ERR_INI_SIZE   => "Ukuran file ({$contentLenMb} MB) melebihi batas 'upload_max_filesize' di php.ini server ($maxUp).\n\nSolusi: Buka aaPanel > App Store > PHP > Settings > Upload size, ubah menjadi 150M lalu klik Restart PHP.",
                 UPLOAD_ERR_FORM_SIZE  => "Ukuran file melebihi batas formulir HTML.",
-                UPLOAD_ERR_PARTIAL    => "File hanya terunggah sebagian karena koneksi internet terputus.",
+                UPLOAD_ERR_PARTIAL    => "File hanya terunggah sebagian karena koneksi internet terputus atau timeout.",
                 UPLOAD_ERR_NO_FILE    => "Tidak ada file PDF yang dipilih.",
                 UPLOAD_ERR_NO_TMP_DIR => "Folder temporary server tidak ditemukan.",
                 UPLOAD_ERR_CANT_WRITE => "Gagal menulis file ke disk server (periksa izin folder tmp).",
@@ -289,9 +305,22 @@ switch ($action) {
         }
 
         $safeName = basename($file['name']);
+        if (!is_dir($pdfDir)) {
+            @mkdir($pdfDir, 0777, true);
+        }
+        @chmod($pdfDir, 0777);
+
         $destination = $pdfDir . DIRECTORY_SEPARATOR . $safeName;
 
-        if (move_uploaded_file($file['tmp_name'], $destination)) {
+        // Coba simpan file dengan move_uploaded_file, atau fallback ke copy
+        $moved = @move_uploaded_file($file['tmp_name'], $destination);
+        if (!$moved && file_exists($file['tmp_name'])) {
+            $moved = @copy($file['tmp_name'], $destination);
+            if ($moved) @unlink($file['tmp_name']);
+        }
+
+        if ($moved && file_exists($destination)) {
+            @chmod($destination, 0666);
             $fileSize = filesize($destination);
             $opt = null;
             // Hanya auto-kompres untuk dokumen koran 1-halaman (bukan kafana) dengan batas 2MB-30MB
@@ -299,13 +328,13 @@ switch ($action) {
                 $opt = autoOptimizePdfFile($destination, 2 * 1024 * 1024);
             }
 
+            $fileMb = round($fileSize / 1024 / 1024, 2);
             $msg = 'File PDF berhasil diunggah ke publikasi ' . strtoupper($pub) . '!';
             if ($opt && !empty($opt['optimized'])) {
                 $origMb = round($opt['original_size'] / 1024 / 1024, 2);
                 $finalMb = round($opt['final_size'] / 1024 / 1024, 2);
                 $msg .= " (Auto-kompres: {$origMb} MB ➔ {$finalMb} MB)";
             } else {
-                $fileMb = round($fileSize / 1024 / 1024, 2);
                 $msg .= " (Ukuran: {$fileMb} MB, kualitas asli 100% jernih dipertahankan)";
             }
 
@@ -318,11 +347,13 @@ switch ($action) {
                 'path' => 'pdf/' . $pub . '/' . rawurlencode($safeName)
             ]);
         } else {
+            $writable = is_writable($pdfDir) ? 'Bisa Ditulis' : 'Terkunci (Read-Only)';
             echo json_encode([
                 'success' => false,
-                'message' => "Gagal menyimpan file di server. Pastikan folder 'pdf/$pub/' memiliki izin tulis (write permission 755/777)."
+                'message' => "Gagal menyimpan file di server.\nStatus folder 'pdf/$pub/': $writable.\n\nSolusi: Jalankan perintah berikut di Terminal VPS:\nchmod -R 777 /www/wwwroot/epaper/pdf"
             ]);
         }
+        break;
         break;
 
     case 'optimize':
