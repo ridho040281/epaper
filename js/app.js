@@ -262,13 +262,14 @@ class EPaperApp {
     // Drag-Drop Overlay
     this.dragOverlay = document.getElementById('drag-overlay');
 
-    // KAFANA Edition Elements
+    // KAFANA Edition Elements & Dedicated Catalog Shelf
+    this.kafanaShelfView             = document.getElementById('kafana-shelf-view');
+    this.kafanaEditionsGrid          = document.getElementById('kafana-editions-grid');
+    this.btnBackFromKafana           = document.getElementById('btn-back-from-kafana');
+    this.kafanaTotalBadge            = document.getElementById('kafana-total-editions-badge');
+    this.btnKafanaCatalog            = document.getElementById('btn-kafana-catalog');
     this.kafanaEditionContainer      = document.getElementById('kafana-edition-selector-container');
     this.selectKafanaEdition         = document.getElementById('select-kafana-edition');
-    this.shelfKafanaEditionsContainer = document.getElementById('shelf-kafana-editions-container');
-    this.shelfKafanaEditionsList     = document.getElementById('shelf-kafana-editions-list');
-    this.labelOpenShelfKafana        = document.getElementById('label-open-shelf-kafana');
-    this.shelfKafanaCount            = document.getElementById('shelf-kafana-editions-count');
     this.downloadCombinedSection     = document.getElementById('download-combined-section');
   }
 
@@ -594,7 +595,11 @@ class EPaperApp {
     this.btnCloseChangePin?.addEventListener('click', () => this.changePinPanel?.classList.add('hidden'));
     this.formChangePin?.addEventListener('submit', (e) => this.handleChangePinSubmit(e));
 
-    // KAFANA Edition Selector Change (Instant Switch)
+    // KAFANA Catalog Navigation Buttons
+    this.btnBackFromKafana?.addEventListener('click', () => this.showShelf(true));
+    this.btnKafanaCatalog?.addEventListener('click', () => this.showKafanaShelf(true));
+
+    // KAFANA Edition Selector Change (Instant Switch inside Reader)
     this.selectKafanaEdition?.addEventListener('change', (e) => {
       const chosenFile = e.target.value;
       if (chosenFile && chosenFile !== this.currentPdfName) {
@@ -602,15 +607,24 @@ class EPaperApp {
       }
     });
 
+    // Back button in Reader: jika sedang KAFANA, kembali ke Katalog Edisi KAFANA
+    this.btnBackShelf?.addEventListener('click', (e) => {
+      if (this.currentPublication === 'kafana') {
+        e.stopImmediatePropagation();
+        this.showKafanaShelf(true);
+      }
+    }, true);
+
     // Shelf Cover Card Clicks
     document.querySelectorAll('[data-shelf-pub]').forEach(card => {
       card.addEventListener('click', (e) => {
-        // Jangan picu jika yang diklik tombol edisi spesifik di dalam kartu KAFANA
-        if (e.target.closest('#shelf-kafana-editions-list button')) {
-          return;
-        }
         const pub = card.getAttribute('data-shelf-pub');
-        if (pub) this.openPublication(pub, true);
+        if (pub === 'kafana') {
+          // Buka Katalog Pilihan Edisi KAFANA di dalamnya (dengan cover masing-masing edisi)
+          this.showKafanaShelf(true);
+        } else if (pub) {
+          this.openPublication(pub, true);
+        }
       });
     });
 
@@ -643,8 +657,14 @@ class EPaperApp {
       const params = new URLSearchParams(window.location.search);
       const pub = (params.get('pub') || params.get('koran') || '').toLowerCase();
       const edisi = params.get('edisi') || params.get('file') || null;
-      if (PUBLICATIONS[pub]) {
-        this.openPublication(pub, false, edisi);
+      if (pub === 'kafana') {
+        if (edisi) {
+          this.openPublication('kafana', false, edisi);
+        } else {
+          this.showKafanaShelf(false);
+        }
+      } else if (PUBLICATIONS[pub]) {
+        this.openPublication(pub, false);
       } else {
         this.showShelf(false);
       }
@@ -722,6 +742,7 @@ class EPaperApp {
   showShelf(updateHistory = true) {
     this.isShelfActive = true;
     if (this.shelfView) this.shelfView.classList.remove('hidden');
+    if (this.kafanaShelfView) this.kafanaShelfView.classList.add('hidden');
     if (this.readerView) this.readerView.classList.add('hidden');
     if (this.loadingOverlay) {
       this.loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
@@ -731,10 +752,33 @@ class EPaperApp {
       const url = new URL(window.location.href);
       url.searchParams.delete('pub');
       url.searchParams.delete('koran');
+      url.searchParams.delete('edisi');
       window.history.pushState({}, '', url.pathname);
     }
 
     this.fetchShelfStats();
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  showKafanaShelf(updateHistory = true) {
+    this.isShelfActive = false;
+    this.currentPublication = 'kafana';
+
+    if (this.shelfView) this.shelfView.classList.add('hidden');
+    if (this.readerView) this.readerView.classList.add('hidden');
+    if (this.kafanaShelfView) this.kafanaShelfView.classList.remove('hidden');
+    if (this.loadingOverlay) {
+      this.loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    if (updateHistory) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('pub', 'kafana');
+      url.searchParams.delete('edisi');
+      window.history.pushState({}, '', url.toString());
+    }
+
+    this.renderKafanaCatalog();
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -745,6 +789,7 @@ class EPaperApp {
     this.targetEdition = targetEdition;
 
     if (this.shelfView) this.shelfView.classList.add('hidden');
+    if (this.kafanaShelfView) this.kafanaShelfView.classList.add('hidden');
     if (this.readerView) this.readerView.classList.remove('hidden');
 
     if (updateHistory) {
@@ -783,14 +828,8 @@ class EPaperApp {
           } else {
             statEl.innerText = `${count} Edisi`;
           }
-          if (pubId === 'kafana') {
-            this.renderShelfKafanaEditions(data.files);
-          }
         } else {
           statEl.innerText = (pubId === 'kafana') ? 'Segera Terbit' : 'Belum Ada Edisi';
-          if (pubId === 'kafana') {
-            this.renderShelfKafanaEditions([]);
-          }
         }
       } catch (e) {
         console.warn(`Gagal memuat stats untuk ${pubId}:`, e);
@@ -1173,52 +1212,159 @@ class EPaperApp {
     }
   }
 
-  renderShelfKafanaEditions(files) {
-    if (!this.shelfKafanaEditionsContainer || !this.shelfKafanaEditionsList) return;
+  async renderKafanaCatalog() {
+    if (!this.kafanaEditionsGrid) return;
 
-    if (!Array.isArray(files) || files.length <= 1) {
-      this.shelfKafanaEditionsContainer.classList.add('hidden');
-      if (this.labelOpenShelfKafana) {
-        this.labelOpenShelfKafana.innerText = 'Buka Buletin KAFANA';
+    this.kafanaEditionsGrid.innerHTML = `
+      <div class="col-span-full py-16 text-center text-slate-400">
+        <div class="w-8 h-8 border-2 border-slate-600 border-t-amber-500 rounded-full animate-spin mx-auto mb-3"></div>
+        <p class="text-xs font-semibold">Memuat koleksi edisi Buletin KAFANA...</p>
+      </div>
+    `;
+
+    try {
+      const res = await fetch(`api.php?action=list&pub=kafana&_t=${Date.now()}`);
+      const data = await res.json();
+
+      if (!data.success || !Array.isArray(data.files) || data.files.length === 0) {
+        this.kafanaEditionsGrid.innerHTML = `
+          <div class="col-span-full py-16 text-center text-slate-500 border-2 border-dashed border-slate-800 rounded-2xl p-8">
+            <i data-lucide="folder-x" class="w-12 h-12 mx-auto mb-3 text-slate-600"></i>
+            <h4 class="text-base font-bold text-slate-300">Belum Ada Edisi KAFANA</h4>
+            <p class="text-xs text-slate-500 mt-1">Edisi pertama buletin belum diunggah ke server.</p>
+          </div>
+        `;
+        if (this.kafanaTotalBadge) this.kafanaTotalBadge.innerText = '0 Edisi';
+        if (window.lucide) window.lucide.createIcons();
+        return;
       }
-      return;
-    }
 
-    // Urutkan file secara natural: Vol 1, Vol 2...
-    const sorted = [...files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      // Urutkan secara natural: Vol 1, Vol 2, Vol 3...
+      const files = [...data.files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-    this.shelfKafanaEditionsContainer.classList.remove('hidden');
-    if (this.shelfKafanaCount) {
-      this.shelfKafanaCount.innerText = `${sorted.length} Edisi Tersedia`;
-    }
+      if (this.kafanaTotalBadge) {
+        const totalPages = files.reduce((acc, f) => acc + (f.pages || 0), 0);
+        this.kafanaTotalBadge.innerText = `${files.length} Edisi (${totalPages} Halaman)`;
+      }
 
-    this.shelfKafanaEditionsList.innerHTML = '';
-    sorted.forEach(f => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      const cleanName = f.name.replace(/\.pdf$/i, '').trim();
-      btn.className = 'w-full text-left px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900/90 hover:bg-amber-600/30 text-slate-200 hover:text-amber-200 border border-slate-700/80 hover:border-amber-500/50 transition flex items-center justify-between group/ed cursor-pointer shadow-sm';
-      btn.innerHTML = `
-        <div class="flex items-center gap-2 truncate">
-          <i data-lucide="book-open" class="w-3.5 h-3.5 text-amber-400 flex-shrink-0 group-hover/ed:scale-110 transition-transform"></i>
-          <span class="truncate font-medium">${cleanName}</span>
-        </div>
-        <span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex-shrink-0 font-mono">${f.pages || 1} Hal</span>
-      `;
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.openPublication('kafana', true, f.name);
+      this.kafanaEditionsGrid.innerHTML = '';
+      files.forEach((file, idx) => {
+        const cleanTitle = file.name.replace(/\.pdf$/i, '').trim();
+        const card = document.createElement('div');
+        card.className = 'book-card group cursor-pointer bg-slate-900/80 border border-slate-800 hover:border-amber-500/60 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xl transition-all duration-300 backdrop-blur-sm hover:-translate-y-1.5';
+        card.setAttribute('title', `Buka ${cleanTitle}`);
+
+        const coverSrc = file.cover || 'covers/kafana.jpg';
+
+        card.innerHTML = `
+          <div>
+            <!-- Badge Header -->
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+                <i data-lucide="book-open" class="w-3 h-3"></i>
+                <span>Edisi #${idx + 1}</span>
+              </span>
+              <span class="text-[11px] text-slate-300 bg-slate-800/90 border border-slate-700/70 px-2.5 py-0.5 rounded-md font-medium font-mono">
+                ${file.pages || 1} Hal
+              </span>
+            </div>
+
+            <!-- 3D Book Cover Frame with Spine -->
+            <div class="book-cover-frame aspect-[1/1.414] w-full bg-slate-950 mb-4 overflow-hidden relative rounded-xl shadow-lg border border-slate-800 group-hover:border-amber-500/50 transition">
+              <img id="kafana-cover-${idx}" src="${coverSrc}" alt="${cleanTitle}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.onerror=null; this.src='covers/kafana.svg';">
+            </div>
+
+            <!-- Title & Info underneath cover -->
+            <h3 class="font-title text-sm sm:text-base font-bold text-white group-hover:text-amber-400 transition mb-1 leading-snug line-clamp-2">
+              ${cleanTitle}
+            </h3>
+            <p class="text-[11px] text-slate-400 mb-4 flex items-center gap-2">
+              <span>${file.pages || 1} Halaman</span>
+              <span>&bull;</span>
+              <span>${file.size || ''}</span>
+            </p>
+          </div>
+
+          <!-- Action Button -->
+          <button type="button" class="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 shadow-md flex items-center justify-center gap-2 group-hover:shadow-amber-900/50 transition active:scale-95 cursor-pointer">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+            <span>Baca Edisi Ini</span>
+            <i data-lucide="arrow-right" class="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"></i>
+          </button>
+        `;
+
+        // Klik kartu atau tombol -> buka edisi tersebut di Reader
+        card.addEventListener('click', () => {
+          this.openPublication('kafana', true, file.name);
+        });
+
+        this.kafanaEditionsGrid.appendChild(card);
+
+        // Jika belum ada cover resmi dari server, render Page 1 secara otomatis dan simpan ke server
+        if (!file.cover) {
+          const imgEl = card.querySelector(`#kafana-cover-${idx}`);
+          if (imgEl) {
+            this.ensureKafanaEditionCover(file, imgEl);
+          }
+        }
       });
-      this.shelfKafanaEditionsList.appendChild(btn);
-    });
 
-    if (this.labelOpenShelfKafana && sorted.length > 0) {
-      const latest = sorted[sorted.length - 1];
-      const latestClean = latest.name.replace(/\.pdf$/i, '').trim();
-      this.labelOpenShelfKafana.innerText = `Buka Edisi Terbaru (${latestClean})`;
+      if (window.lucide) window.lucide.createIcons();
+
+    } catch (err) {
+      console.error('Gagal merender katalog KAFANA:', err);
+      this.kafanaEditionsGrid.innerHTML = `
+        <div class="col-span-full py-12 text-center text-rose-400 text-xs">
+          Gagal memuat katalog edisi: ${err.message}
+        </div>
+      `;
     }
+  }
 
-    if (window.lucide) window.lucide.createIcons();
+  async ensureKafanaEditionCover(file, imgEl) {
+    if (!file || !imgEl) return;
+    const cacheKey = 'kafana_cover_' + file.name;
+
+    // 1. Cek cache IndexedDB
+    try {
+      const cached = await pageRenderCache.get(cacheKey);
+      if (cached && cached.dataUrl) {
+        imgEl.src = cached.dataUrl;
+        return;
+      }
+    } catch (_) {}
+
+    // 2. Render Page 1 menggunakan PDF.js
+    try {
+      const raw = file.path ? decodeURIComponent(file.path) : `pdf/kafana/${file.name}`;
+      const fileUrl = encodeURI(raw);
+      const doc = await window.pdfjsLib.getDocument({ url: fileUrl }).promise;
+      const page = await doc.getPage(1);
+      const vp = page.getViewport({ scale: 0.55 });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      imgEl.src = dataUrl;
+
+      // Simpan di IndexedDB agar instan untuk kunjungan berikutnya
+      pageRenderCache.set(cacheKey, { dataUrl: dataUrl });
+
+      // Simpan di folder covers/ server
+      fetch('api.php?action=save_edition_cover&pub=kafana', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, base64: dataUrl })
+      }).catch(() => {});
+
+    } catch (e) {
+      // Fallback ke cover buletin standar
+      imgEl.src = 'covers/kafana.jpg';
+    }
   }
 
   // ─────────────────────────────────────────────────────────

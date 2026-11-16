@@ -137,8 +137,19 @@ switch ($action) {
         // Sort naturally (0001, 0002, 0003...)
         natsort($files);
         $result = [];
+        $coversDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
         foreach ($files as $file) {
             $filename = basename($file);
+            $cleanFileSlug = preg_replace('/[^a-zA-Z0-9_\-]/', '_', pathinfo($filename, PATHINFO_FILENAME));
+            $editionCoverName = "cover_{$pub}_{$cleanFileSlug}.jpg";
+            $editionCoverPath = $coversDir . DIRECTORY_SEPARATOR . $editionCoverName;
+            $coverUrl = null;
+            if (file_exists($editionCoverPath)) {
+                $coverUrl = "covers/{$editionCoverName}?t=" . filemtime($editionCoverPath);
+            } elseif ($pub === 'kafana' && file_exists($coversDir . DIRECTORY_SEPARATOR . 'kafana.jpg') && stripos($filename, 'vol1') !== false) {
+                $coverUrl = "covers/kafana.jpg?t=" . filemtime($coversDir . DIRECTORY_SEPARATOR . 'kafana.jpg');
+            }
+
             $pageCount = 1;
             $fp = @fopen($file, 'rb');
             if ($fp) {
@@ -157,10 +168,37 @@ switch ($action) {
                 'url' => 'pdf/' . $pub . '/' . rawurlencode($filename),
                 'size' => round(filesize($file) / 1024 / 1024, 2) . ' MB',
                 'pages' => max(1, $pageCount),
-                'date' => date('d M Y H:i', filemtime($file))
+                'date' => date('d M Y H:i', filemtime($file)),
+                'cover' => $coverUrl
             ];
         }
         echo json_encode(['success' => true, 'pub' => $pub, 'files' => array_values($result)]);
+        break;
+
+    case 'save_edition_cover':
+        $raw = file_get_contents('php://input');
+        $json = json_decode($raw, true);
+        $filename = basename($json['filename'] ?? '');
+        $base64 = $json['base64'] ?? '';
+        if (!empty($filename) && !empty($base64)) {
+            $cleanFileSlug = preg_replace('/[^a-zA-Z0-9_\-]/', '_', pathinfo($filename, PATHINFO_FILENAME));
+            $editionCoverName = "cover_{$pub}_{$cleanFileSlug}.jpg";
+            $coversDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
+            if (!is_dir($coversDir)) @mkdir($coversDir, 0777, true);
+            $target = $coversDir . DIRECTORY_SEPARATOR . $editionCoverName;
+            if (str_contains($base64, ',')) {
+                $base64 = explode(',', $base64)[1];
+            }
+            $bin = base64_decode($base64);
+            if ($bin !== false) {
+                @file_put_contents($target, $bin);
+                @chmod($target, 0666);
+                echo json_encode(['success' => true, 'cover' => "covers/{$editionCoverName}"]);
+                exit;
+            }
+        }
+        echo json_encode(['success' => false, 'message' => 'Data cover tidak valid']);
+        exit;
         break;
 
     case 'delete':
