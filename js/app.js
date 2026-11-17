@@ -1131,6 +1131,25 @@ class EPaperApp {
   // ─────────────────────────────────────────────────────────
   //  Manajemen Edisi Khusus Buletin KAFANA (Dipisahkan Per Edisi)
   // ─────────────────────────────────────────────────────────
+  extractKafanaMeta(filename) {
+    const name = String(filename || '');
+    // Ekstrak tahun 4-digit (2024, 2025, 2026, dst.)
+    const yearMatch = name.match(/\b(19\d\d|20\d\d)\b/);
+    const year = yearMatch ? parseInt(yearMatch[1], 10) : 0;
+
+    // Ekstrak nomor volume atau edisi (Vol 1, Vol1, Vol 8, Vol 9)
+    const volMatch = name.match(/vol(?:ume)?\s*(\d+)/i);
+    const vol = volMatch ? parseInt(volMatch[1], 10) : 0;
+
+    return { year, vol };
+  }
+
+  setKafanaSortOrder(order = 'asc') {
+    this.kafanaSortOrder = order;
+    try { localStorage.setItem('kafana_sort_order', order); } catch (_) {}
+    this.renderKafanaCatalog();
+  }
+
   async loadKafanaEdition(preferredEdition = null) {
     try {
       const pubInfo = PUBLICATIONS.kafana;
@@ -1146,13 +1165,19 @@ class EPaperApp {
         return;
       }
 
-      // Urutkan file secara natural (Vol 1, Vol 2, Vol 3...)
-      const files = data.files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      // Urutkan file berdasarkan tahun terbit: 2024 (Vol 1) -> 2025 (Vol 8) -> 2026 (Vol 9)
+      const files = [...data.files].sort((a, b) => {
+        const metaA = this.extractKafanaMeta(a.name);
+        const metaB = this.extractKafanaMeta(b.name);
+        if (metaA.year !== metaB.year) return metaA.year - metaB.year;
+        if (metaA.vol !== metaB.vol) return metaA.vol - metaB.vol;
+        return a.name.localeCompare(b.name, undefined, { numeric: true });
+      });
 
       // Tentukan edisi yang akan dibuka:
       // 1. Dari parameter preferredEdition (jika dipanggil langsung)
       // 2. Dari parameter URL (?edisi=... atau ?file=...)
-      // 3. Default: Edisi TERBARU (terakhir di list yang diurutkan secara natural)
+      // 3. Default: Edisi TERBARU (tahun tertinggi)
       const urlParams = new URLSearchParams(window.location.search);
       const urlEdition = urlParams.get('edisi') || urlParams.get('file');
 
@@ -1164,8 +1189,13 @@ class EPaperApp {
         targetFile = files.find(f => f.name === urlEdition || f.name.toLowerCase() === urlEdition.toLowerCase());
       }
       if (!targetFile) {
-        // Default ke edisi terbaru (paling baru diunggah / nomor edisi tertinggi)
-        targetFile = files[files.length - 1];
+        // Default ke edisi TERBARU (tahun tertinggi)
+        const sortedDesc = [...files].sort((a, b) => {
+          const mA = this.extractKafanaMeta(a.name);
+          const mB = this.extractKafanaMeta(b.name);
+          return (mB.year - mA.year) || (mB.vol - mA.vol);
+        });
+        targetFile = sortedDesc[0] || files[files.length - 1];
       }
 
       // Render Dropdown Pemilih Edisi KAFANA di Top Bar
@@ -1196,12 +1226,24 @@ class EPaperApp {
     if (!this.kafanaEditionContainer || !this.selectKafanaEdition) return;
 
     this.selectKafanaEdition.innerHTML = '';
-    files.forEach(f => {
+    // Di dropdown top bar, urutkan dari tahun terbaru di paling atas
+    const sortedForSelect = [...files].sort((a, b) => {
+      const mA = this.extractKafanaMeta(a.name);
+      const mB = this.extractKafanaMeta(b.name);
+      return (mB.year - mA.year) || (mB.vol - mA.vol);
+    });
+
+    const maxYear = Math.max(0, ...sortedForSelect.map(f => this.extractKafanaMeta(f.name).year).filter(y => y > 0));
+
+    sortedForSelect.forEach(f => {
       const opt = document.createElement('option');
       opt.value = f.name;
-      const cleanName = f.name.replace(/\.pdf$/i, '').trim();
+      const cleanName = f.name.replace(/\.pdf$/i, '').replace(/_compressed$/i, '').replace(/_/g, ' ').trim();
+      const meta = this.extractKafanaMeta(f.name);
+      const isLatest = meta.year > 0 && meta.year === maxYear;
+      const tagLatest = isLatest ? ' [TERBARU]' : '';
       const pageInfo = f.pages ? ` (${f.pages} Hal)` : '';
-      opt.innerText = `📖 ${cleanName}${pageInfo}`;
+      opt.innerText = `📖 ${cleanName}${tagLatest}${pageInfo}`;
       if (f.name === activeFilename) {
         opt.selected = true;
       }
@@ -1245,8 +1287,40 @@ class EPaperApp {
         return;
       }
 
-      // Urutkan secara natural: Vol 1, Vol 2, Vol 3...
-      const files = [...data.files].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      // Ambil preferensi urutan tahun (default: asc = 2024 -> 2025 -> 2026)
+      const sortOrder = this.kafanaSortOrder || localStorage.getItem('kafana_sort_order') || 'asc';
+      this.kafanaSortOrder = sortOrder;
+
+      // Update highlight tombol sort
+      const btnAsc = document.getElementById('btn-sort-kafana-asc');
+      const btnDesc = document.getElementById('btn-sort-kafana-desc');
+      if (btnAsc && btnDesc) {
+        if (sortOrder === 'asc') {
+          btnAsc.className = 'px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 bg-amber-600 text-white shadow-xs text-xs';
+          btnDesc.className = 'px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 text-slate-400 hover:text-white hover:bg-slate-800 text-xs';
+        } else {
+          btnDesc.className = 'px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 bg-amber-600 text-white shadow-xs text-xs';
+          btnAsc.className = 'px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 text-slate-400 hover:text-white hover:bg-slate-800 text-xs';
+        }
+      }
+
+      // Urutkan buletin KAFANA sesuai tahun dan volume
+      const files = [...data.files].sort((a, b) => {
+        const metaA = this.extractKafanaMeta(a.name);
+        const metaB = this.extractKafanaMeta(b.name);
+        if (metaA.year !== metaB.year) {
+          return sortOrder === 'desc' ? (metaB.year - metaA.year) : (metaA.year - metaB.year);
+        }
+        if (metaA.vol !== metaB.vol) {
+          return sortOrder === 'desc' ? (metaB.vol - metaA.vol) : (metaA.vol - metaB.vol);
+        }
+        return sortOrder === 'desc'
+          ? b.name.localeCompare(a.name, undefined, { numeric: true })
+          : a.name.localeCompare(b.name, undefined, { numeric: true });
+      });
+
+      // Cari tahun tertinggi untuk memberi label TERBARU
+      const maxYear = Math.max(0, ...files.map(f => this.extractKafanaMeta(f.name).year).filter(y => y > 0));
 
       if (this.kafanaTotalBadge) {
         const totalPages = files.reduce((acc, f) => acc + (f.pages || 0), 0);
@@ -1255,7 +1329,15 @@ class EPaperApp {
 
       this.kafanaEditionsGrid.innerHTML = '';
       files.forEach((file, idx) => {
-        const cleanTitle = file.name.replace(/\.pdf$/i, '').trim();
+        const meta = this.extractKafanaMeta(file.name);
+        const isLatest = meta.year > 0 && meta.year === maxYear;
+        const yearBadge = meta.year ? `Tahun ${meta.year}` : `Edisi #${idx + 1}`;
+        const cleanTitle = file.name
+          .replace(/\.pdf$/i, '')
+          .replace(/_compressed$/i, '')
+          .replace(/_/g, ' ')
+          .trim();
+
         const card = document.createElement('div');
         card.className = 'book-card group cursor-pointer bg-slate-900/80 border border-slate-800 hover:border-amber-500/60 rounded-2xl p-4 sm:p-5 flex flex-col justify-between shadow-xl transition-all duration-300 backdrop-blur-sm hover:-translate-y-1.5';
         card.setAttribute('title', `Buka ${cleanTitle}`);
@@ -1266,10 +1348,13 @@ class EPaperApp {
           <div>
             <!-- Badge Header -->
             <div class="flex items-center justify-between mb-3">
-              <span class="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
-                <i data-lucide="book-open" class="w-3 h-3"></i>
-                <span>Edisi #${idx + 1}</span>
-              </span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5">
+                  <i data-lucide="calendar" class="w-3 h-3 text-amber-400"></i>
+                  <span>${yearBadge}</span>
+                </span>
+                ${isLatest ? '<span class="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-sm">Terbaru</span>' : ''}
+              </div>
               <span class="text-[11px] text-slate-300 bg-slate-800/90 border border-slate-700/70 px-2.5 py-0.5 rounded-md font-medium font-mono">
                 ${file.pages || 1} Hal
               </span>

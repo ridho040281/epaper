@@ -307,9 +307,23 @@
       <h2 class="text-2xl sm:text-3xl md:text-4xl font-bold font-title tracking-wide text-white mb-2">
         Pilih Edisi Buletin KAFANA
       </h2>
-      <p class="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
+      <p class="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto mb-4">
         Setiap edisi buletin tersimpan secara terpisah. Sentuh atau klik sampul edisi yang ingin Anda baca untuk membuka lembaran 3D Flipbook interaktif.
       </p>
+
+      <!-- Sort Controls Bar -->
+      <div class="inline-flex items-center gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-xs shadow-md">
+        <span class="text-slate-400 font-semibold px-2 flex items-center gap-1 text-[11px]">
+          <i data-lucide="arrow-up-down" class="w-3 h-3 text-amber-400"></i>
+          <span>Urutkan Tahun:</span>
+        </span>
+        <button type="button" id="btn-sort-kafana-asc" onclick="window.app?.setKafanaSortOrder('asc')" class="px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 bg-amber-600 text-white shadow-xs text-xs">
+          <span>2024 &rarr; 2026 (Kronologis)</span>
+        </button>
+        <button type="button" id="btn-sort-kafana-desc" onclick="window.app?.setKafanaSortOrder('desc')" class="px-3 py-1 rounded-lg font-semibold transition flex items-center gap-1 text-slate-400 hover:text-white hover:bg-slate-800 text-xs">
+          <span>2026 &rarr; 2024 (Terbaru)</span>
+        </button>
+      </div>
     </section>
 
     <!-- Editions Grid Container -->
@@ -920,6 +934,6 @@
   </div>
 
   <!-- Application Script -->
-  <script src="js/app.js?v=20261117_fix_kafana_shelf"></script>
+  <script src="js/app.js?v=20261117_sort_year"></script>
 </body>
 </html>

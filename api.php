@@ -143,8 +143,31 @@ switch ($action) {
 
     case 'list':
         $files = glob($pdfDir . DIRECTORY_SEPARATOR . '*.pdf');
-        // Sort naturally (0001, 0002, 0003...)
-        natsort($files);
+        if ($pub === 'kafana') {
+            // Urutkan buletin KAFANA sesuai tahun dan volume terbit: 2024 (Vol 1) -> 2025 (Vol 8) -> 2026 (Vol 9)
+            usort($files, function($a, $b) {
+                $nameA = basename($a);
+                $nameB = basename($b);
+                preg_match('/\b(19\d\d|20\d\d)\b/', $nameA, $yA);
+                preg_match('/\b(19\d\d|20\d\d)\b/', $nameB, $yB);
+                $yearA = isset($yA[1]) ? (int)$yA[1] : 0;
+                $yearB = isset($yB[1]) ? (int)$yB[1] : 0;
+                if ($yearA !== $yearB) {
+                    return $yearA - $yearB;
+                }
+                preg_match('/vol(?:ume)?\s*(\d+)/i', $nameA, $vA);
+                preg_match('/vol(?:ume)?\s*(\d+)/i', $nameB, $vB);
+                $volA = isset($vA[1]) ? (int)$vA[1] : 0;
+                $volB = isset($vB[1]) ? (int)$vB[1] : 0;
+                if ($volA !== $volB) {
+                    return $volA - $volB;
+                }
+                return strnatcasecmp($nameA, $nameB);
+            });
+        } else {
+            // Sort naturally (0001, 0002, 0003...)
+            natsort($files);
+        }
         $result = [];
         $coversDir = __DIR__ . DIRECTORY_SEPARATOR . 'covers';
         foreach ($files as $file) {
